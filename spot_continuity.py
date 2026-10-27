@@ -106,7 +106,9 @@ def cvd_15m(market, now_ms, candle_turnover_krw, api, max_pages=MAX_CVD_PAGES):
             if stamp is None or price is None or qty is None or price <= 0 or qty <= 0 or side not in ('BID', 'ASK') or ident is None:
                 return {'verified': False, 'reason': 'INVALID_TRADE_FIELDS'}
             minimum = int(stamp) if minimum is None else min(minimum, int(stamp))
-            ident = str(ident)
+            # Real Bithumb data can reuse sequential_id for fills within one ms.
+            # A different timestamp/side/price/quantity is still a distinct fill.
+            ident = (str(ident), int(stamp), side, price, qty)
             if ident in seen:
                 continue  # Normal overlapping cursor boundaries, never count twice.
             seen.add(ident)
