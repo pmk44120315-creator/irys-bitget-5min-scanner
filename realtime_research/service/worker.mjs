@@ -29,7 +29,7 @@ export default {
 export class RealtimeEvidenceDO {
   constructor(ctx,env,deps={}){
     this.ctx=ctx;this.env=env;this.net=deps.fetch??((...args)=>globalThis.fetch(...args));this.now=deps.now??Date.now;
-    this.generation=0;this.commandId=0;this.socket=null;this.opening=null;this.lastMessage=0;this.lastReconcile=0;this.lastChain=0;this.frameReceived=0;this.frameIngested=0;this.frameErrors=0;this.lastFrameError=null;
+    this.generation=0;this.commandId=0;this.socket=null;this.opening=null;this.lastMessage=0;this.lastReconcile=0;this.lastChain=0;this.frameReceived=0;this.frameIngested=0;this.frameErrors=0;this.lastFrameError=null;this.lastPing=0;this.pingCount=0;this.pongCount=0;this.closeEvents=0;this.lastClose=null;
     this.ready=ctx.blockConcurrencyWhile(async()=>{this.db=new EvidenceStore(ctx.storage.sql);this.config=await ctx.storage.get('rt:config')??{enabled:false,markets:[]};this.risk=await ctx.storage.get('rt:risk')??{status:'UNVERIFIED'};});
   }
   async requestJson(url){const r=await this.net(url,{signal:AbortSignal.timeout(20000)});if(!r.ok)throw Error('PUBLIC_API_HTTP');return r.json();}
@@ -43,7 +43,7 @@ export class RealtimeEvidenceDO {
         const ws=r.webSocket;if(!ws)throw Error('WS_UPGRADE_FAILED');
         ws.accept();
         if(generation!==this.generation||!this.config.enabled){ws.close(1000,'STALE_CONNECTION');return;}
-        this.socket=ws;this.lastMessage=this.now();
+        this.socket=ws;this.lastMessage=this.now();this.lastPing=this.now();
         for(const market of markets)this.db.start(market,this.lastMessage);
         // Cloudflare's outbound WebSocket may deliver Blob, ArrayBuffer or string.
         // Serialize asynchronous Blob decoding so order-book/trade causality is preserved.
@@ -62,6 +62,7 @@ export class RealtimeEvidenceDO {
               else if(payload&&typeof payload.arrayBuffer==='function')raw=new TextDecoder().decode(await payload.arrayBuffer());
               else throw new TypeError('UNSUPPORTED_WEBSOCKET_FRAME_TYPE');
               if(this.socket!==ws)return;
+              if(raw==='PING'||raw==='PONG'||/^\s*\{\s*"status"\s*:\s*"UP"\s*\}\s*$/.test(raw)){this.pongCount++;return;}
               const parsed=parseFrame(raw,at);
               if(parsed&&this.config.markets.includes(parsed.market)){
                 if(this.db.ingest(raw,at))this.frameIngested++;
@@ -76,7 +77,13 @@ export class RealtimeEvidenceDO {
           }).catch(e=>{this.frameErrors++;this.lastFrameError={type:'UNHANDLED_FRAME_QUEUE_ERROR',detail:String(e?.message||'').slice(0,180),at_ms:at};});
           this.ctx.waitUntil(inboundQueue);
         });
-        const close=()=>{if(this.socket!==ws)return;this.socket=null;for(const market of this.config.markets)this.db.stop(market,this.now());if(this.config.enabled)this.ctx.waitUntil(this.ctx.storage.setAlarm(this.now()+5000));};
+        const close=(event)=>{if(this.socket!==ws)return;const at=this.now();this.socket=null;this.closeEvents++;
+          const code=Number.isInteger(event?.code)?event.code:null;
+          const detail=event?.type==='error'?'WS_ERROR':('WS_CLOSE_'+(code??'UNKNOWN'));
+          this.lastClose={at_ms:at,type:event?.type??'UNKNOWN',code,was_clean:event?.wasClean??null};
+          for(const market of this.config.markets)this.db.stop(market,at,detail);
+          if(this.config.enabled)this.ctx.waitUntil(this.ctx.storage.setAlarm(at+5000));
+        };
         ws.addEventListener('close',close);ws.addEventListener('error',close);
         ws.send(JSON.stringify([{ticket:'irys-rt-'+crypto.randomUUID()},{type:'trade',codes:this.config.markets,isOnlyRealtime:true},{type:'orderbook',codes:this.config.markets,isOnlyRealtime:true},{format:'DEFAULT'}]));
         await this.ctx.storage.put('rt:connection',{status:'CONNECTED',at_ms:this.now()});
@@ -126,7 +133,11 @@ export class RealtimeEvidenceDO {
   async alarm(){
     await this.ready;await this.expireIfNeeded();if(!this.config.enabled)return;
     try{
-      if(this.socket&&this.now()-this.lastMessage>10000)this.disconnect('NO_FRESH_FEED');
+      if(this.socket&&this.now()-this.lastPing>=10000){
+        try{this.socket.send('PING');this.lastPing=this.now();this.pingCount++; }
+        catch{this.disconnect('PING_SEND_FAILED');}
+      }
+      if(this.socket&&this.now()-this.lastMessage>25000)this.disconnect('NO_FRESH_FEED');
       await this.connect();
       if(this.now()-this.lastReconcile>=60000)await this.refreshEvidence();
       if(this.env.ENABLE_ONCHAIN==='true'&&this.now()-this.lastChain>=300000)await this.refreshChain();
@@ -135,7 +146,7 @@ export class RealtimeEvidenceDO {
   async fetch(request){
     await this.ready;await this.expireIfNeeded();const u=new URL(request.url),path=u.pathname;
     if(path==='/wake'&&request.method==='POST'){if(this.config.enabled)await this.ctx.storage.setAlarm(this.now()+100);return json({enabled:this.config.enabled});}
-    if(path==='/status'&&request.method==='GET')return json({version:VERSION,enabled:this.config.enabled,markets:this.config.markets,proof_expires_ms:this.config.proof_expires_ms??null,live_trade_alerts_enabled:false,connection:await this.ctx.storage.get('rt:connection')??{status:'NOT_STARTED'},risk:this.risk,read_only_market_data:true,frame_stats:{received:this.frameReceived,ingested:this.frameIngested,errors:this.frameErrors,last_error:this.lastFrameError}});
+    if(path==='/status'&&request.method==='GET')return json({version:VERSION,enabled:this.config.enabled,markets:this.config.markets,proof_expires_ms:this.config.proof_expires_ms??null,live_trade_alerts_enabled:false,connection:await this.ctx.storage.get('rt:connection')??{status:'NOT_STARTED'},risk:this.risk,read_only_market_data:true,frame_stats:{received:this.frameReceived,ingested:this.frameIngested,errors:this.frameErrors,last_error:this.lastFrameError,pings:this.pingCount,pongs:this.pongCount,close_events:this.closeEvents,last_close:this.lastClose}});
     if(path==='/diagnostics/feeds'&&request.method==='GET'){
       const checks=[];
       const sources=[
