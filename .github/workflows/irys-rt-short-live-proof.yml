@@ -33,7 +33,7 @@ jobs:
           ready=0
           for i in 1 2 3 4 5 6 7 8 9 10; do
             curl --silent --show-error --fail --max-time 20 https://irys-realtime-evidence.vhehwpfl.workers.dev/health -o /tmp/rt_prehealth
-            if node -e 'const d=JSON.parse(require("fs").readFileSync("/tmp/rt_prehealth","utf8")); if(d.version!=="IRYS_REALTIME_SHADOW_V1"||d.trade_alerts_enabled!==false||d.transport_codec!=="BLOB_SERIAL_QUEUE_V2"||d.proof_lease!=="SHORT_AUTO_EXPIRE_V1")process.exit(2);'; then ready=1; break; fi
+            if node -e 'const d=JSON.parse(require("fs").readFileSync("/tmp/rt_prehealth","utf8")); if(d.version!=="IRYS_REALTIME_SHADOW_V1"||d.trade_alerts_enabled!==false||d.transport_codec!=="BLOB_SERIAL_QUEUE_V2"||d.proof_lease!=="SHORT_AUTO_EXPIRE_V1"||d.upgrade_timeout_scope!=="HANDSHAKE_ONLY_V3")process.exit(2);'; then ready=1; break; fi
             sleep 5
           done
           [[ "$ready" == "1" ]] || { echo "::error::Audited Blob decoder revision is not serving; no start"; exit 1; }
@@ -101,6 +101,6 @@ jobs:
           const ev=JSON.parse(fs.readFileSync("/tmp/rt-evidence","utf8"));
           if(!st.enabled||st.live_trade_alerts_enabled!==false||!Array.isArray(ev.windows))process.exit(3);
           console.log("SHADOW_REAL_STATUS",JSON.stringify({enabled:st.enabled,connection:st.connection,markets:st.markets,frame_stats:st.frame_stats}));
-          console.log("SHADOW_REAL_EVIDENCE",JSON.stringify(ev.windows.map(x=>({market:x.market,minutes:x.minutes,verified:x.verified,reasons:x.reasons,trade_count:x.trade_count,book_seconds:x.book_seconds,matched_minutes:x.matched_minutes,net_buy_krw:x.net_buy_krw,send_allowed:x.send_allowed})))); if(!st.frame_stats?.received||!st.frame_stats?.ingested||st.frame_stats.errors>0)process.exit(4); const btc=ev.windows.find(x=>x.market==="KRW-BTC"&&x.minutes===1);if(!btc)process.exit(5); console.log("COMPLETE_CANDLE_PROOF",JSON.stringify({verified:btc.verified,trade_count:btc.trade_count,book_seconds:btc.book_seconds,matched_minutes:btc.matched_minutes,reasons:btc.reasons}));if(!btc.verified)process.exit(6);
+          console.log("SHADOW_REAL_EVIDENCE",JSON.stringify(ev.windows.map(x=>({market:x.market,minutes:x.minutes,verified:x.verified,reasons:x.reasons,trade_count:x.trade_count,book_seconds:x.book_seconds,matched_minutes:x.matched_minutes,net_buy_krw:x.net_buy_krw,send_allowed:x.send_allowed})))); if(!st.frame_stats?.received||!st.frame_stats?.ingested||st.frame_stats.errors>0||st.frame_stats.close_events>0||st.frame_stats.pings<3)process.exit(4); const btc=ev.windows.find(x=>x.market==="KRW-BTC"&&x.minutes===1);if(!btc)process.exit(5); console.log("COMPLETE_CANDLE_PROOF",JSON.stringify({verified:btc.verified,trade_count:btc.trade_count,book_seconds:btc.book_seconds,matched_minutes:btc.matched_minutes,reasons:btc.reasons}));if(!btc.verified)process.exit(6);
           JS
           # Trap sends STOP and checks receipt even if any assertion failed.
