@@ -1,0 +1,40 @@
+name: Bitget five-minute read-only snapshot
+on:
+  schedule:
+    - cron: '2-59/5 * * * *'
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'collector.py'
+      - 'tests/**'
+      - '.github/workflows/scan.yml'
+permissions:
+  contents: write
+concurrency:
+  group: bitget-five-minute-scanner
+  cancel-in-progress: false
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Check data integrity offline
+        run: python -m unittest discover -s tests -v
+      - name: Collect public Bitget market data
+        id: scan
+        continue-on-error: true
+        run: python collector.py
+      - name: Commit snapshot even when scan reports a failure
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add data/latest.json data/state.json
+          git diff --staged --quiet || (git commit -m 'data: read-only 5m market snapshot' && git push)
+      - name: Do not mark failed scans as success
+        if: steps.scan.outcome == 'failure'
+        run: exit 1
