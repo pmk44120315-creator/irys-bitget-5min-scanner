@@ -63,6 +63,27 @@ test('Cloudflare Blob message is decoded and ingested without a spurious frame e
 });
 test('standalone DO initializes stopped; status read does not connect',async()=>{const d=deps(),o=new RealtimeEvidenceDO(state(),{},d);const r=await o.fetch(req('/status'));assert.equal(r.status,200);assert.equal((await r.json()).enabled,false);assert.equal(d.sends,0);});
 test('start validates listed KRW markets then subscribes both channels',async()=>{const d=deps(),o=new RealtimeEvidenceDO(state(),{},d);const r=await o.fetch(req('/control/start','POST',{markets:['KRW-WLD']}));assert.equal(r.status,200);assert.equal(d.sends,1);const b=await (await o.fetch(req('/status'))).json();assert.equal(b.enabled,true);assert.equal(b.live_trade_alerts_enabled,false);});
+test('temporary live SHADOW session expires and persists auto-stop after CI runner disappears',async()=>{
+  const st=state(),d=deps();let ms=1793121000000;
+  const o=new RealtimeEvidenceDO(st,{}, {...d,now:()=>ms});
+  const started=await o.fetch(req('/control/start','POST',{markets:['KRW-WLD'],proof_seconds:60}));
+  assert.equal(started.status,200);
+  assert.equal((await started.json()).proof_expires_ms,ms+60000);
+  assert.equal((await (await o.fetch(req('/status'))).json()).enabled,true);
+  ms+=61000;
+  const after=await (await o.fetch(req('/status'))).json();
+  assert.equal(after.enabled,false);
+  assert.equal(after.connection.status,'PROOF_LEASE_EXPIRED');
+  const reloaded=new RealtimeEvidenceDO(st,{}, {...d,now:()=>ms});
+  assert.equal((await (await reloaded.fetch(req('/status'))).json()).enabled,false);
+});
+test('invalid proof lease blocks starting WebSocket and protects persisted state',async()=>{
+  const d=deps(),o=new RealtimeEvidenceDO(state(),{},d);
+  const bad=await o.fetch(req('/control/start','POST',{markets:['KRW-WLD'],proof_seconds:10000}));
+  assert.equal(bad.status,400);
+  assert.equal(d.sends,0);
+  assert.equal((await (await o.fetch(req('/status'))).json()).enabled,false);
+});
 test('unlisted market cannot start; existing V7 binding never used',async()=>{const d=deps(),o=new RealtimeEvidenceDO(state(),{IRYS_KV:{get(){throw Error('old worker storage used');}}},d);const r=await o.fetch(req('/control/start','POST',{markets:['KRW-FAKE']}));assert.equal(r.status,400);assert.equal(d.sends,0);});
 test('stop persists disabled state and prevents restart on status request',async()=>{const s=state(),d=deps(),o=new RealtimeEvidenceDO(s,{},d);await o.fetch(req('/control/start','POST',{markets:['KRW-WLD']}));await o.fetch(req('/control/stop','POST',{}));const again=new RealtimeEvidenceDO(s,{},d);assert.equal((await (await again.fetch(req('/status'))).json()).enabled,false);assert.equal(d.sends,1);});
 test('stop cancels an in-flight upgrade without re-enabling the socket',async()=>{
