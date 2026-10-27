@@ -21,8 +21,21 @@ def public_api(venue, path, params):
 
 def main():
     market = 'KRW-BTC'
-    book = book_snapshot(market, int(time.time() * 1000), public_api)
+    book_now = int(time.time() * 1000)
+    raw_book = public_api('bithumb', '/v1/orderbook', {'markets': market})
+    book = book_snapshot(market, book_now, lambda *args: raw_book)
     if book is None:
+        row = raw_book[0] if isinstance(raw_book, list) and raw_book else {}
+        units = row.get('orderbook_units') or []
+        print(json.dumps({
+            'book_debug':'BOOK_UNUSABLE',
+            'market':row.get('market'),
+            'age_ms': book_now - int(row.get('timestamp') or 0),
+            'levels':len(units),
+            'top5':[{'bid_size':x.get('bid_size'),'ask_size':x.get('ask_size'),
+                     'bid_price':x.get('bid_price'),'ask_price':x.get('ask_price')}
+                    for x in units[:5]],
+        }))
         raise RuntimeError('Public orderbook structure/time not usable')
     ticks = public_api('bithumb', '/v1/trades/ticks',
                        {'market': market, 'count': 10})
