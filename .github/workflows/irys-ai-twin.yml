@@ -12,8 +12,11 @@ on:
 permissions:
   contents: write
 concurrency:
-  group: irys-independent-ai-twin
+  # Scanner and AI twin write separate files to the same main branch.
+  # Use one cross-workflow lock so their commits cannot race.
+  group: irys-bitget-main-writers
   cancel-in-progress: false
+  queue: max
 jobs:
   compare:
     if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
