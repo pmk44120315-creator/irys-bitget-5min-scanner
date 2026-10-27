@@ -119,7 +119,7 @@ export class RealtimeEvidenceDO {
           let array_ok=false,count=null;
           if(response.ok){const data=await response.json();array_ok=Array.isArray(data);count=array_ok?data.length:null;}
           checks.push({source,http_status:response.status,array_ok,count,elapsed_ms:Math.max(0,this.now()-started)});
-        }catch(e){checks.push({source,error_type:e?.name??'UNKNOWN',http_status:null,array_ok:false,count:null});}
+        }catch(e){checks.push({source,error_type:e?.name??'UNKNOWN',error_detail:String(e?.message??'').slice(0,180),http_status:null,array_ok:false,count:null});}
       }
       return json({version:VERSION,read_only:true,secret_values_included:false,checks});
     }
