@@ -1,5 +1,5 @@
 name: Deploy isolated IRYS realtime SHADOW Worker (no start, no Telegram)
-# Targeted WebSocket Blob decoding regression deploy: ordered frame ingestion, no alerts, V7 untouched.
+# Version-anchored Blob decoding SHADOW deploy: health publishes non-secret BLOB_SERIAL_QUEUE_V2 marker, V7 untouched.
 on:
   push:
     branches: [research/realtime-orderbook-ws-20261028]
