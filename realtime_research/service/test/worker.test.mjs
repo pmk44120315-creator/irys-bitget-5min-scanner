@@ -77,6 +77,20 @@ test('temporary live SHADOW session expires and persists auto-stop after CI runn
   const reloaded=new RealtimeEvidenceDO(st,{}, {...d,now:()=>ms});
   assert.equal((await (await reloaded.fetch(req('/status'))).json()).enabled,false);
 });
+test('authenticated completed-candle reconciliation is unavailable while stopped and never sends alerts',async()=>{
+  const d=deps(),o=new RealtimeEvidenceDO(state(),{},d);
+  assert.equal((await o.fetch(req('/control/reconcile','POST'))).status,409);
+  const started=await o.fetch(req('/control/start','POST',{markets:['KRW-WLD'],proof_seconds:80}));
+  assert.equal(started.status,200);
+  const refreshed=await o.fetch(req('/control/reconcile','POST'));
+  assert.equal(refreshed.status,200);
+  const j=await refreshed.json();
+  assert.equal(j.send_allowed,false);
+  assert.equal(j.mode,'SHADOW_ONLY');
+  assert.equal(j.markets[0],'KRW-WLD');
+  assert.equal(d.sends,1);
+  await o.fetch(req('/control/stop','POST'));
+});
 test('invalid proof lease blocks starting WebSocket and protects persisted state',async()=>{
   const d=deps(),o=new RealtimeEvidenceDO(state(),{},d);
   const bad=await o.fetch(req('/control/start','POST',{markets:['KRW-WLD'],proof_seconds:10000}));
