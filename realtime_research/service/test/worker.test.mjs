@@ -37,11 +37,28 @@ test('runtime frame ingestion failure is disclosed rather than incorrectly marke
   assert.equal(started.status,200);
   o.db.ingest=()=>{throw Error('FORCED_TEST_DB_WRITE_FAILURE');};
   handlers.message({data:JSON.stringify({type:'trade',code:'KRW-WLD',timestamp:1793121000000,trade_price:100,trade_volume:1,ask_bid:'BID',sequential_id:'17931210000000000'})});
+  await new Promise(resolve=>setTimeout(resolve,0));
   const status=await (await o.fetch(req('/status'))).json();
   assert.equal(status.frame_stats.received,1);
   assert.equal(status.frame_stats.ingested,0);
   assert.equal(status.frame_stats.errors,1);
   assert.ok(status.frame_stats.last_error.detail.includes('FORCED_TEST_DB_WRITE_FAILURE'));
+  await o.fetch(req('/control/stop','POST'));
+});
+test('Cloudflare Blob message is decoded and ingested without a spurious frame error',async()=>{
+  const d=deps(),handlers={};
+  const ws={readyState:1,accept(){},send(){},addEventListener(n,fn){handlers[n]=fn;},close(){this.readyState=3;}};
+  const o=new RealtimeEvidenceDO(state(),{}, {...d,fetch:async url=>String(url).includes('websocket')?{webSocket:ws}:new Response(JSON.stringify([{market:'KRW-WLD'}]))});
+  const start=await o.fetch(req('/control/start','POST',{markets:['KRW-WLD']}));
+  assert.equal(start.status,200);
+  const msg=JSON.stringify({type:'orderbook',code:'KRW-WLD',timestamp:1793121000000,
+    orderbook_units:[{bid_price:100,bid_size:5,ask_price:101,ask_size:5}]});
+  handlers.message({data:new Blob([msg],{type:'application/json'})});
+  await new Promise(resolve=>setTimeout(resolve,10));
+  const st=await (await o.fetch(req('/status'))).json();
+  assert.equal(st.frame_stats.received,1);
+  assert.equal(st.frame_stats.ingested,1);
+  assert.equal(st.frame_stats.errors,0);
   await o.fetch(req('/control/stop','POST'));
 });
 test('standalone DO initializes stopped; status read does not connect',async()=>{const d=deps(),o=new RealtimeEvidenceDO(state(),{},d);const r=await o.fetch(req('/status'));assert.equal(r.status,200);assert.equal((await r.json()).enabled,false);assert.equal(d.sends,0);});
