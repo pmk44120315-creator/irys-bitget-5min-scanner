@@ -41,7 +41,10 @@ def main():
     if len(ids) != len(set(ids)):
         print(json.dumps({'schema_debug':'NONUNIQUE_TRADE_IDS',
                           'ids':ids[:10], 'keys':sorted(ticks[0].keys()),
-                          'id_types':[type(r['sequential_id']).__name__ for r in ticks[:10]]}))
+                          'id_types':[type(r['sequential_id']).__name__ for r in ticks[:10]],
+                          'colliding_rows':[{'id':str(t['sequential_id']), 'timestamp':t['timestamp'],
+                                             'price':t['trade_price'],'quantity':t['trade_volume'],
+                                             'side':t['ask_bid']} for t in ticks if ids.count(str(t['sequential_id']))>1]}))
         raise RuntimeError('Duplicate IDs in one tick response')
     print(json.dumps({'result': 'PUBLIC_READONLY_SCHEMA_OK',
                       'market': market, 'book_top5_ratio': book['bid_ask_top5_ratio'],
