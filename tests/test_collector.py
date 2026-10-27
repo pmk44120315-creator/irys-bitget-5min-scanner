@@ -83,5 +83,45 @@ class ReadOnlyMarketTests(unittest.TestCase):
         finally:
             c.http_json=old
 
+    def test_crypto_identity_keeps_stocks_out_of_watchlist(self):
+        now=dt.datetime.fromtimestamp(self.end/1000,dt.timezone.utc)
+        markets=[{'venue':'bitget','symbol':'BTCUSDT','asset_identity':'VERIFIED_CRYPTO'},
+                 {'venue':'bitget','symbol':'USDBRLUSDT','asset_identity':'NON_CRYPTO'},
+                 {'venue':'bitget','symbol':'UNKNOWNUSDT','asset_identity':'UNVERIFIED'}]
+        report,_=c.gather(
+            now_utc=now,old_state={},
+            fetch_markets=lambda:([],markets),
+            fetch_warnings=lambda:{},
+            fetch_funding=lambda:{m['symbol']:0 for m in markets},
+            fetch_candles=lambda m,ts:c.closed_windows(
+                [{'ts':self.end-(i+1)*60000,'open':1.,'high':1.02,'low':0.99,
+                  'close':1.01,'quote':1000 if i<15 else 10} for i in range(180)],self.ms),
+            fetch_oi=lambda symbol:{'size_raw':10,'timestamp_ms':self.ms},
+            fetch_trades=lambda m,ts:None
+        )
+        names=[x['symbol'] for x in report['watchlist']]
+        self.assertIn('BTCUSDT',names)
+        self.assertNotIn('USDBRLUSDT',names)
+        self.assertNotIn('UNKNOWNUSDT',names)
+        self.assertEqual(report['stats']['instrument_noncrypto'],1)
+
+    def test_v3_official_instrument_classification(self):
+        old=c.http_json
+        def mock(venue,path,params):
+            if path.endswith('/contracts'):
+                return [{'symbol':x,'symbolStatus':'normal','symbolType':'perpetual','quoteCoin':'USDT'}
+                        for x in ['BTCUSDT','STXSTOCKUSDT','UNVERIFIEDUSDT']]
+            return [{'symbol':'BTCUSDT','symbolType':'crypto','instrumentType':'crypto'},
+                    {'symbol':'STXSTOCKUSDT','symbolType':'stock','instrumentType':'stock'}]
+        try:
+            c.http_json=mock
+            _,markets=c.get_markets()
+            by={m['symbol']:m['asset_identity'] for m in markets}
+            self.assertEqual(by['BTCUSDT'],'VERIFIED_CRYPTO')
+            self.assertEqual(by['STXSTOCKUSDT'],'NON_CRYPTO')
+            self.assertEqual(by['UNVERIFIEDUSDT'],'UNVERIFIED')
+        finally:
+            c.http_json=old
+
 if __name__=='__main__':
     unittest.main()
