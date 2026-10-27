@@ -378,6 +378,27 @@ def main():
         # of Bitget futures, preserving the original 862-instrument collection.
         try:
             latest['spot_flow']=collect_spot_flow(now,state,http_json)
+            # Futures information is OPTIONAL CONTEXT only: identical ticker is
+            # not reliable proof that the two exchanges list the same token.
+            context={}
+            for contract in list(latest.get('early_pool') or []) + list(latest.get('watchlist') or []):
+                if (contract.get('venue')!='bitget' or
+                    contract.get('asset_identity')!='VERIFIED_CRYPTO'):continue
+                base=contract.get('baseCoin')
+                if not isinstance(base,str) or not base or base in context:continue
+                context[base]=contract
+            for spot_signal in latest['spot_flow'].get('signals',[]):
+                base=spot_signal.get('market','').removeprefix('KRW-')
+                match=context.get(base)
+                if not match:continue
+                oi=match.get('oi') or {}
+                spot_signal['futures_context']={
+                    'venue':'bitget','symbol':match.get('symbol'),
+                    'identity':'SYMBOL_MATCH_ONLY_NOT_VERIFIED',
+                    'oi_pct':oi.get('change_pct_from_previous_run'),
+                    'oi_elapsed_min':oi.get('elapsed_min_since_previous_snapshot'),
+                    'funding_rate':match.get('funding_rate'),
+                    'time_source':'same GitHub Bitget read-only snapshot'}
         except Exception as e:
             latest['spot_flow']={'status':'FAILED','signals':[],
                 'error':type(e).__name__+': '+str(e)[:200],
