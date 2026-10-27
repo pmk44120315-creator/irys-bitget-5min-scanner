@@ -86,7 +86,7 @@ jobs:
           if [[ "$CODE" != "200" ]]; then echo "::error::START_HTTP_${CODE}"; cat /tmp/rt-start; exit 1; fi
           node -e 'const d=JSON.parse(require("fs").readFileSync("/tmp/rt-start","utf8"));console.log("START_RESULT",JSON.stringify(d));if(!d.enabled||!d.connected||d.live_trade_alerts_enabled!==false)process.exit(2);'
           NOW="$(date -u +%s)"
-          WAIT=$(( 60 - NOW % 60 + 68 )) # One full closed BTC minute plus ingestion/settlement margin
+          WAIT=$(( 60 - NOW % 60 + 68 )) # One full closed BTC minute, verify official PING heartbeat and persisted gap-free books
           echo "SHORT_LIVE_SHADOW_WINDOW_SECONDS=${WAIT}; no orders, no Telegram"
           sleep "$WAIT"
           CODE=$(curl --silent --show-error --max-time 30 -o /tmp/rt-reconcile -w "%{http_code}" -X POST -H "Authorization: Bearer ${ADMIN}" "${URL}/control/reconcile")
