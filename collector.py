@@ -8,6 +8,7 @@ import concurrent.futures
 import datetime as dt
 import json
 import math
+from early_candidates import build_early_pool
 import os
 import pathlib
 import statistics
@@ -361,6 +362,7 @@ def gather(now_utc=None,old_state=None,fetch_markets=get_markets,fetch_warnings=
                            'OI_unit':'raw exchange OI size, not USD or KRW'},
             'errors':errors[:70],
             'watchlist':[x for x in result if x['rank_score']>=1][:30],
+            'early_pool':build_early_pool(result,limit=80),
             'comparison_symbols':[x for x in result if x['symbol'].split('-')[-1].removesuffix('USDT') in
                                   {'BORA','XEC','POLYX','BOUNTY','GAME2','MED','IRYS','IRIS'}][:40],
             'covered_symbols':[x['symbol'] for x in result]}
