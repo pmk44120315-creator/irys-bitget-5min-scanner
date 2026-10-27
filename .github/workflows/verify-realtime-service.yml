@@ -1,0 +1,41 @@
+name: Isolated realtime evidence service verification
+on:
+  pull_request:
+    paths:
+      - 'realtime_research/service/**'
+      - '.github/workflows/verify-realtime-service.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Existing scanner regression
+        run: python -m unittest discover -s tests -v
+      - name: Existing independent AI comparison regression
+        run: python -m unittest discover -s ai_twin/tests -v
+      - name: New persisted evidence, security and receipt tests
+        run: node --no-warnings --test realtime_research/service/test/*.test.mjs
+      - name: Cloudflare bundle validation only - no deployment
+        run: npx --yes wrangler@4.154.0 deploy --dry-run --config realtime_research/service/wrangler.jsonc --outdir /tmp/irys-rt-bundle
+      - name: Public stream complete-minute verification and read-only existing health
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          AI_TWIN_TELEGRAM_BOT_TOKEN: ${{ secrets.AI_TWIN_TELEGRAM_BOT_TOKEN }}
+          AI_TWIN_TELEGRAM_CHAT_ID: ${{ secrets.AI_TWIN_TELEGRAM_CHAT_ID }}
+          IRYS_REALTIME_CF_API_TOKEN: ${{ secrets.IRYS_REALTIME_CF_API_TOKEN }}
+          IRYS_REALTIME_CF_ACCOUNT_ID: ${{ secrets.IRYS_REALTIME_CF_ACCOUNT_ID }}
+          IRYS_REALTIME_TELEGRAM_BOT_TOKEN: ${{ secrets.IRYS_REALTIME_TELEGRAM_BOT_TOKEN }}
+          IRYS_REALTIME_TELEGRAM_CHAT_ID: ${{ secrets.IRYS_REALTIME_TELEGRAM_CHAT_ID }}
+        run: node --no-warnings realtime_research/service/live_check.mjs

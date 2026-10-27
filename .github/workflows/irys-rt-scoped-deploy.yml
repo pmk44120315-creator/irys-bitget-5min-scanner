@@ -1,0 +1,78 @@
+name: Deploy isolated IRYS realtime SHADOW Worker (no start, no Telegram)
+# Scoped SHADOW redeploy with completed-handshake abort cancellation to prevent 20s 1006; V7 untouched.
+on:
+  push:
+    branches: [research/realtime-orderbook-ws-20261028]
+    paths:
+      - '.github/workflows/irys-rt-scoped-deploy.yml'
+permissions:
+  contents: read
+concurrency:
+  group: isolated-irys-realtime-evidence-deploy
+  cancel-in-progress: false
+jobs:
+  deploy-shadow-only:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.IRYS_REALTIME_CF_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.IRYS_REALTIME_CF_ACCOUNT_ID }}
+      CLOUDFLARE_SEND_METRICS: "false"
+      CI: "true"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Validate hard safety preconditions (scope, name, no trading/alerts)
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ -n "${CLOUDFLARE_API_TOKEN}" && -n "${CLOUDFLARE_ACCOUNT_ID}" ]] || { echo "::error::Credentials missing"; exit 1; }
+          node --input-type=module -e 'import {readFileSync} from "node:fs"; const c=JSON.parse(readFileSync("realtime_research/service/wrangler.jsonc","utf8")); if(Date.parse(c.compatibility_date+"T00:00:00Z")>Date.now())process.exit(3); if(c.name!=="irys-realtime-evidence"||c.vars?.ALLOW_TELEGRAM_TEST!=="false"||c.vars?.ENABLE_ONCHAIN!=="false"||c.vars?.KNOWN_WALLETS_JSON!=="[]"||c.routes||c.route||c.durable_objects?.bindings?.length!==1||c.durable_objects.bindings[0].name!=="IRYS_RT")process.exit(2); console.log("SAFETY_PASS: only isolated shadow Worker, no Telegram, onchain or routes");'
+      - name: Existing scanner and independent AI regression
+        run: |
+          python -m unittest discover -s tests -v
+          python -m unittest discover -s ai_twin/tests -v
+      - name: Realtime evidence local tests
+        run: node --no-warnings --test realtime_research/service/test/*.test.mjs
+      - name: Dry-run build without deployment
+        run: npx --yes wrangler@4.154.0 deploy --dry-run --config realtime_research/service/wrangler.jsonc --outdir /tmp/rt-only-build
+      - name: Verify only pre-created Worker is accessible before modifying it
+        shell: bash
+        run: |
+          set -euo pipefail
+          code=$(curl --silent --show-error --max-time 20 --output /tmp/rt-preflight --write-out "%{http_code}" -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/workers/scripts/irys-realtime-evidence/settings")
+          [[ "$code" == "200" ]] || { echo "::error::Target Worker permission preflight failed (HTTP $code)"; exit 1; }
+          echo "PASS: Scoped auth target is existing irys-realtime-evidence"
+      - name: Deploy code only to isolated irys-realtime-evidence Worker
+        run: npx --yes wrangler@4.154.0 deploy --config realtime_research/service/wrangler.jsonc
+      - name: Verify deployed Worker is still disabled SHADOW_ONLY
+        shell: bash
+        run: |
+          set -euo pipefail
+          for i in 1 2 3 4 5 6; do
+            if curl --silent --show-error --fail --max-time 20 "https://irys-realtime-evidence.vhehwpfl.workers.dev/health" -o /tmp/rt-health; then
+              if node -e 'const x=JSON.parse(require("fs").readFileSync("/tmp/rt-health","utf8")); if(x.version!=="IRYS_REALTIME_SHADOW_V1"||x.mode!=="SHADOW_ONLY"||x.trade_alerts_enabled!==false||x.transport_codec!=="BLOB_SERIAL_QUEUE_V2"||x.proof_lease!=="SHORT_AUTO_EXPIRE_V1"||x.upgrade_timeout_scope!=="HANDSHAKE_ONLY_V3")process.exit(1);'; then
+                echo "PASS: Isolated Worker deployed; alerts disabled; collector not started"; exit 0
+              fi
+            fi
+            sleep 3
+          done
+          echo "::error::Cloudflare deployment response unverified; no live start"; exit 1
+      - name: Diagnose Bithumb market listing from Cloudflare Worker (read only)
+        shell: bash
+        run: |
+          set -euo pipefail
+          ADMIN="$(node -e 'const c=require("node:crypto");process.stdout.write(c.createHmac("sha256",process.env.CLOUDFLARE_API_TOKEN).update("irys-realtime-evidence/admin-control/v1").digest("hex"));' )"
+          code=$(curl --silent --show-error --max-time 50 -o /tmp/rt-diagnostics -w "%{http_code}" -H "Authorization: Bearer ${ADMIN}" "https://irys-realtime-evidence.vhehwpfl.workers.dev/diagnostics/feeds")
+          if [[ "$code" != "200" ]]; then echo "::error::Diagnostics unauthorized or unavailable HTTP_${code}"; exit 1; fi
+          node -e 'const j=JSON.parse(require("fs").readFileSync("/tmp/rt-diagnostics","utf8")); console.log("CLOUDFLARE_BITHUMB_FEED_DIAGNOSTICS",JSON.stringify(j.checks));'
+          diag_code=$(curl --silent --show-error --max-time 30 -o /tmp/rt-sessions -w "%{http_code}" -H "Authorization: Bearer ${ADMIN}" "https://irys-realtime-evidence.vhehwpfl.workers.dev/diagnostics/sessions")
+          if [[ "$diag_code" != "200" ]]; then echo "::error::Session read-only diagnostic HTTP_${diag_code}"; exit 1; fi
+          node -e 'const j=JSON.parse(require("fs").readFileSync("/tmp/rt-sessions","utf8"));console.log("ISOLATED_BTC_SESSION_BREAK_HISTORY",JSON.stringify({market:j.market,sessions:j.sessions,recent_quality:j.recent_quality}));'

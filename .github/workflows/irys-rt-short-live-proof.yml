@@ -1,0 +1,106 @@
+name: IRYS realtime isolated short live SHADOW proof (auto-stop, no alert)
+on:
+  push:
+    branches: [research/realtime-orderbook-ws-20261028]
+    paths:
+      - '.github/workflows/irys-rt-short-live-proof.yml'
+permissions:
+  contents: read
+concurrency:
+  group: isolated-irys-realtime-evidence-short-proof
+  cancel-in-progress: false
+jobs:
+  proof:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.IRYS_REALTIME_CF_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.IRYS_REALTIME_CF_ACCOUNT_ID }}
+      CLOUDFLARE_SEND_METRICS: "false"
+      CI: "true"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Verify isolated service deployment and public health
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ -n "${CLOUDFLARE_API_TOKEN}" && -n "${CLOUDFLARE_ACCOUNT_ID}" ]] || exit 1
+          ready=0
+          for i in 1 2 3 4 5 6 7 8 9 10; do
+            curl --silent --show-error --fail --max-time 20 https://irys-realtime-evidence.vhehwpfl.workers.dev/health -o /tmp/rt_prehealth
+            if node -e 'const d=JSON.parse(require("fs").readFileSync("/tmp/rt_prehealth","utf8")); if(d.version!=="IRYS_REALTIME_SHADOW_V1"||d.trade_alerts_enabled!==false||d.transport_codec!=="BLOB_SERIAL_QUEUE_V2"||d.proof_lease!=="SHORT_AUTO_EXPIRE_V1"||d.upgrade_timeout_scope!=="HANDSHAKE_ONLY_V3")process.exit(2);'; then ready=1; break; fi
+            sleep 5
+          done
+          [[ "$ready" == "1" ]] || { echo "::error::Audited Blob decoder revision is not serving; no start"; exit 1; }
+          echo "HEALTH_PASS: audited Blob decoder active, isolated SHADOW only"
+      - name: Install isolated admin secret; verify one real WebSocket session; always stop
+        shell: bash
+        run: |
+          set -euo pipefail
+          URL="https://irys-realtime-evidence.vhehwpfl.workers.dev"
+          ADMIN="$(node -e 'const c=require("node:crypto");const k=process.env.CLOUDFLARE_API_TOKEN;if(!k||k.length<16)process.exit(2);process.stdout.write(c.createHmac("sha256",k).update("irys-realtime-evidence/admin-control/v1").digest("hex"));')"
+          if [[ "${#ADMIN}" != 64 ]]; then echo "::error::Admin secret derivation failed"; exit 2; fi
+          # Store separate nonreversible per-app secret, NEVER reusing the Cloudflare API token as Bearer.
+          CURRENT_CODE=$(curl --silent --show-error --max-time 20 -o /tmp/rt-current-status -w "%{http_code}" -H "Authorization: Bearer ${ADMIN}" "${URL}/status" || true)
+          if [[ "$CURRENT_CODE" == "200" ]]; then
+            echo "ADMIN_ALREADY_ACTIVE: reuse scoped Worker secret; do not re-deploy"
+          else
+            printf "%s" "$ADMIN" | npx --yes wrangler@4.154.0 secret put IRYS_RT_ADMIN_TOKEN --config realtime_research/service/wrangler.jsonc >/tmp/rt-secret-put
+            echo "ADMIN_SECRET_SAVED: waiting for Cloudflare deployment propagation"
+            ready=0
+            for i in 1 2 3 4 5 6 7 8 9 10 11 12; do
+              sleep 5
+              CURRENT_CODE=$(curl --silent --show-error --max-time 20 -o /tmp/rt-current-status -w "%{http_code}" -H "Authorization: Bearer ${ADMIN}" "${URL}/status" || true)
+              if [[ "$CURRENT_CODE" == "200" ]]; then ready=1; break; fi
+            done
+            if [[ "$ready" != "1" ]]; then echo "::error::Admin binding not active after propagation; cannot start"; exit 1; fi
+          fi
+          DIAG_CODE=$(curl --silent --show-error --max-time 40 -o /tmp/rt-feed-ready -w "%{http_code}" -H "Authorization: Bearer ${ADMIN}" "${URL}/diagnostics/feeds")
+          [[ "$DIAG_CODE" == "200" ]] || { echo "::error::Bithumb diagnostic endpoint unavailable"; exit 1; }
+          node -e 'const d=JSON.parse(require("fs").readFileSync("/tmp/rt-feed-ready","utf8"));if(!d.checks?.every(x=>x.http_status===200&&x.array_ok))process.exit(2); console.log("OFFICIAL_BITHUMB_READ_PASS");'
+          START_ATTEMPTED=0
+          stop_shadow() {
+            local prior=$?
+            if [[ "$START_ATTEMPTED" == "1" ]]; then
+              local code
+              code=$(curl --silent --show-error --max-time 20 -o /tmp/rt-stop -w "%{http_code}" -X POST -H "Authorization: Bearer ${ADMIN}" "${URL}/control/stop" || true)
+              if [[ "$code" == "200" ]]; then echo "STOP_REQUEST_HTTP_200"; else echo "::error::STOP_UNVERIFIED_HTTP_${code}"; fi
+              local final_code
+              final_code=$(curl --silent --show-error --max-time 20 -o /tmp/rt-poststop -w "%{http_code}" -H "Authorization: Bearer ${ADMIN}" "${URL}/status" || true)
+              if [[ "$final_code" != "200" ]]; then echo "::error::POST_STOP_STATUS_HTTP_${final_code}"; return 1; fi
+              if node -e 'const s=JSON.parse(require("fs").readFileSync("/tmp/rt-poststop","utf8"));if(s.enabled!==false||s.connection?.status!=="STOPPED"||s.live_trade_alerts_enabled!==false)process.exit(1);'; then
+                echo "STOP_CONFIRMED: enabled=false; connection=STOPPED; alerts=false"
+              else echo "::error::POST_STOP_STATUS_NOT_DISABLED"; return 1; fi
+              if [[ "$code" != "200" && "$prior" == "0" ]]; then return 1; fi
+            fi
+            return "$prior"
+          }
+          trap stop_shadow EXIT
+          START_ATTEMPTED=1
+          CODE=$(curl --silent --show-error --max-time 30 -o /tmp/rt-start -w "%{http_code}" -X POST -H "Authorization: Bearer ${ADMIN}" -H "Content-Type: application/json" --data '{"markets":["KRW-BTC"],"proof_seconds":210}' "${URL}/control/start")
+          if [[ "$CODE" != "200" ]]; then echo "::error::START_HTTP_${CODE}"; cat /tmp/rt-start; exit 1; fi
+          node -e 'const d=JSON.parse(require("fs").readFileSync("/tmp/rt-start","utf8"));console.log("START_RESULT",JSON.stringify(d));if(!d.enabled||!d.connected||d.live_trade_alerts_enabled!==false)process.exit(2);'
+          NOW="$(date -u +%s)"
+          WAIT=$(( 60 - NOW % 60 + 68 )) # One full closed BTC minute, verify official PING heartbeat and persisted gap-free books
+          echo "SHORT_LIVE_SHADOW_WINDOW_SECONDS=${WAIT}; no orders, no Telegram"
+          sleep "$WAIT"
+          CODE=$(curl --silent --show-error --max-time 30 -o /tmp/rt-reconcile -w "%{http_code}" -X POST -H "Authorization: Bearer ${ADMIN}" "${URL}/control/reconcile")
+          if [[ "$CODE" != "200" ]]; then echo "::error::RECONCILIATION_REQUEST_HTTP_${CODE}"; exit 1; fi
+          CODE=$(curl --silent --show-error --max-time 30 -o /tmp/rt-status -w "%{http_code}" -H "Authorization: Bearer ${ADMIN}" "${URL}/status")
+          if [[ "$CODE" != "200" ]]; then echo "::error::STATUS_HTTP_${CODE}"; exit 1; fi
+          CODE=$(curl --silent --show-error --max-time 30 -o /tmp/rt-evidence -w "%{http_code}" -H "Authorization: Bearer ${ADMIN}" "${URL}/evidence")
+          if [[ "$CODE" != "200" ]]; then echo "::error::EVIDENCE_HTTP_${CODE}"; exit 1; fi
+          node <<'JS'
+          const fs=require("fs");
+          const st=JSON.parse(fs.readFileSync("/tmp/rt-status","utf8"));
+          const ev=JSON.parse(fs.readFileSync("/tmp/rt-evidence","utf8"));
+          if(!st.enabled||st.live_trade_alerts_enabled!==false||!Array.isArray(ev.windows))process.exit(3);
+          console.log("SHADOW_REAL_STATUS",JSON.stringify({enabled:st.enabled,connection:st.connection,markets:st.markets,frame_stats:st.frame_stats}));
+          console.log("SHADOW_REAL_EVIDENCE",JSON.stringify(ev.windows.map(x=>({market:x.market,minutes:x.minutes,verified:x.verified,reasons:x.reasons,trade_count:x.trade_count,book_seconds:x.book_seconds,matched_minutes:x.matched_minutes,net_buy_krw:x.net_buy_krw,send_allowed:x.send_allowed})))); if(!st.frame_stats?.received||!st.frame_stats?.ingested||st.frame_stats.errors>0||st.frame_stats.close_events>0||st.frame_stats.pings<3)process.exit(4); const btc=ev.windows.find(x=>x.market==="KRW-BTC"&&x.minutes===1);if(!btc)process.exit(5); console.log("COMPLETE_CANDLE_PROOF",JSON.stringify({verified:btc.verified,trade_count:btc.trade_count,book_seconds:btc.book_seconds,matched_minutes:btc.matched_minutes,reasons:btc.reasons}));if(!btc.verified)process.exit(6);
+          JS
+          # Trap sends STOP and checks receipt even if any assertion failed.

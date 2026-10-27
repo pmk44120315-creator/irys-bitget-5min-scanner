@@ -1,0 +1,211 @@
+import {EvidenceStore,parseFrame} from './core.mjs';
+import {fetchWalletWindow,telegramTest} from './integrations.mjs';
+const VERSION='IRYS_REALTIME_SHADOW_V1';
+const json=(data,status=200)=>new Response(JSON.stringify(data),{status,headers:{'content-type':'application/json;charset=utf-8','cache-control':'no-store'}});
+const routes=new Set(['/status','/evidence','/onchain','/diagnostics/feeds','/diagnostics/sessions','/control/reconcile','/control/start','/control/stop','/telegram/test']);
+async function authenticated(request,token){
+  if(typeof token!=='string'||token.length<32)return false;
+  const got=request.headers.get('authorization')||'';
+  const bytes=new TextEncoder(),a=new Uint8Array(await crypto.subtle.digest('SHA-256',bytes.encode(got))),b=new Uint8Array(await crypto.subtle.digest('SHA-256',bytes.encode('Bearer '+token)));
+  let diff=0;for(let i=0;i<a.length;i++)diff|=a[i]^b[i];return diff===0;
+}
+export default {
+  async fetch(request,env){
+    const path=new URL(request.url).pathname;
+    if((path==='/'||path==='/health')&&request.method==='GET')return json({version:VERSION,mode:'SHADOW_ONLY',production_worker_untouched:true,trade_alerts_enabled:false,transport_codec:'BLOB_SERIAL_QUEUE_V2',proof_lease:'SHORT_AUTO_EXPIRE_V1',upgrade_timeout_scope:'HANDSHAKE_ONLY_V3'});
+    if(!routes.has(path))return json({error:'NOT_FOUND'},404);
+    if(typeof env.IRYS_RT_ADMIN_TOKEN!=='string'||env.IRYS_RT_ADMIN_TOKEN.length<32)return json({error:'ADMIN_NOT_CONFIGURED'},503);
+    if(!await authenticated(request,env.IRYS_RT_ADMIN_TOKEN))return json({error:'UNAUTHORIZED'},401);
+    if(!env.IRYS_RT)return json({error:'SEPARATE_DURABLE_OBJECT_NOT_CONFIGURED'},503);
+    const stub=env.IRYS_RT.get(env.IRYS_RT.idFromName('irys-realtime-evidence-v1'));
+    return stub.fetch(request);
+  },
+  async scheduled(_event,env,ctx){
+    if(!env.IRYS_RT)return;
+    const stub=env.IRYS_RT.get(env.IRYS_RT.idFromName('irys-realtime-evidence-v1'));
+    ctx.waitUntil(stub.fetch(new Request('https://internal.invalid/wake',{method:'POST'})));
+  }
+};
+export class RealtimeEvidenceDO {
+  constructor(ctx,env,deps={}){
+    this.ctx=ctx;this.env=env;this.net=deps.fetch??((...args)=>globalThis.fetch(...args));this.now=deps.now??Date.now;this.handshakeTimeoutMs=deps.handshakeTimeoutMs??20000;
+    this.generation=0;this.commandId=0;this.socket=null;this.opening=null;this.lastMessage=0;this.lastReconcile=0;this.lastChain=0;this.frameReceived=0;this.frameIngested=0;this.frameErrors=0;this.lastFrameError=null;this.lastPing=0;this.pingCount=0;this.pongCount=0;this.closeEvents=0;this.lastClose=null;
+    this.ready=ctx.blockConcurrencyWhile(async()=>{this.db=new EvidenceStore(ctx.storage.sql);this.config=await ctx.storage.get('rt:config')??{enabled:false,markets:[]};this.risk=await ctx.storage.get('rt:risk')??{status:'UNVERIFIED'};});
+  }
+  async requestJson(url){const r=await this.net(url,{signal:AbortSignal.timeout(20000)});if(!r.ok)throw Error('PUBLIC_API_HTTP');return r.json();}
+  async connect(){
+    if(!this.config.enabled||this.socket)return;
+    if(this.opening)return this.opening.promise;
+    const generation=this.generation,markets=[...this.config.markets],attempt={};this.opening=attempt;
+    attempt.promise=(async()=>{
+      try{
+        // AbortSignal.timeout(20000) persists after the 101 upgrade and can
+        // terminate an otherwise healthy WebSocket after EXACTLY 20 seconds.
+        // Restrict the AbortController to the CONNECT HANDSHAKE only.
+        const controller=new AbortController();
+        const timeout=setTimeout(()=>controller.abort(),this.handshakeTimeoutMs);
+        let r;
+        try{r=await this.net('https://ws-api.bithumb.com/websocket/v1',
+                            {headers:{Upgrade:'websocket'},signal:controller.signal});}
+        finally{clearTimeout(timeout);}
+        const ws=r.webSocket;if(!ws)throw Error('WS_UPGRADE_FAILED');
+        ws.accept();
+        if(generation!==this.generation||!this.config.enabled){ws.close(1000,'STALE_CONNECTION');return;}
+        this.socket=ws;this.lastMessage=this.now();this.lastPing=this.now();
+        for(const market of markets)this.db.start(market,this.lastMessage);
+        // Cloudflare's outbound WebSocket may deliver Blob, ArrayBuffer or string.
+        // Serialize asynchronous Blob decoding so order-book/trade causality is preserved.
+        let inboundQueue=Promise.resolve();
+        ws.addEventListener('message',event=>{
+          if(this.socket!==ws)return;
+          const at=this.now(),payload=event.data;
+          this.lastMessage=at;this.frameReceived++;
+          inboundQueue=inboundQueue.then(async()=>{
+            if(this.socket!==ws)return;
+            try{
+              let raw;
+              if(typeof payload==='string')raw=payload;
+              else if(payload&&typeof payload.text==='function')raw=await payload.text();
+              else if(payload instanceof ArrayBuffer||ArrayBuffer.isView(payload))raw=new TextDecoder().decode(payload);
+              else if(payload&&typeof payload.arrayBuffer==='function')raw=new TextDecoder().decode(await payload.arrayBuffer());
+              else throw new TypeError('UNSUPPORTED_WEBSOCKET_FRAME_TYPE');
+              if(this.socket!==ws)return;
+              if(raw==='PING'||raw==='PONG'||/^\s*\{\s*"status"\s*:\s*"UP"\s*\}\s*$/.test(raw)){this.pongCount++;return;}
+              const parsed=parseFrame(raw,at);
+              if(parsed&&this.config.markets.includes(parsed.market)){
+                if(this.db.ingest(raw,at))this.frameIngested++;
+                else this.lastFrameError={type:'INGEST_UNVERIFIED',at_ms:at};
+              }else for(const market of this.config.markets)this.db.quality(market,at,at+1,'INVALID_OR_UNEXPECTED_FRAME');
+            }catch(e){
+              this.frameErrors++;
+              this.lastFrameError={type:String(e?.name||'UNKNOWN'),detail:String(e?.message||'').slice(0,180),frame_kind:Object.prototype.toString.call(payload).slice(0,70),at_ms:at};
+              try{for(const market of this.config.markets)this.db.quality(market,at,at+1,'FRAME_PARSE_FAILED');}
+              catch(err){this.lastFrameError.secondary=String(err?.message||'').slice(0,120);}
+            }
+          }).catch(e=>{this.frameErrors++;this.lastFrameError={type:'UNHANDLED_FRAME_QUEUE_ERROR',detail:String(e?.message||'').slice(0,180),at_ms:at};});
+          this.ctx.waitUntil(inboundQueue);
+        });
+        const close=(event)=>{if(this.socket!==ws)return;const at=this.now();this.socket=null;this.closeEvents++;
+          const code=Number.isInteger(event?.code)?event.code:null;
+          const detail=event?.type==='error'?'WS_ERROR':('WS_CLOSE_'+(code??'UNKNOWN'));
+          this.lastClose={at_ms:at,type:event?.type??'UNKNOWN',code,was_clean:event?.wasClean??null};
+          for(const market of this.config.markets)this.db.stop(market,at,detail);
+          if(this.config.enabled)this.ctx.waitUntil(this.ctx.storage.setAlarm(at+5000));
+        };
+        ws.addEventListener('close',close);ws.addEventListener('error',close);
+        ws.send(JSON.stringify([{ticket:'irys-rt-'+crypto.randomUUID()},{type:'trade',codes:this.config.markets,isOnlyRealtime:true},{type:'orderbook',codes:this.config.markets,isOnlyRealtime:true},{format:'DEFAULT'}]));
+        await this.ctx.storage.put('rt:connection',{status:'CONNECTED',at_ms:this.now()});
+      }catch{
+        if(generation!==this.generation)return;
+        this.disconnect('CONNECT_FAILED');
+        await this.ctx.storage.put('rt:connection',{status:'CONNECT_FAILED',at_ms:this.now()});
+      }finally{if(this.opening===attempt)this.opening=null;}
+    })();return attempt.promise;
+  }
+  disconnect(reason){this.generation++;this.opening=null;const ws=this.socket;this.socket=null;if(ws){try{ws.close(1000,reason);}catch{}}
+    for(const market of this.config.markets)this.db.stop(market,this.now(),reason);
+  }
+  async refreshEvidence(){
+    const now=this.now();
+    for(const market of this.config.markets){
+      try{
+        const raw=await this.requestJson('https://api.bithumb.com/v1/candles/minutes/1?market='+encodeURIComponent(market)+'&count=40');
+        if(!Array.isArray(raw))throw Error('CANDLE_SCHEMA');
+        for(const c of raw){
+          const stamp=String(c.candle_date_time_utc||''),ts=Date.parse(stamp.endsWith('Z')?stamp:stamp+'Z'),q=Number(c.candle_acc_trade_price);
+          if(Number.isSafeInteger(ts)&&ts%60000===0&&ts+60000<=now&&ts>=now-31*60000&&Number.isFinite(q)&&q>=0)this.db.reconcile(market,ts,q,now);
+        }
+      }catch{await this.ctx.storage.put('rt:candle_error:'+market,{status:'UNVERIFIED',at_ms:now});}
+    }
+    try{
+      const warnings=await this.requestJson('https://api.bithumb.com/v1/market/virtual_asset_warning');
+      if(!Array.isArray(warnings))throw Error('RISK_SCHEMA');
+      this.risk={status:'OFFICIAL_FEED_READ',at_ms:now,markets:[...new Set(warnings.map(x=>x.market).filter(x=>typeof x==='string'))],does_not_cover_all_incidents:true};
+    }catch{this.risk={status:'UNVERIFIED',at_ms:now};}
+    await this.ctx.storage.put('rt:risk',this.risk);this.lastReconcile=now;this.db.prune(now);
+  }
+  async refreshChain(){
+    let labels=[];try{labels=JSON.parse(this.env.KNOWN_WALLETS_JSON||'[]');if(!Array.isArray(labels))labels=[];}catch{}
+    const result=await fetchWalletWindow(labels,this.now(),this.net);
+    await this.ctx.storage.put('rt:onchain',result);this.lastChain=this.now();
+  }
+  async expireIfNeeded(){
+    if(this.config.enabled&&Number.isSafeInteger(this.config.proof_expires_ms)&&this.now()>=this.config.proof_expires_ms){
+      this.commandId++;this.config.enabled=false;this.disconnect('PROOF_LEASE_EXPIRED');
+      await this.ctx.storage.put('rt:config',this.config);
+      await this.ctx.storage.put('rt:connection',{status:'PROOF_LEASE_EXPIRED',at_ms:this.now()});
+      await this.ctx.storage.deleteAlarm();return true;
+    }
+    return false;
+  }
+  async alarm(){
+    await this.ready;await this.expireIfNeeded();if(!this.config.enabled)return;
+    try{
+      if(this.socket&&this.now()-this.lastPing>=10000){
+        try{this.socket.send('PING');this.lastPing=this.now();this.pingCount++; }
+        catch{this.disconnect('PING_SEND_FAILED');}
+      }
+      if(this.socket&&this.now()-this.lastMessage>25000)this.disconnect('NO_FRESH_FEED');
+      await this.connect();
+      if(this.now()-this.lastReconcile>=60000)await this.refreshEvidence();
+      if(this.env.ENABLE_ONCHAIN==='true'&&this.now()-this.lastChain>=300000)await this.refreshChain();
+    }finally{if(this.config.enabled)await this.ctx.storage.setAlarm(this.now()+5000);}
+  }
+  async fetch(request){
+    await this.ready;await this.expireIfNeeded();const u=new URL(request.url),path=u.pathname;
+    if(path==='/wake'&&request.method==='POST'){if(this.config.enabled)await this.ctx.storage.setAlarm(this.now()+100);return json({enabled:this.config.enabled});}
+    if(path==='/status'&&request.method==='GET')return json({version:VERSION,enabled:this.config.enabled,markets:this.config.markets,proof_expires_ms:this.config.proof_expires_ms??null,live_trade_alerts_enabled:false,connection:await this.ctx.storage.get('rt:connection')??{status:'NOT_STARTED'},risk:this.risk,read_only_market_data:true,frame_stats:{received:this.frameReceived,ingested:this.frameIngested,errors:this.frameErrors,last_error:this.lastFrameError,pings:this.pingCount,pongs:this.pongCount,close_events:this.closeEvents,last_close:this.lastClose}});
+    if(path==='/diagnostics/feeds'&&request.method==='GET'){
+      const checks=[];
+      const sources=[
+        ['MARKET_LIST','https://api.bithumb.com/v1/market/all?isDetails=true'],
+        ['SINGLE_TICKER','https://api.bithumb.com/v1/ticker?markets=KRW-WLD']
+      ];
+      for(const [source,url] of sources){
+        const started=this.now();
+        try{
+          const response=await this.net(url,{signal:AbortSignal.timeout(15000),headers:{accept:'application/json'}});
+          let array_ok=false,count=null;
+          if(response.ok){const data=await response.json();array_ok=Array.isArray(data);count=array_ok?data.length:null;}
+          checks.push({source,http_status:response.status,array_ok,count,elapsed_ms:Math.max(0,this.now()-started)});
+        }catch(e){checks.push({source,error_type:e?.name??'UNKNOWN',error_detail:String(e?.message??'').slice(0,180),http_status:null,array_ok:false,count:null});}
+      }
+      return json({version:VERSION,read_only:true,secret_values_included:false,checks});
+    }
+    if(path==='/diagnostics/sessions'&&request.method==='GET'){
+      const market=this.config.markets[0]??'KRW-BTC';
+      return json({version:VERSION,market,read_only:true,
+        sessions:this.db.rows('SELECT market,start_ms,last_ms,end_ms,reason FROM rt_session WHERE market=? ORDER BY start_ms DESC LIMIT 12',market),
+        recent_quality:this.db.rows('SELECT ts,until_ms,reason FROM rt_quality WHERE market=? ORDER BY ts DESC LIMIT 15',market),
+        total_frames:this.frameReceived,stored_frames:this.frameIngested});
+    }
+    if(path==='/evidence'&&request.method==='GET')return json({version:VERSION,observation_only:true,send_allowed:false,risk:this.risk,windows:this.config.markets.flatMap(m=>[1,5,15,30].map(n=>this.db.summary(m,this.now(),n)))});
+    if(path==='/onchain'&&request.method==='GET')return json(await this.ctx.storage.get('rt:onchain')??{status:'NOT_COLLECTED',all_exchange_coverage:false});
+    if(path==='/control/reconcile'&&request.method==='POST'){if(!this.config.enabled)return json({error:'SHADOW_NOT_RUNNING'},409);await this.refreshEvidence();return json({mode:'SHADOW_ONLY',evaluated_at_ms:this.now(),markets:this.config.markets,send_allowed:false});}
+    if(path==='/control/stop'&&request.method==='POST'){this.commandId++;this.config.enabled=false;this.disconnect('MANUAL_STOP');await this.ctx.storage.put('rt:config',this.config);await this.ctx.storage.put('rt:connection',{status:'STOPPED',at_ms:this.now()});await this.ctx.storage.deleteAlarm();return json({enabled:false});}
+    if(path==='/control/start'&&request.method==='POST'){
+      const command=++this.commandId;
+      let body;try{body=await request.json();}catch{return json({error:'INVALID_JSON'},400);}
+      const markets=body.markets;
+      if(!Array.isArray(markets)||markets.length<1||markets.length>20||markets.some(m=>typeof m!=='string'||!/^KRW-[A-Z0-9]+$/.test(m))||new Set(markets).size!==markets.length)return json({error:'INVALID_MARKETS'},400);
+      try{const listings=await this.requestJson('https://api.bithumb.com/v1/market/all?isDetails=true');if(!Array.isArray(listings)||markets.some(m=>!listings.some(l=>l.market===m)))return json({error:'MARKET_NOT_LISTED'},400);}catch{return json({error:'LISTING_UNVERIFIED'},503);}
+      if(command!==this.commandId)return json({error:'COMMAND_SUPERSEDED'},409);
+      // Until independent cost/restart verification, ALL SHADOW starts have a bounded proof lease.
+      // Cloudflare alarms also shut the stream down if the GitHub runner dies before its EXIT trap.
+      const leaseSeconds=body.proof_seconds===undefined?180:body.proof_seconds;
+      if(!Number.isInteger(leaseSeconds)||leaseSeconds<60||leaseSeconds>240)return json({error:'INVALID_PROOF_LEASE'},400);
+      this.disconnect('SUBSCRIPTION_CHANGED');this.config={enabled:true,markets,proof_expires_ms:this.now()+leaseSeconds*1000};await this.ctx.storage.put('rt:config',this.config);
+      if(command!==this.commandId||!this.config.enabled)return json({error:'COMMAND_SUPERSEDED'},409);
+      await this.connect();
+      if(command!==this.commandId||!this.config.enabled)return json({error:'COMMAND_SUPERSEDED'},409);
+      await this.ctx.storage.setAlarm(this.now()+5000);
+      return json({enabled:true,connected:Boolean(this.socket),mode:'SHADOW_ONLY',live_trade_alerts_enabled:false,proof_expires_ms:this.config.proof_expires_ms});
+    }
+    if(path==='/telegram/test'&&request.method==='POST'){
+      let body;try{body=await request.json();}catch{return json({error:'INVALID_JSON'},400);}
+      try{return json(await telegramTest({ALLOW_TELEGRAM_TEST:this.env.ALLOW_TELEGRAM_TEST,TELEGRAM_BOT_TOKEN:this.env.IRYS_RT_TELEGRAM_BOT_TOKEN,TELEGRAM_CHAT_ID:this.env.IRYS_RT_TELEGRAM_CHAT_ID},this.ctx.storage,body.nonce,this.net));}
+      catch{return json({status:'TEST_RECEIPT_UNAVAILABLE',automatic_retry_allowed:false},503);}
+    }
+    return json({error:'NOT_FOUND'},404);
+  }
+}
