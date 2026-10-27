@@ -1,7 +1,7 @@
 name: Bitget five-minute read-only snapshot
 on:
-  schedule:
-    - cron: '3,8,13,18,23,28,33,38,43,48,53,58 * * * *'
+  # Cloudflare every-five-minute Cron dispatches this workflow.
+  # No duplicate GitHub cron: avoid overlapping 2-4 minute full-market scans.
   workflow_dispatch:
   push:
     branches: [main]
