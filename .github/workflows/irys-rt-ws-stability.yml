@@ -1,0 +1,23 @@
+name: Independent Bithumb public 75s WebSocket stability comparison (no writes)
+on:
+  push:
+    branches: [research/realtime-orderbook-ws-20261028]
+    paths:
+      - '.github/workflows/irys-rt-ws-stability.yml'
+permissions:
+  contents: read
+jobs:
+  comparison:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install public WebSocket client
+        run: python -m pip install websockets==15.0.1
+      - name: Verify Python upstream session against Cloudflare 1006 closures
+        run: python realtime_research/ws_stability_probe.py
