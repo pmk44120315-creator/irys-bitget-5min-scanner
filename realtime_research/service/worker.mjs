@@ -114,8 +114,17 @@ export class RealtimeEvidenceDO {
     const result=await fetchWalletWindow(labels,this.now(),this.net);
     await this.ctx.storage.put('rt:onchain',result);this.lastChain=this.now();
   }
+  async expireIfNeeded(){
+    if(this.config.enabled&&Number.isSafeInteger(this.config.proof_expires_ms)&&this.now()>=this.config.proof_expires_ms){
+      this.commandId++;this.config.enabled=false;this.disconnect('PROOF_LEASE_EXPIRED');
+      await this.ctx.storage.put('rt:config',this.config);
+      await this.ctx.storage.put('rt:connection',{status:'PROOF_LEASE_EXPIRED',at_ms:this.now()});
+      await this.ctx.storage.deleteAlarm();return true;
+    }
+    return false;
+  }
   async alarm(){
-    await this.ready;if(!this.config.enabled)return;
+    await this.ready;await this.expireIfNeeded();if(!this.config.enabled)return;
     try{
       if(this.socket&&this.now()-this.lastMessage>10000)this.disconnect('NO_FRESH_FEED');
       await this.connect();
@@ -124,9 +133,9 @@ export class RealtimeEvidenceDO {
     }finally{if(this.config.enabled)await this.ctx.storage.setAlarm(this.now()+5000);}
   }
   async fetch(request){
-    await this.ready;const u=new URL(request.url),path=u.pathname;
+    await this.ready;await this.expireIfNeeded();const u=new URL(request.url),path=u.pathname;
     if(path==='/wake'&&request.method==='POST'){if(this.config.enabled)await this.ctx.storage.setAlarm(this.now()+100);return json({enabled:this.config.enabled});}
-    if(path==='/status'&&request.method==='GET')return json({version:VERSION,enabled:this.config.enabled,markets:this.config.markets,live_trade_alerts_enabled:false,connection:await this.ctx.storage.get('rt:connection')??{status:'NOT_STARTED'},risk:this.risk,read_only_market_data:true,frame_stats:{received:this.frameReceived,ingested:this.frameIngested,errors:this.frameErrors,last_error:this.lastFrameError}});
+    if(path==='/status'&&request.method==='GET')return json({version:VERSION,enabled:this.config.enabled,markets:this.config.markets,proof_expires_ms:this.config.proof_expires_ms??null,live_trade_alerts_enabled:false,connection:await this.ctx.storage.get('rt:connection')??{status:'NOT_STARTED'},risk:this.risk,read_only_market_data:true,frame_stats:{received:this.frameReceived,ingested:this.frameIngested,errors:this.frameErrors,last_error:this.lastFrameError}});
     if(path==='/diagnostics/feeds'&&request.method==='GET'){
       const checks=[];
       const sources=[
@@ -154,12 +163,16 @@ export class RealtimeEvidenceDO {
       if(!Array.isArray(markets)||markets.length<1||markets.length>20||markets.some(m=>typeof m!=='string'||!/^KRW-[A-Z0-9]+$/.test(m))||new Set(markets).size!==markets.length)return json({error:'INVALID_MARKETS'},400);
       try{const listings=await this.requestJson('https://api.bithumb.com/v1/market/all?isDetails=true');if(!Array.isArray(listings)||markets.some(m=>!listings.some(l=>l.market===m)))return json({error:'MARKET_NOT_LISTED'},400);}catch{return json({error:'LISTING_UNVERIFIED'},503);}
       if(command!==this.commandId)return json({error:'COMMAND_SUPERSEDED'},409);
-      this.disconnect('SUBSCRIPTION_CHANGED');this.config={enabled:true,markets};await this.ctx.storage.put('rt:config',this.config);
+      // Until independent cost/restart verification, ALL SHADOW starts have a bounded proof lease.
+      // Cloudflare alarms also shut the stream down if the GitHub runner dies before its EXIT trap.
+      const leaseSeconds=body.proof_seconds===undefined?180:body.proof_seconds;
+      if(!Number.isInteger(leaseSeconds)||leaseSeconds<60||leaseSeconds>240)return json({error:'INVALID_PROOF_LEASE'},400);
+      this.disconnect('SUBSCRIPTION_CHANGED');this.config={enabled:true,markets,proof_expires_ms:this.now()+leaseSeconds*1000};await this.ctx.storage.put('rt:config',this.config);
       if(command!==this.commandId||!this.config.enabled)return json({error:'COMMAND_SUPERSEDED'},409);
       await this.connect();
       if(command!==this.commandId||!this.config.enabled)return json({error:'COMMAND_SUPERSEDED'},409);
       await this.ctx.storage.setAlarm(this.now()+5000);
-      return json({enabled:true,connected:Boolean(this.socket),mode:'SHADOW_ONLY',live_trade_alerts_enabled:false});
+      return json({enabled:true,connected:Boolean(this.socket),mode:'SHADOW_ONLY',live_trade_alerts_enabled:false,proof_expires_ms:this.config.proof_expires_ms});
     }
     if(path==='/telegram/test'&&request.method==='POST'){
       let body;try{body=await request.json();}catch{return json({error:'INVALID_JSON'},400);}
