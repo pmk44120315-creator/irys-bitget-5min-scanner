@@ -71,7 +71,8 @@ def trade_sample(symbol,now,api):
         side={'BID':'buy','ASK':'sell'}.get(t.get('ask_bid'))
         when=n(t.get('trade_timestamp',t.get('timestamp')));price=n(t.get('trade_price'));qty=n(t.get('trade_volume'))
         if side is None or when is None or price is None or qty is None or price<=0 or qty<=0 or when<now-120000 or when>now:continue
-        trade_id=str(t.get('sequential_id') or (when,side,price,qty))
+        # A repeated sequential_id may contain a distinct fill (observed in live Bithumb API).
+        trade_id=(str(t.get('sequential_id')),int(when),side,price,qty)
         if trade_id in seen:continue
         seen.add(trade_id)
         half=int(when>=now-60000);sides[half][side]+=price*qty;sides[half]['count']+=1
