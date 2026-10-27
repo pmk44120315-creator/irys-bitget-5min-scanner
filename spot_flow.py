@@ -5,6 +5,7 @@ from __future__ import annotations
 import datetime as dt
 import math
 import statistics
+from spot_continuity import verify_continuity
 KST=dt.timezone(dt.timedelta(hours=9))
 MAX_DETAIL=8
 
@@ -221,7 +222,14 @@ def collect_spot_flow(now,state,api):
             signal,verdict=detailed_check(sym,t,now_ms,api)
             examined+=1;decisions[verdict]=decisions.get(verdict,0)+1
             detail_diagnostics.append({'market':sym,'verdict':verdict,'rank':round(rank,3)})
-            if signal:signals.append(signal)
+            if signal:
+                # A two-minute taker burst is observation ONLY, not an alert.
+                # Candidate state survives across scheduled 5m snapshots.
+                confirmed, proof_status = verify_continuity(signal, now_ms, state, api)
+                detail_diagnostics[-1]['confirmation'] = proof_status
+                decisions[proof_status] = decisions.get(proof_status, 0) + 1
+                if confirmed:
+                    signals.append(confirmed)
         except Exception as exc:
             errors+=1;decisions['DETAIL_ERROR']=decisions.get('DETAIL_ERROR',0)+1
             detail_diagnostics.append({'market':sym,'verdict':'DETAIL_ERROR',
@@ -233,4 +241,7 @@ def collect_spot_flow(now,state,api):
             'limitations':{'marketwide_full_CVD':False,'continuous_orderbook_absorption':False,
                  'exchange_inout_whale_tracking':False,'project_lockup':False,
                  'same_kst_hour_historical_baseline':'NOT_COLLECTED',
+                 'spot_taker_15m':'ONLY_WHEN_PAGED_TICKS_MATCH_CANDLE_TURNOVER',
+                 'orderbook_snapshots':'FOUR_SEPARATE_READS_NOT_CONTINUOUS_ABSORPTION',
+                 'alert_gate':'FOUR_NON_OVERLAPPING_5M_SPOT_OBSERVATIONS',
                  'ticker_symbol_equivalence_across_venues':'UNVERIFIED'}}
