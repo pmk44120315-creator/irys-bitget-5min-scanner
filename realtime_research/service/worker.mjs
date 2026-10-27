@@ -12,7 +12,7 @@ async function authenticated(request,token){
 export default {
   async fetch(request,env){
     const path=new URL(request.url).pathname;
-    if((path==='/'||path==='/health')&&request.method==='GET')return json({version:VERSION,mode:'SHADOW_ONLY',production_worker_untouched:true,trade_alerts_enabled:false,transport_codec:'BLOB_SERIAL_QUEUE_V2',proof_lease:'SHORT_AUTO_EXPIRE_V1'});
+    if((path==='/'||path==='/health')&&request.method==='GET')return json({version:VERSION,mode:'SHADOW_ONLY',production_worker_untouched:true,trade_alerts_enabled:false,transport_codec:'BLOB_SERIAL_QUEUE_V2',proof_lease:'SHORT_AUTO_EXPIRE_V1',upgrade_timeout_scope:'HANDSHAKE_ONLY_V3'});
     if(!routes.has(path))return json({error:'NOT_FOUND'},404);
     if(typeof env.IRYS_RT_ADMIN_TOKEN!=='string'||env.IRYS_RT_ADMIN_TOKEN.length<32)return json({error:'ADMIN_NOT_CONFIGURED'},503);
     if(!await authenticated(request,env.IRYS_RT_ADMIN_TOKEN))return json({error:'UNAUTHORIZED'},401);
@@ -28,7 +28,7 @@ export default {
 };
 export class RealtimeEvidenceDO {
   constructor(ctx,env,deps={}){
-    this.ctx=ctx;this.env=env;this.net=deps.fetch??((...args)=>globalThis.fetch(...args));this.now=deps.now??Date.now;
+    this.ctx=ctx;this.env=env;this.net=deps.fetch??((...args)=>globalThis.fetch(...args));this.now=deps.now??Date.now;this.handshakeTimeoutMs=deps.handshakeTimeoutMs??20000;
     this.generation=0;this.commandId=0;this.socket=null;this.opening=null;this.lastMessage=0;this.lastReconcile=0;this.lastChain=0;this.frameReceived=0;this.frameIngested=0;this.frameErrors=0;this.lastFrameError=null;this.lastPing=0;this.pingCount=0;this.pongCount=0;this.closeEvents=0;this.lastClose=null;
     this.ready=ctx.blockConcurrencyWhile(async()=>{this.db=new EvidenceStore(ctx.storage.sql);this.config=await ctx.storage.get('rt:config')??{enabled:false,markets:[]};this.risk=await ctx.storage.get('rt:risk')??{status:'UNVERIFIED'};});
   }
@@ -39,7 +39,15 @@ export class RealtimeEvidenceDO {
     const generation=this.generation,markets=[...this.config.markets],attempt={};this.opening=attempt;
     attempt.promise=(async()=>{
       try{
-        const r=await this.net('https://ws-api.bithumb.com/websocket/v1',{headers:{Upgrade:'websocket'},signal:AbortSignal.timeout(20000)});
+        // AbortSignal.timeout(20000) persists after the 101 upgrade and can
+        // terminate an otherwise healthy WebSocket after EXACTLY 20 seconds.
+        // Restrict the AbortController to the CONNECT HANDSHAKE only.
+        const controller=new AbortController();
+        const timeout=setTimeout(()=>controller.abort(),this.handshakeTimeoutMs);
+        let r;
+        try{r=await this.net('https://ws-api.bithumb.com/websocket/v1',
+                            {headers:{Upgrade:'websocket'},signal:controller.signal});}
+        finally{clearTimeout(timeout);}
         const ws=r.webSocket;if(!ws)throw Error('WS_UPGRADE_FAILED');
         ws.accept();
         if(generation!==this.generation||!this.config.enabled){ws.close(1000,'STALE_CONNECTION');return;}
