@@ -54,6 +54,9 @@ jobs:
             done
             if [[ "$ready" != "1" ]]; then echo "::error::Admin binding not active after propagation; cannot start"; exit 1; fi
           fi
+          DIAG_CODE=$(curl --silent --show-error --max-time 40 -o /tmp/rt-feed-ready -w "%{http_code}" -H "Authorization: Bearer ${ADMIN}" "${URL}/diagnostics/feeds")
+          [[ "$DIAG_CODE" == "200" ]] || { echo "::error::Bithumb diagnostic endpoint unavailable"; exit 1; }
+          node -e 'const d=JSON.parse(require("fs").readFileSync("/tmp/rt-feed-ready","utf8"));if(!d.checks?.every(x=>x.http_status===200&&x.array_ok))process.exit(2); console.log("OFFICIAL_BITHUMB_READ_PASS");'
           START_ATTEMPTED=0
           stop_shadow() {
             local prior=$?
