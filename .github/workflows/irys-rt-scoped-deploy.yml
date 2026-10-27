@@ -1,5 +1,5 @@
 name: Deploy isolated IRYS realtime SHADOW Worker (no start, no Telegram)
-# Version-anchored bounded-lease SHADOW deploy: no persistent streams without a limited proof lease, original V7 untouched.
+# Verified bounded-lease SHADOW redeploy with official 10s PING + controlled WebSocket close diagnostics; V7 untouched.
 on:
   push:
     branches: [research/realtime-orderbook-ws-20261028]
