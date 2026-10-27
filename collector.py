@@ -377,7 +377,7 @@ def main():
         # Morning-style BUY observations from public Bithumb spot; independent
         # of Bitget futures, preserving the original 862-instrument collection.
         try:
-            latest['spot_flow']=collect_spot_flow(now,state,http_json)
+            latest['spot_flow']=collect_spot_flow(utc_now(),state,http_json)
             # Futures information is OPTIONAL CONTEXT only: identical ticker is
             # not reliable proof that the two exchanges list the same token.
             context={}
