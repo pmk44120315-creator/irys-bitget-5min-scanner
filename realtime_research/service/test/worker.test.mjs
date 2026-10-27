@@ -29,6 +29,23 @@ test('Cloudflare global fetch invocation preserves its required receiver',async(
 test('persisted session diagnostic is read-only and never starts or orders',async()=>{const d=deps(),o=new RealtimeEvidenceDO(state(),{},d);const result=await o.fetch(req('/diagnostics/sessions'));assert.equal(result.status,200);const body=await result.json();assert.equal(body.read_only,true);assert.deepEqual(body.sessions,[]);assert.equal(d.sends,0);});
 test('feed diagnostics are read only and never start WebSocket or expose secrets',async()=>{const d=deps(),o=new RealtimeEvidenceDO(state(),{},d);const r=await o.fetch(req('/diagnostics/feeds'));assert.equal(r.status,200);const b=await r.json();assert.equal(b.read_only,true);assert.equal(b.checks.length,2);assert.equal(b.checks[0].source,'MARKET_LIST');assert.equal(d.sends,0);assert.equal(JSON.stringify(b).includes(TOKEN),false);});
 
+test('20-second upgrade abort timer is cleared after successful handshake, preserving persistent socket',async()=>{
+  const d=deps();let wsSignal;
+  const o=new RealtimeEvidenceDO(state(),{},{
+    ...d,handshakeTimeoutMs:25,
+    fetch:async (url,init)=>{
+      if(String(url).includes('websocket')){wsSignal=init.signal;return {webSocket:d.ws};}
+      return new Response(JSON.stringify([{market:'KRW-BTC'}]));
+    }
+  });
+  const start=await o.fetch(req('/control/start','POST',{markets:['KRW-BTC'],proof_seconds:90}));
+  assert.equal(start.status,200);
+  assert.ok(wsSignal);
+  await new Promise(r=>setTimeout(r,70));
+  assert.equal(wsSignal.aborted,false,'successful socket must not inherit 20s handshake abort');
+  assert.equal(d.ws.readyState,1);
+  await o.fetch(req('/control/stop','POST'));
+});
 test('official Bithumb text PING cadence and UP acknowledgement do not corrupt market data',async()=>{
   let clock=1793121000000;const outbound=[],handlers={},d=deps();
   const ws={readyState:1,accept(){},send(p){outbound.push(p);},addEventListener(k,f){handlers[k]=f;},close(){this.readyState=3;}};
