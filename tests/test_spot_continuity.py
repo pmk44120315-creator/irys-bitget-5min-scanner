@@ -34,6 +34,17 @@ class TestTradeContinuity(unittest.TestCase):
         self.assertTrue(all(b['net_buy_krw'] > 0 and b['buy_share'] > .55
                             for b in x['blocks']))
 
+    def test_distinct_fills_reusing_sequential_id_are_not_lost(self):
+        rows = events()
+        rows[1]['sequential_id'] = rows[0]['sequential_id']
+        rows[1]['trade_price'] = 1001  # same ID, distinct actual execution
+        def api(venue, path, opts):
+            return rows
+        x = s.cvd_15m('KRW-TEST', BASE + 10_000, 90_001_000, api)
+        self.assertTrue(x['verified'], x)
+        self.assertEqual(x['unique_trades_seen'], 91)
+        self.assertEqual(x['candle_relative_error'], 0.0)
+
     def test_fail_closed_if_candle_turnover_mismatch(self):
         x = s.cvd_15m('KRW-TEST', BASE + 10_000, 120_000_000, self.api_ticks)
         self.assertFalse(x['verified'])
