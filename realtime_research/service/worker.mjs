@@ -28,7 +28,7 @@ export default {
 };
 export class RealtimeEvidenceDO {
   constructor(ctx,env,deps={}){
-    this.ctx=ctx;this.env=env;this.net=deps.fetch??globalThis.fetch;this.now=deps.now??Date.now;
+    this.ctx=ctx;this.env=env;this.net=deps.fetch??((...args)=>globalThis.fetch(...args));this.now=deps.now??Date.now;
     this.generation=0;this.commandId=0;this.socket=null;this.opening=null;this.lastMessage=0;this.lastReconcile=0;this.lastChain=0;
     this.ready=ctx.blockConcurrencyWhile(async()=>{this.db=new EvidenceStore(ctx.storage.sql);this.config=await ctx.storage.get('rt:config')??{enabled:false,markets:[]};this.risk=await ctx.storage.get('rt:risk')??{status:'UNVERIFIED'};});
   }
