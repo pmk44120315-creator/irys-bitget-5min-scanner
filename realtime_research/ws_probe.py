@@ -111,8 +111,8 @@ async def run_probe(market="KRW-BTC", duration_sec=12):
     stats = Metrics(market)
     request = [
         {"ticket": "irys-readonly-probe-" + uuid.uuid4().hex},
-        {"type": "trade", "codes": [market], "is_only_realtime": True},
-        {"type": "orderbook", "codes": [market], "is_only_realtime": True},
+        {"type": "trade", "codes": [market], "isOnlyRealtime": True},
+        {"type": "orderbook", "codes": [market], "isOnlyRealtime": True},
         {"format": "DEFAULT"},
     ]
     async with websockets.connect(WS, ping_interval=15, ping_timeout=15,
