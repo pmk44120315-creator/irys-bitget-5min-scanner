@@ -1,0 +1,25 @@
+name: One-shot public Bithumb live WebSocket feasibility (read only)
+on:
+  pull_request:
+    paths:
+      - "realtime_research/**"
+      - "tests/test_realtime_ws_probe.py"
+      - ".github/workflows/verify-realtime-ws.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Offline parse and aggregation tests
+        run: python -m unittest discover -s tests -p 'test_realtime_ws_probe.py' -v
+      - name: Install public WebSocket client dependency
+        run: python -m pip install websockets==15.0.1
+      - name: Short public trade and order-book WebSocket probe (no alerts, no writes)
+        run: python realtime_research/ws_probe.py --market KRW-BTC --duration-sec 12
