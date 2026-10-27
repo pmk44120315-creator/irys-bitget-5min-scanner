@@ -76,6 +76,21 @@ class TestTradeContinuity(unittest.TestCase):
         self.assertFalse(x['continuous_absorption_verified'])
         self.assertGreater(x['bid_ask_top5_ratio'], .8)
 
+    def test_zero_size_levels_are_normal_and_not_absorption_proof(self):
+        def api(venue, path, opts):
+            return [{'market': 'KRW-TEST', 'timestamp': BASE,
+                     'orderbook_units': [
+                         {'ask_price': 100.5 + i,
+                          'ask_size': 0 if i == 4 else 1000,
+                          'bid_price': 100 - i,
+                          'bid_size': 0 if i == 0 else 1200}
+                         for i in range(5)]}]
+        x = s.book_snapshot('KRW-TEST', BASE, api)
+        self.assertIsNotNone(x)
+        self.assertFalse(x['continuous_absorption_verified'])
+        self.assertGreater(x['bid_top5_krw'], 0)
+        self.assertGreater(x['ask_top5_krw'], 0)
+
     def test_four_independent_5m_checks_gate_and_no_duplicate(self):
         state = {}
         pos = {'now': BASE - 15 * 60_000}
