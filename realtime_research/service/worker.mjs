@@ -12,7 +12,7 @@ async function authenticated(request,token){
 export default {
   async fetch(request,env){
     const path=new URL(request.url).pathname;
-    if((path==='/'||path==='/health')&&request.method==='GET')return json({version:VERSION,mode:'SHADOW_ONLY',production_worker_untouched:true,trade_alerts_enabled:false});
+    if((path==='/'||path==='/health')&&request.method==='GET')return json({version:VERSION,mode:'SHADOW_ONLY',production_worker_untouched:true,trade_alerts_enabled:false,transport_codec:'BLOB_SERIAL_QUEUE_V2'});
     if(!routes.has(path))return json({error:'NOT_FOUND'},404);
     if(typeof env.IRYS_RT_ADMIN_TOKEN!=='string'||env.IRYS_RT_ADMIN_TOKEN.length<32)return json({error:'ADMIN_NOT_CONFIGURED'},503);
     if(!await authenticated(request,env.IRYS_RT_ADMIN_TOKEN))return json({error:'UNAUTHORIZED'},401);
