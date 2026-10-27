@@ -12,8 +12,11 @@ on:
 permissions:
   contents: write
 concurrency:
-  group: bitget-five-minute-scanner
+  # Scanner and AI twin write separate files to the same main branch.
+  # Use one cross-workflow lock so their commits cannot race.
+  group: irys-bitget-main-writers
   cancel-in-progress: false
+  queue: max
 jobs:
   collect:
     runs-on: ubuntu-latest
@@ -34,7 +37,22 @@ jobs:
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add data/latest.json data/state.json
-          git diff --staged --quiet || (git commit -m 'data: read-only 5m market snapshot' && git push)
+          if git diff --staged --quiet; then exit 0; fi
+          git commit -m 'data: read-only 5m market snapshot'
+          # The AI twin and occasional manual source updates can advance main
+          # after checkout. Rebase only on current remote main; never force push.
+          for attempt in 1 2 3 4 5 6; do
+            git fetch --quiet origin main
+            if ! git rebase origin/main; then
+              git rebase --abort
+              echo '::error::Concurrent update modified collector data. Refusing to overwrite newer snapshots.'
+              exit 1
+            fi
+            if git push origin HEAD:main; then exit 0; fi
+            sleep 2
+          done
+          echo '::error::Snapshot push kept conflicting; no force push performed.'
+          exit 1
       - name: Do not mark failed scans as success
         if: steps.scan.outcome == 'failure'
         run: exit 1
