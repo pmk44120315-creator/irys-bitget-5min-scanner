@@ -43,7 +43,8 @@ def book_snapshot(market, now_ms, api):
         for u in units:
             bp, ap = val(u.get('bid_price')), val(u.get('ask_price'))
             bq, aq = val(u.get('bid_size')), val(u.get('ask_size'))
-            if None in (bp, ap, bq, aq) or min(bp, ap, bq, aq) <= 0:
+            # Bithumb legitimately publishes zero-size levels; reject negative sizes only.
+            if None in (bp, ap, bq, aq) or bp <= 0 or ap <= 0 or bq < 0 or aq < 0:
                 return None
             bids.append((bp, bq))
             asks.append((ap, aq))
