@@ -1,0 +1,27 @@
+name: Verify spot-flow continuity (read only)
+on:
+  pull_request:
+    paths:
+      - 'spot_continuity.py'
+      - 'spot_flow.py'
+      - 'tests/**'
+      - 'smoke_spot_public_api.py'
+      - '.github/workflows/verify-spot-continuity.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Compile read-only Python modules
+        run: python -m py_compile collector.py spot_flow.py spot_continuity.py
+      - name: Run offline test suite (no exchange/API calls)
+        run: python -m unittest discover -s tests -v
+      - name: Check live public Bithumb REST schema (read only, no orders)
+        run: python smoke_spot_public_api.py

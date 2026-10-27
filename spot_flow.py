@@ -5,6 +5,7 @@ from __future__ import annotations
 import datetime as dt
 import math
 import statistics
+from spot_continuity import verify_continuity
 KST=dt.timezone(dt.timedelta(hours=9))
 MAX_DETAIL=8
 
@@ -70,7 +71,8 @@ def trade_sample(symbol,now,api):
         side={'BID':'buy','ASK':'sell'}.get(t.get('ask_bid'))
         when=n(t.get('trade_timestamp',t.get('timestamp')));price=n(t.get('trade_price'));qty=n(t.get('trade_volume'))
         if side is None or when is None or price is None or qty is None or price<=0 or qty<=0 or when<now-120000 or when>now:continue
-        trade_id=str(t.get('sequential_id') or (when,side,price,qty))
+        # A repeated sequential_id may contain a distinct fill (observed in live Bithumb API).
+        trade_id=(str(t.get('sequential_id')),int(when),side,price,qty)
         if trade_id in seen:continue
         seen.add(trade_id)
         half=int(when>=now-60000);sides[half][side]+=price*qty;sides[half]['count']+=1
@@ -221,7 +223,14 @@ def collect_spot_flow(now,state,api):
             signal,verdict=detailed_check(sym,t,now_ms,api)
             examined+=1;decisions[verdict]=decisions.get(verdict,0)+1
             detail_diagnostics.append({'market':sym,'verdict':verdict,'rank':round(rank,3)})
-            if signal:signals.append(signal)
+            if signal:
+                # A two-minute taker burst is observation ONLY, not an alert.
+                # Candidate state survives across scheduled 5m snapshots.
+                confirmed, proof_status = verify_continuity(signal, now_ms, state, api)
+                detail_diagnostics[-1]['confirmation'] = proof_status
+                decisions[proof_status] = decisions.get(proof_status, 0) + 1
+                if confirmed:
+                    signals.append(confirmed)
         except Exception as exc:
             errors+=1;decisions['DETAIL_ERROR']=decisions.get('DETAIL_ERROR',0)+1
             detail_diagnostics.append({'market':sym,'verdict':'DETAIL_ERROR',
@@ -233,4 +242,7 @@ def collect_spot_flow(now,state,api):
             'limitations':{'marketwide_full_CVD':False,'continuous_orderbook_absorption':False,
                  'exchange_inout_whale_tracking':False,'project_lockup':False,
                  'same_kst_hour_historical_baseline':'NOT_COLLECTED',
+                 'spot_taker_15m':'ONLY_WHEN_PAGED_TICKS_MATCH_CANDLE_TURNOVER',
+                 'orderbook_snapshots':'FOUR_SEPARATE_READS_NOT_CONTINUOUS_ABSORPTION',
+                 'alert_gate':'FOUR_NON_OVERLAPPING_5M_SPOT_OBSERVATIONS',
                  'ticker_symbol_equivalence_across_venues':'UNVERIFIED'}}
