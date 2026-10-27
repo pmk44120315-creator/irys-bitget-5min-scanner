@@ -131,9 +131,17 @@ async def run_probe(market="KRW-BTC", duration_sec=12):
             payload = json.loads(raw)
             stats.add(payload)
     report = stats.report()
+    if stats.book_count < 2:
+        report['validation'] = 'INSUFFICIENT_ORDERBOOK'
+    elif stats.trade_count < 2:
+        report['validation'] = 'ORDERBOOK_OK_TRADES_NOT_OBSERVED'
+    else:
+        report['validation'] = 'ORDERBOOK_AND_TRADE_MESSAGES_OBSERVED'
     print(json.dumps({"result": "PUBLIC_WS_STREAM_PROBE", **report}, ensure_ascii=False))
-    if stats.trade_count < 2 or stats.book_count < 2:
-        raise RuntimeError("PUBLIC_WS_INCOMPLETE: both channels require multiple live updates")
+    if stats.book_count < 2:
+        raise RuntimeError("PUBLIC_WS_INCOMPLETE_ORDERBOOK: no credible live depth updates")
+    # No trades in a 12s idle market is not a broken WebSocket connection.
+    # It is also NOT sufficient evidence to claim continuous CVD coverage.
     return report
 
 
