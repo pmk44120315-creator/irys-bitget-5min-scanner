@@ -1,5 +1,5 @@
 name: Deploy isolated IRYS realtime SHADOW Worker (no start, no Telegram)
-# Diagnostic redeploy: capture safe Cloudflare Bithumb fetch failure details; production V7 untouched.
+# Targeted redeploy: validate corrected global fetch receiver against real Bithumb REST from isolated Cloudflare Worker; original V7 untouched.
 on:
   push:
     branches: [research/realtime-orderbook-ws-20261028]
