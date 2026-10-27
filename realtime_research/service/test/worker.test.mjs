@@ -8,6 +8,24 @@ test('unauthenticated write blocked before DO access',async()=>{let called=0;con
 test('public health cannot start streams, send or disclose credentials',async()=>{const r=await worker.fetch(req('/health','GET',undefined,false),{IRYS_RT_ADMIN_TOKEN:TOKEN});assert.equal(r.status,200);const b=await r.text();assert.equal(b.includes(TOKEN),false);assert.ok(b.includes('SHADOW'));});
 test('weak or missing administrative token disables control',async()=>{const r=await worker.fetch(req('/control/start','POST',{markets:['KRW-WLD']}),{IRYS_RT_ADMIN_TOKEN:'short'});assert.equal(r.status,503);});
 test('unknown route never forwards or triggers collection',async()=>{assert.equal((await worker.fetch(req('/send','GET'),{IRYS_RT_ADMIN_TOKEN:TOKEN})).status,404);});
+test('Cloudflare global fetch invocation preserves its required receiver',async()=>{
+  const original=globalThis.fetch;
+  try{
+    let count=0;
+    globalThis.fetch=function(url){
+      assert.equal(this,globalThis,'global fetch receiver must be globalThis');
+      count++;
+      return Promise.resolve(new Response(JSON.stringify([{market:'KRW-WLD'}]),{status:200}));
+    };
+    const o=new RealtimeEvidenceDO(state(),{}, {now:()=>1793121000000});
+    const r=await o.fetch(req('/diagnostics/feeds'));
+    assert.equal(r.status,200);
+    const v=await r.json();
+    assert.equal(v.checks.length,2);
+    assert.ok(v.checks.every(x=>x.http_status===200&&x.array_ok));
+    assert.equal(count,2);
+  } finally {globalThis.fetch=original;}
+});
 test('feed diagnostics are read only and never start WebSocket or expose secrets',async()=>{const d=deps(),o=new RealtimeEvidenceDO(state(),{},d);const r=await o.fetch(req('/diagnostics/feeds'));assert.equal(r.status,200);const b=await r.json();assert.equal(b.read_only,true);assert.equal(b.checks.length,2);assert.equal(b.checks[0].source,'MARKET_LIST');assert.equal(d.sends,0);assert.equal(JSON.stringify(b).includes(TOKEN),false);});
 test('standalone DO initializes stopped; status read does not connect',async()=>{const d=deps(),o=new RealtimeEvidenceDO(state(),{},d);const r=await o.fetch(req('/status'));assert.equal(r.status,200);assert.equal((await r.json()).enabled,false);assert.equal(d.sends,0);});
 test('start validates listed KRW markets then subscribes both channels',async()=>{const d=deps(),o=new RealtimeEvidenceDO(state(),{},d);const r=await o.fetch(req('/control/start','POST',{markets:['KRW-WLD']}));assert.equal(r.status,200);assert.equal(d.sends,1);const b=await (await o.fetch(req('/status'))).json();assert.equal(b.enabled,true);assert.equal(b.live_trade_alerts_enabled,false);});
