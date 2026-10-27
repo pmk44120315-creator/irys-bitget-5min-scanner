@@ -4,12 +4,13 @@ import time
 import urllib.parse
 import urllib.request
 
-from spot_continuity import book_snapshot
+from spot_continuity import book_snapshot, cvd_15m
+from spot_flow import candles, window
 
 
 def public_api(venue, path, params):
     assert venue == 'bithumb', 'unexpected venue'
-    assert path in ('/v1/trades/ticks', '/v1/orderbook'), 'not a read-only data path'
+    assert path in ('/v1/trades/ticks', '/v1/orderbook', '/v1/candles/minutes/1'), 'not a read-only data path'
     url = 'https://api.bithumb.com' + path + '?' + urllib.parse.urlencode(params)
     req = urllib.request.Request(
         url, headers={'Accept': 'application/json',
@@ -50,6 +51,26 @@ def main():
                       'tick_count': len(ticks), 'shared_sequential_ids':collisions,
                       'exact_duplicate_fingerprints':ambiguous}))
 
+
+
+    # One full 15-minute public tick/candle reconciliation on the candidate market.
+    # Unlike an offline fixture, this exercises the actual Bithumb paging contract.
+    wld_now = int(time.time() * 1000)
+    wld_raw = public_api('bithumb', '/v1/candles/minutes/1',
+                         {'market':'KRW-WLD', 'count':40})
+    wld_candle = window(candles(wld_raw, wld_now), wld_now, 15)
+    if wld_candle is None:
+        raise RuntimeError('WLD live 15m candles incomplete')
+    wld_cvd = cvd_15m('KRW-WLD', wld_now,
+                       wld_candle['quote_krw'], public_api)
+    print(json.dumps({'result':'WLD_PUBLIC_15M_RECONCILIATION',
+                      'verified':wld_cvd.get('verified'),
+                      'reason':wld_cvd.get('reason'),
+                      'pages':wld_cvd.get('pages'),
+                      'candle_relative_error':wld_cvd.get('candle_relative_error'),
+                      'closed_15m_turnover_krw':round(wld_candle['quote_krw'])}))
+    if not wld_cvd.get('verified'):
+        raise RuntimeError('Live Bithumb 15m CVD not verified; no deployment')
 
 if __name__ == '__main__':
     main()
