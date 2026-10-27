@@ -3,6 +3,18 @@
 운영 V7과 기존 main 감시기는 교체하지 않습니다. 이 코드는 별도 서비스이며
 시장 알림 발송과 주문 기능이 없습니다. 기본 설정은 중지 상태입니다.
 
+## 2026-10-28 KST 실제 검증 결과 (운영본 대체 아님)
+- Cloudflare 새 Worker `irys-realtime-evidence` 배포 및 Public `/health` 응답 확인. Workers 기존 `irys-surge-monitor`와 `coinradar-total3es`에는 코드·설정 변경 없음.
+- GitHub 등록 `IRYS_REALTIME_CF_API_TOKEN` / `IRYS_REALTIME_CF_ACCOUNT_ID` 존재 및 새 Worker의 Cloudflare 설정 조회 HTTP 200 확인(인증값 본문/로그 미노출).
+- 빗썸 API `/v1/market/all`, `/v1/ticker`를 Cloudflare 내부에서 HTTP 200 확인.
+- 본 서비스를 처음 테스트할 때: (1) global fetch `Illegal invocation`, (2) WebSocket 바이너리 Blob 해독, (3) 업그레이드 요청의 20초 `AbortSignal.timeout`이 업그레이드 후에도 연결을 종료하던 문제를 재현/수정/재검증했다. 연결 유지용 빗썸 공식 텍스트 `PING`도 적용하고 상태 `UP`을 매매 데이터로 집계하지 않는다.
+- **실제 BTC 1분 PASS:** GitHub Actions run [40569307051](https://github.com/pmk44120315-creator/irys-bitget-5min-scanner/actions/runs/40569307051): 약 79초 관측, 프레임 수신 878 / 저장 처리 871 / 오류 0 / WebSocket 끊김 0, PING 응답 7, 완성된 1분 호가 60초 관측, 체결 3건, 공식 1분봉 체결대금 대조 `MATCHED`, 평가 `verified:true`.
+- **시험 종료 안전성:** 별도 Worker `POST /control/stop` HTTP 200 후 `GET /status`에서 `enabled:false`, `connection=STOPPED`, `live_trade_alerts_enabled:false` 확인. 별도의 자동 만료 프로프 리스도 적용.
+- **추가 독립 검증:** 빗썸 WebSocket 75초 독립 Python 연결 끊김 0 (GitHub Actions run [40568661251](https://github.com/pmk44120315-creator/irys-bitget-5min-scanner/actions/runs/40568661251)).
+- 5분·15분·30분 **연속** 시장 데이터의 완전성과 실제 24시간 안정성은 **미검증**. 프로젝트 알림 정확도, 모든 거래소의 입출금/지갑, 매집 확정, 사용자 Telegram 수신 증빙 없음.
+- 무료 Durable Object SQLite 1일 쓰기 허용량 **100,000행**(공식: https://developers.cloudflare.com/durable-objects/platform/pricing/). BTC처럼 많은 초 단위 호가를 현재처럼 프레임별로 저장한 채 장시간 자동 가동하면 한도 초과 가능성이 높다. 따라서 **상시 수집 자동 시작 금지**. 통계 집계/DB 배치 기록과 실제 사용량 계측을 먼저 검증하고, 유료 비용이 필요하면 사용자에게 별도 승인 요청.
+- 본 소스는 GitHub **Draft PR #2** 연구 브랜치에 있으며, 기존 메인 GitHub 감시기와 Telegram 알림 전송 경로는 유지한다. 신규 Worker는 주문·자동매매·시장 매수/숏 알림을 보내지 않는다.
+
 ## 구현한 범위
 - 빗썸 공식 WebSocket 현물 체결·호가를 계속 읽고 SQLite에 체결과 초별 호가를 저장.
 - 1·5·15·30분의 매수/매도 대금은 **해당 거래소 관측 구간**으로만 산출.
@@ -16,7 +28,7 @@
   있어야만 가능. API 수락과 사용자가 실제로 읽은 것을 구분. 애매한 전송은 재시도하지 않음.
 
 ## 현재 한계
-**설치본 아님 / 운영 미적용 / 실제 장기 수집 및 새 Telegram 전달 미검증.**
+**배포 검증 완료(별도 SHADOW Worker) / 현재 수집 정지 / 장시간 5·15·30분 검증 및 새 Telegram 전달은 미완료.**
 Node SQLite 단위 검사와 GitHub CI 결과는 실제 Cloudflare 배포·재시작·장기운영 검증과 다릅니다.
 Bitget 실시간 선물 호가/체결 스트림은 이번 서비스에 추가하지 않았습니다.
 기존 5분 수집의 OI/펀딩을 대체하거나 현물과 합산하지 않습니다.
