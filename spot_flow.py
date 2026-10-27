@@ -83,12 +83,69 @@ def trade_sample(symbol,now,api):
             'early_buy_share':portions[0],'recent_buy_share':portions[1],
             'recent_net_buy_krw':sides[1]['buy']-sides[1]['sell'],'full_cvd_verified':False}
 
+
+def sparse_hour(rows, now):
+    """Use historical trade-only candle prices; do not invent zero-volume bars."""
+    end=now//60000*60000
+    observed=sorted((ts,bar) for ts,bar in rows.items()
+                    if end-60*60000<=ts<end)
+    if len(observed)<18 or observed[-1][0]-observed[0][0]<35*60000:return None
+    op=observed[0][1][0];last=observed[-1][1][3]
+    high=max(c[1] for _,c in observed);low=min(c[2] for _,c in observed)
+    return {'open':op,'close':last,'high':high,'low':low,
+            'quote_krw':sum(c[4] for _,c in observed),
+            'price_change_pct':100*(last/op-1),
+            'upper_wick_ratio':max(0,high-max(op,last))/(high-low) if high>low else 0,
+            'coverage':len(observed)/60,'partial_history':True,
+            'quote_is_partial_lower_bound':True}
+
+def native_5m_context(symbol, now, api, minute_rows):
+    """Cross-check old sparse history against native completed Bithumb 5m bars."""
+    raw=api('bithumb','/v1/candles/minutes/5',{'market':symbol,'count':40})
+    if not isinstance(raw,list):return None
+    end=now//60000*60000
+    history=[]
+    for bar in raw:
+        if not isinstance(bar,dict):continue
+        try:
+            tm=int(dt.datetime.fromisoformat(bar['candle_date_time_utc']).replace(tzinfo=dt.timezone.utc).timestamp()*1000)
+        except (KeyError,TypeError,ValueError,OverflowError):continue
+        vals=[n(bar.get(key)) for key in ('opening_price','high_price','low_price','trade_price','candle_acc_trade_price')]
+        if any(v is None for v in vals) or vals[0]<=0 or vals[4]<0:continue
+        if tm%300000:continue
+        if end-65*60000<=tm and tm+300000<=end-5*60000:
+            history.append((tm,vals))
+    history.sort(key=lambda x:x[0])
+    if len(history)<4 or history[-1][0]-history[0][0]<25*60000:return None
+    median=statistics.median(bar[4] for _,bar in history)
+    if median<=0:return None
+    op=history[0][1][0];close=history[-1][1][3]
+    high=max(v[1] for _,v in history);low=min(v[2] for _,v in history)
+    actual_minutes=sum(end-60*60000<=ts<end-5*60000 for ts in minute_rows)
+    quiet={'sample_count':actual_minutes,'range_pct':100*(high-low)/op,
+           'drift_pct':100*(close/op-1),
+           'history_source':'NATIVE_5M_TRADE_CANDLES',
+           'native_5m_samples':len(history),
+           'span_minutes':(history[-1][0]-history[0][0])/60000+5,
+           'history_missing_minutes_not_zero_filled':True,
+           'sparse_verified':True}
+    return quiet,median,len(history)
+
+
 def detailed_check(sym,ticker,now,api):
     rows=candles(api('bithumb','/v1/candles/minutes/1',{'market':sym,'count':125}),now)
     bars={str(m)+'m':window(rows,now,m) for m in (1,5,15,60)}
-    if any(x is None for x in bars.values()):return None,'WAIT_CANDLE_COVERAGE'
+    # Recent 1/5/15 minute data must still be complete: NO unverified zero filling.
+    if any(bars[str(m)+'m'] is None for m in (1,5,15)):
+        return None,'WAIT_RECENT_CANDLE_GAP'
+    if bars['60m'] is None:
+        bars['60m']=sparse_hour(rows,now)
+        if bars['60m'] is None:return None,'WAIT_HOURLY_CONTEXT'
     context=past_context(rows,now)
-    if context is None or not context[1]:return None,'WAIT_BASELINE'
+    if context is None or not context[1]:
+        try: context=native_5m_context(sym,now,api,rows)
+        except Exception:return None,'WAIT_HISTORICAL_5M_API'
+        if context is None or not context[1]:return None,'WAIT_HISTORICAL_NATIVE_5M'
     calm,baseline,samples=context
     if calm['range_pct']>6 or abs(calm['drift_pct'])>4:return None,'PRIOR_PRICE_NOT_CALM'
     five=bars['5m'];fifteen=bars['15m'];hour=bars['60m'];ratio=five['quote_krw']/baseline
@@ -158,18 +215,21 @@ def collect_spot_flow(now,state,api):
         short.append((min(five/past_ema,80)*math.log10(1+five/10000000),sym,t))
     short.sort(key=lambda z:(-z[0],z[1]))
     state['spot_fast']={'time_ms':now_ms,'kst_day':today,'prices':fresh}
-    examined=0;errors=0;decisions={};signals=[]
-    for _,sym,t in short[:8]:
+    examined=0;errors=0;decisions={};signals=[];detail_diagnostics=[]
+    for rank,sym,t in short[:8]:
         try:
             signal,verdict=detailed_check(sym,t,now_ms,api)
             examined+=1;decisions[verdict]=decisions.get(verdict,0)+1
+            detail_diagnostics.append({'market':sym,'verdict':verdict,'rank':round(rank,3)})
             if signal:signals.append(signal)
-        except Exception:
+        except Exception as exc:
             errors+=1;decisions['DETAIL_ERROR']=decisions.get('DETAIL_ERROR',0)+1
+            detail_diagnostics.append({'market':sym,'verdict':'DETAIL_ERROR',
+                'exception_type':type(exc).__name__,'rank':round(rank,3)})
     return {'status':'PASS' if errors==0 else 'PARTIAL','observed_utc':now.isoformat(),
             'observed_kst':kst.isoformat(timespec='seconds'),'markets':len(markets),'tickers':len(tickers),
             'shortlisted':len(short),'details_checked':examined,'details_failed':errors,
-            'verdicts':decisions,'signals':signals[:8],
+            'verdicts':decisions,'detail_diagnostics':detail_diagnostics,'signals':signals[:8],
             'limitations':{'marketwide_full_CVD':False,'continuous_orderbook_absorption':False,
                  'exchange_inout_whale_tracking':False,'project_lockup':False,
                  'same_kst_hour_historical_baseline':'NOT_COLLECTED',
