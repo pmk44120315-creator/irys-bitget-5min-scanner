@@ -5,6 +5,7 @@ Python 3 standard library only. Designed for public GitHub Actions; outputs publ
 """
 from __future__ import annotations
 import concurrent.futures
+from spot_flow import collect_spot_flow
 import datetime as dt
 import json
 import math
@@ -373,6 +374,16 @@ def main():
     now=utc_now()
     try:
         latest,state=gather(now,load_state())
+        # Morning-style BUY observations from public Bithumb spot; independent
+        # of Bitget futures, preserving the original 862-instrument collection.
+        try:
+            latest['spot_flow']=collect_spot_flow(now,state,http_json)
+        except Exception as e:
+            latest['spot_flow']={'status':'FAILED','signals':[],
+                'error':type(e).__name__+': '+str(e)[:200],
+                'source':'Bithumb public API read-only'}
+        # Mark actual completion only after both futures and spot observation work.
+        latest['finished_utc']=utc_now().isoformat()
         write_json_atomic(LATEST,latest)
         write_json_atomic(STATE,state)
         print(json.dumps({'collector_status':latest['collector_status'],'stats':latest['stats'],
