@@ -2,7 +2,7 @@ import {EvidenceStore,parseFrame} from './core.mjs';
 import {fetchWalletWindow,telegramTest} from './integrations.mjs';
 const VERSION='IRYS_REALTIME_SHADOW_V1';
 const json=(data,status=200)=>new Response(JSON.stringify(data),{status,headers:{'content-type':'application/json;charset=utf-8','cache-control':'no-store'}});
-const routes=new Set(['/status','/evidence','/onchain','/diagnostics/feeds','/control/start','/control/stop','/telegram/test']);
+const routes=new Set(['/status','/evidence','/onchain','/diagnostics/feeds','/control/reconcile','/control/start','/control/stop','/telegram/test']);
 async function authenticated(request,token){
   if(typeof token!=='string'||token.length<32)return false;
   const got=request.headers.get('authorization')||'';
@@ -12,7 +12,7 @@ async function authenticated(request,token){
 export default {
   async fetch(request,env){
     const path=new URL(request.url).pathname;
-    if((path==='/'||path==='/health')&&request.method==='GET')return json({version:VERSION,mode:'SHADOW_ONLY',production_worker_untouched:true,trade_alerts_enabled:false,transport_codec:'BLOB_SERIAL_QUEUE_V2'});
+    if((path==='/'||path==='/health')&&request.method==='GET')return json({version:VERSION,mode:'SHADOW_ONLY',production_worker_untouched:true,trade_alerts_enabled:false,transport_codec:'BLOB_SERIAL_QUEUE_V2',proof_lease:'SHORT_AUTO_EXPIRE_V1'});
     if(!routes.has(path))return json({error:'NOT_FOUND'},404);
     if(typeof env.IRYS_RT_ADMIN_TOKEN!=='string'||env.IRYS_RT_ADMIN_TOKEN.length<32)return json({error:'ADMIN_NOT_CONFIGURED'},503);
     if(!await authenticated(request,env.IRYS_RT_ADMIN_TOKEN))return json({error:'UNAUTHORIZED'},401);
@@ -155,6 +155,7 @@ export class RealtimeEvidenceDO {
     }
     if(path==='/evidence'&&request.method==='GET')return json({version:VERSION,observation_only:true,send_allowed:false,risk:this.risk,windows:this.config.markets.flatMap(m=>[1,5,15,30].map(n=>this.db.summary(m,this.now(),n)))});
     if(path==='/onchain'&&request.method==='GET')return json(await this.ctx.storage.get('rt:onchain')??{status:'NOT_COLLECTED',all_exchange_coverage:false});
+    if(path==='/control/reconcile'&&request.method==='POST'){if(!this.config.enabled)return json({error:'SHADOW_NOT_RUNNING'},409);await this.refreshEvidence();return json({mode:'SHADOW_ONLY',evaluated_at_ms:this.now(),markets:this.config.markets,send_allowed:false});}
     if(path==='/control/stop'&&request.method==='POST'){this.commandId++;this.config.enabled=false;this.disconnect('MANUAL_STOP');await this.ctx.storage.put('rt:config',this.config);await this.ctx.storage.put('rt:connection',{status:'STOPPED',at_ms:this.now()});await this.ctx.storage.deleteAlarm();return json({enabled:false});}
     if(path==='/control/start'&&request.method==='POST'){
       const command=++this.commandId;
