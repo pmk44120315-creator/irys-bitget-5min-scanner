@@ -37,7 +37,7 @@ class ReadOnlyMarketTests(unittest.TestCase):
         report,state=c.gather(
             now_utc=n,
             old_state={'oi_previous':{'BTCUSDT':{'size':10,'utc':'2025-02-19T00:00:00+00:00'}}},
-            fetch_markets=lambda:([],[{'venue':'bitget','symbol':'BTCUSDT','contract_status':'normal'}]),
+            fetch_markets=lambda:([],[{'venue':'bitget','symbol':'BTCUSDT','contract_status':'normal','asset_identity':'VERIFIED_CRYPTO'}]),
             fetch_warnings=lambda:{},
             fetch_funding=lambda:{'BTCUSDT':0.0001},
             fetch_candles=lambda m,ts:c.closed_windows(self.rows(1000),self.ms),
@@ -57,7 +57,7 @@ class ReadOnlyMarketTests(unittest.TestCase):
         report,_=c.gather(
             now_utc=n,
             old_state={},
-            fetch_markets=lambda:([],[{'venue':'bitget','symbol':'BTCUSDT'}]),
+            fetch_markets=lambda:([],[{'venue':'bitget','symbol':'BTCUSDT','asset_identity':'VERIFIED_CRYPTO'}]),
             fetch_warnings=lambda:{},
             fetch_funding=lambda:{'BTCUSDT':0.0},
             fetch_candles=lambda m,ts:c.closed_windows(self.rows(1000),self.ms),
