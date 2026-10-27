@@ -38,7 +38,7 @@ export async function fetchWalletWindow(labels,now,fetcher=fetch,options={}){
       if(!done){complete=false;resume[lower(label.address)]=cursor;}
     }
     return {...result,status:complete?'INDEXED_SUBSET_READ':'PARTIAL',coverage_complete:complete,start_ms:start,end_ms:now,tip,transfers:result.transfers,resume:complete?null:resume};
-  }catch{return {...result,status:'UPSTREAM_UNAVAILABLE',coverage_complete:false,transfers:[],error_code:'CHAIN_READ_NOT_VERIFIED'};}
+  }catch(error){const code=/^(?:UPSTREAM_HTTP_[0-9]{3}|CHAIN_[A-Z_]+)$/.test(error?.message||'')?error.message:'CHAIN_READ_NOT_VERIFIED';return {...result,status:'UPSTREAM_UNAVAILABLE',coverage_complete:false,transfers:[],error_code:code};}
 }
 export async function telegramTest(env,storage,nonce,fetcher=fetch){
   if(env.ALLOW_TELEGRAM_TEST!=='true')return {status:'NOT_CONFIGURED',user_read_verified:false};
