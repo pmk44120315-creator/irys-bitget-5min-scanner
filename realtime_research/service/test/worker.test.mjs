@@ -29,6 +29,36 @@ test('Cloudflare global fetch invocation preserves its required receiver',async(
 test('persisted session diagnostic is read-only and never starts or orders',async()=>{const d=deps(),o=new RealtimeEvidenceDO(state(),{},d);const result=await o.fetch(req('/diagnostics/sessions'));assert.equal(result.status,200);const body=await result.json();assert.equal(body.read_only,true);assert.deepEqual(body.sessions,[]);assert.equal(d.sends,0);});
 test('feed diagnostics are read only and never start WebSocket or expose secrets',async()=>{const d=deps(),o=new RealtimeEvidenceDO(state(),{},d);const r=await o.fetch(req('/diagnostics/feeds'));assert.equal(r.status,200);const b=await r.json();assert.equal(b.read_only,true);assert.equal(b.checks.length,2);assert.equal(b.checks[0].source,'MARKET_LIST');assert.equal(d.sends,0);assert.equal(JSON.stringify(b).includes(TOKEN),false);});
 
+test('official Bithumb text PING cadence and UP acknowledgement do not corrupt market data',async()=>{
+  let clock=1793121000000;const outbound=[],handlers={},d=deps();
+  const ws={readyState:1,accept(){},send(p){outbound.push(p);},addEventListener(k,f){handlers[k]=f;},close(){this.readyState=3;}};
+  const o=new RealtimeEvidenceDO(state(),{}, {now:()=>clock,fetch:async url=>String(url).includes('websocket')?{webSocket:ws}:new Response(JSON.stringify([{market:'KRW-BTC'}]))});
+  assert.equal((await o.fetch(req('/control/start','POST',{markets:['KRW-BTC'],proof_seconds:90}))).status,200);
+  o.lastReconcile=clock;
+  clock+=11000;await o.alarm();
+  assert.equal(outbound[outbound.length-1],'PING');
+  handlers.message({data:'{"status":"UP"}'});
+  await new Promise(resolve=>setTimeout(resolve,0));
+  let status=await (await o.fetch(req('/status'))).json();
+  assert.equal(status.frame_stats.pings,1);
+  assert.equal(status.frame_stats.pongs,1);
+  assert.equal(status.frame_stats.errors,0);
+  assert.equal(status.frame_stats.ingested,0);
+  assert.equal(status.frame_stats.close_events,0);
+  await o.fetch(req('/control/stop','POST'));
+});
+test('outbound WebSocket close captures code and safely ends session without faking continuity',async()=>{
+  const handlers={},d=deps();
+  const ws={readyState:1,accept(){},send(){},addEventListener(k,f){handlers[k]=f;},close(){this.readyState=3;}};
+  const o=new RealtimeEvidenceDO(state(),{}, {...d,fetch:async u=>String(u).includes('websocket')?{webSocket:ws}:new Response(JSON.stringify([{market:'KRW-BTC'}]))});
+  assert.equal((await o.fetch(req('/control/start','POST',{markets:['KRW-BTC']}))).status,200);
+  handlers.close({type:'close',code:1006,wasClean:false});
+  const response=await (await o.fetch(req('/status'))).json();
+  assert.equal(response.frame_stats.close_events,1);
+  assert.equal(response.frame_stats.last_close.code,1006);
+  assert.equal(response.frame_stats.last_close.was_clean,false);
+  await o.fetch(req('/control/stop','POST'));
+});
 test('runtime frame ingestion failure is disclosed rather than incorrectly marked as CVD success',async()=>{
   const d=deps(),handlers={};
   const ws={readyState:1,accept(){},send(){},addEventListener(name,fn){handlers[name]=fn;},close(){this.readyState=3;}};
