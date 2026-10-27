@@ -39,6 +39,9 @@ def main():
             raise RuntimeError('Unrecognized taker side')
         ids.append(str(row['sequential_id']))
     if len(ids) != len(set(ids)):
+        print(json.dumps({'schema_debug':'NONUNIQUE_TRADE_IDS',
+                          'ids':ids[:10], 'keys':sorted(ticks[0].keys()),
+                          'id_types':[type(r['sequential_id']).__name__ for r in ticks[:10]]}))
         raise RuntimeError('Duplicate IDs in one tick response')
     print(json.dumps({'result': 'PUBLIC_READONLY_SCHEMA_OK',
                       'market': market, 'book_top5_ratio': book['bid_ask_top5_ratio'],
