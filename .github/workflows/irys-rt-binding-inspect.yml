@@ -30,3 +30,6 @@ jobs:
           node -e 'const s=JSON.parse(require("fs").readFileSync("/tmp/rt-status","utf8")); const st={error:s.error??null,enabled:s.enabled??null,mode:s.version??null,markets:s.markets??null};console.log("STATUS_RESPONSE_SAFE",JSON.stringify(st));'
           echo "STATUS_HTTP_${ACCESS_CODE}"
           [[ "$ACCESS_CODE" == "200" ]] || { echo "::error::Admin not active; cannot start collection"; exit 1; }
+          DIAG_CODE=$(curl --silent --show-error --max-time 55 -o /tmp/rt-diagnostics-check -w "%{http_code}" -H "Authorization: Bearer ${ADMIN}" "https://irys-realtime-evidence.vhehwpfl.workers.dev/diagnostics/feeds")
+          [[ "$DIAG_CODE" == "200" ]] || { echo "::error::Diagnostic_HTTP_${DIAG_CODE}"; exit 1; }
+          node -e 'const r=JSON.parse(require("fs").readFileSync("/tmp/rt-diagnostics-check","utf8"));console.log("BITHUMB_EGRESS_DELAYED_DIAG",JSON.stringify(r.checks));'
