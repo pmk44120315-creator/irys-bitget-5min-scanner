@@ -2,7 +2,7 @@ import {EvidenceStore,parseFrame} from './core.mjs';
 import {fetchWalletWindow,telegramTest} from './integrations.mjs';
 const VERSION='IRYS_REALTIME_SHADOW_V1';
 const json=(data,status=200)=>new Response(JSON.stringify(data),{status,headers:{'content-type':'application/json;charset=utf-8','cache-control':'no-store'}});
-const routes=new Set(['/status','/evidence','/onchain','/control/start','/control/stop','/telegram/test']);
+const routes=new Set(['/status','/evidence','/onchain','/diagnostics/feeds','/control/start','/control/stop','/telegram/test']);
 async function authenticated(request,token){
   if(typeof token!=='string'||token.length<32)return false;
   const got=request.headers.get('authorization')||'';
@@ -106,6 +106,23 @@ export class RealtimeEvidenceDO {
     await this.ready;const u=new URL(request.url),path=u.pathname;
     if(path==='/wake'&&request.method==='POST'){if(this.config.enabled)await this.ctx.storage.setAlarm(this.now()+100);return json({enabled:this.config.enabled});}
     if(path==='/status'&&request.method==='GET')return json({version:VERSION,enabled:this.config.enabled,markets:this.config.markets,live_trade_alerts_enabled:false,connection:await this.ctx.storage.get('rt:connection')??{status:'NOT_STARTED'},risk:this.risk,read_only_market_data:true});
+    if(path==='/diagnostics/feeds'&&request.method==='GET'){
+      const checks=[];
+      const sources=[
+        ['MARKET_LIST','https://api.bithumb.com/v1/market/all?isDetails=true'],
+        ['SINGLE_TICKER','https://api.bithumb.com/v1/ticker?markets=KRW-WLD']
+      ];
+      for(const [source,url] of sources){
+        const started=this.now();
+        try{
+          const response=await this.net(url,{signal:AbortSignal.timeout(15000),headers:{accept:'application/json'}});
+          let array_ok=false,count=null;
+          if(response.ok){const data=await response.json();array_ok=Array.isArray(data);count=array_ok?data.length:null;}
+          checks.push({source,http_status:response.status,array_ok,count,elapsed_ms:Math.max(0,this.now()-started)});
+        }catch(e){checks.push({source,error_type:e?.name??'UNKNOWN',http_status:null,array_ok:false,count:null});}
+      }
+      return json({version:VERSION,read_only:true,secret_values_included:false,checks});
+    }
     if(path==='/evidence'&&request.method==='GET')return json({version:VERSION,observation_only:true,send_allowed:false,risk:this.risk,windows:this.config.markets.flatMap(m=>[1,5,15,30].map(n=>this.db.summary(m,this.now(),n)))});
     if(path==='/onchain'&&request.method==='GET')return json(await this.ctx.storage.get('rt:onchain')??{status:'NOT_COLLECTED',all_exchange_coverage:false});
     if(path==='/control/stop'&&request.method==='POST'){this.commandId++;this.config.enabled=false;this.disconnect('MANUAL_STOP');await this.ctx.storage.put('rt:config',this.config);await this.ctx.storage.put('rt:connection',{status:'STOPPED',at_ms:this.now()});await this.ctx.storage.deleteAlarm();return json({enabled:false});}
