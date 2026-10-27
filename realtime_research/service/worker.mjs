@@ -2,7 +2,7 @@ import {EvidenceStore,parseFrame} from './core.mjs';
 import {fetchWalletWindow,telegramTest} from './integrations.mjs';
 const VERSION='IRYS_REALTIME_SHADOW_V1';
 const json=(data,status=200)=>new Response(JSON.stringify(data),{status,headers:{'content-type':'application/json;charset=utf-8','cache-control':'no-store'}});
-const routes=new Set(['/status','/evidence','/onchain','/diagnostics/feeds','/control/reconcile','/control/start','/control/stop','/telegram/test']);
+const routes=new Set(['/status','/evidence','/onchain','/diagnostics/feeds','/diagnostics/sessions','/control/reconcile','/control/start','/control/stop','/telegram/test']);
 async function authenticated(request,token){
   if(typeof token!=='string'||token.length<32)return false;
   const got=request.headers.get('authorization')||'';
@@ -152,6 +152,13 @@ export class RealtimeEvidenceDO {
         }catch(e){checks.push({source,error_type:e?.name??'UNKNOWN',error_detail:String(e?.message??'').slice(0,180),http_status:null,array_ok:false,count:null});}
       }
       return json({version:VERSION,read_only:true,secret_values_included:false,checks});
+    }
+    if(path==='/diagnostics/sessions'&&request.method==='GET'){
+      const market=this.config.markets[0]??'KRW-BTC';
+      return json({version:VERSION,market,read_only:true,
+        sessions:this.db.rows('SELECT market,start_ms,last_ms,end_ms,reason FROM rt_session WHERE market=? ORDER BY start_ms DESC LIMIT 12',market),
+        recent_quality:this.db.rows('SELECT ts,until_ms,reason FROM rt_quality WHERE market=? ORDER BY ts DESC LIMIT 15',market),
+        total_frames:this.frameReceived,stored_frames:this.frameIngested});
     }
     if(path==='/evidence'&&request.method==='GET')return json({version:VERSION,observation_only:true,send_allowed:false,risk:this.risk,windows:this.config.markets.flatMap(m=>[1,5,15,30].map(n=>this.db.summary(m,this.now(),n)))});
     if(path==='/onchain'&&request.method==='GET')return json(await this.ctx.storage.get('rt:onchain')??{status:'NOT_COLLECTED',all_exchange_coverage:false});
