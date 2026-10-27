@@ -1,0 +1,32 @@
+name: IRYS realtime binding inspection (read-only, zero mutations)
+on:
+  push:
+    branches: [research/realtime-orderbook-ws-20261028]
+    paths:
+      - '.github/workflows/irys-rt-binding-inspect.yml'
+permissions:
+  contents: read
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.IRYS_REALTIME_CF_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.IRYS_REALTIME_CF_ACCOUNT_ID }}
+    steps:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Confirm admin binding name and authenticate status only (no writes)
+        shell: bash
+        run: |
+          set -euo pipefail
+          ENDPOINT="https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/workers/scripts/irys-realtime-evidence/settings"
+          METADATA_HTTP=$(curl -sS --max-time 20 -o /tmp/rt-bindings -w "%{http_code}" -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" "$ENDPOINT")
+          if [[ "$METADATA_HTTP" != "200" ]]; then echo "::error::SETTINGS_HTTP_${METADATA_HTTP}"; exit 1; fi
+          node -e 'const d=JSON.parse(require("fs").readFileSync("/tmp/rt-bindings","utf8")); const x=(d.result?.bindings||[]).map(x=>({name:x.name,type:x.type})); console.log("BINDING_NAMES_AND_TYPES",JSON.stringify(x)); console.log("ADMIN_BINDING_LISTED",x.some(x=>x.name==="IRYS_RT_ADMIN_TOKEN"));'
+          ADMIN="$(node -e 'const c=require("node:crypto");process.stdout.write(c.createHmac("sha256",process.env.CLOUDFLARE_API_TOKEN).update("irys-realtime-evidence/admin-control/v1").digest("hex"));')"
+          ACCESS_CODE=$(curl -sS --max-time 20 -o /tmp/rt-status -w "%{http_code}" -H "Authorization: Bearer ${ADMIN}" "https://irys-realtime-evidence.vhehwpfl.workers.dev/status")
+          node -e 'const s=JSON.parse(require("fs").readFileSync("/tmp/rt-status","utf8")); const st={error:s.error??null,enabled:s.enabled??null,mode:s.version??null,markets:s.markets??null};console.log("STATUS_RESPONSE_SAFE",JSON.stringify(st));'
+          echo "STATUS_HTTP_${ACCESS_CODE}"
+          [[ "$ACCESS_CODE" == "200" ]] || { echo "::error::Admin not active; cannot start collection"; exit 1; }
