@@ -1,0 +1,52 @@
+name: IRYS independent AI morning-style twin
+on:
+  workflow_run:
+    workflows:
+      - Bitget five-minute read-only snapshot
+    types: [completed]
+  workflow_dispatch:
+  push:
+    paths:
+      - 'ai_twin/**'
+      - '.github/workflows/irys-ai-twin.yml'
+permissions:
+  contents: write
+concurrency:
+  group: irys-independent-ai-twin
+  cancel-in-progress: false
+jobs:
+  compare:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify independent twin offline
+        run: python -m unittest discover -s ai_twin/tests -v
+      - name: Independent read-only AI analysis
+        env:
+          AI_TWIN_OPENAI_API_KEY: ${{ secrets.AI_TWIN_OPENAI_API_KEY }}
+          AI_TWIN_TELEGRAM_BOT_TOKEN: ${{ secrets.AI_TWIN_TELEGRAM_BOT_TOKEN }}
+          AI_TWIN_TELEGRAM_CHAT_ID: ${{ secrets.AI_TWIN_TELEGRAM_CHAT_ID }}
+          AI_TWIN_MODEL: gpt-5.5
+          # Shadow-by-default: avoid unverified duplicate messages.
+          AI_TWIN_SEND_ALERTS: 'false'
+        run: python -m ai_twin.monitor
+      - name: Publish separate AI comparison result only
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add data/ai_twin_latest.json data/ai_twin_state.json
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m 'ai-twin: independent read-only assessment'
+          for attempt in 1 2 3; do
+            git pull --rebase origin main || exit 1
+            if git push origin HEAD:main; then exit 0; fi
+            sleep 2
+          done
+          exit 1
