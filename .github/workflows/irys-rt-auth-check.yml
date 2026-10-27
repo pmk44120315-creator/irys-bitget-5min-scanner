@@ -1,0 +1,40 @@
+name: IRYS realtime Cloudflare scoped auth check (no deployment)
+on:
+  push:
+    branches: [research/realtime-orderbook-ws-20261028]
+    paths:
+      - '.github/workflows/irys-rt-auth-check.yml'
+permissions:
+  contents: read
+jobs:
+  verify-only:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Verify registered Secrets exist and token reads only target Worker
+        shell: bash
+        env:
+          CF_RT_TOKEN: ${{ secrets.IRYS_REALTIME_CF_API_TOKEN }}
+          CF_RT_ACCOUNT: ${{ secrets.IRYS_REALTIME_CF_ACCOUNT_ID }}
+        run: |
+          set -euo pipefail
+          if [[ -z "${CF_RT_TOKEN}" || -z "${CF_RT_ACCOUNT}" ]]; then
+            echo "::error::IRYS scoped Cloudflare Secrets missing; no deployment"
+            exit 1
+          fi
+          if [[ ! "${CF_RT_ACCOUNT}" =~ ^[a-f0-9]{32}$ ]]; then
+            echo "::error::Cloudflare Account ID format invalid; no deployment"
+            exit 1
+          fi
+          HTTP_CODE=$(curl --silent --show-error --max-time 20 \
+              -o /tmp/irys_rt_worker_read \
+              -w '%{http_code}' \
+              -H "Authorization: Bearer ${CF_RT_TOKEN}" \
+              -H 'Accept: application/json' \
+              "https://api.cloudflare.com/client/v4/accounts/${CF_RT_ACCOUNT}/workers/scripts/irys-realtime-evidence/settings")
+          if [[ "$HTTP_CODE" != "200" ]]; then
+            echo "::error::Target Worker metadata read unavailable (HTTP ${HTTP_CODE}); permission/auth not verified"
+            exit 1
+          fi
+          echo "PASS: GitHub Secrets present and token reads irys-realtime-evidence settings"
+          echo "No deploy, no changes, no Telegram, no orders"
