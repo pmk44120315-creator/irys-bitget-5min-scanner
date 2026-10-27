@@ -149,14 +149,36 @@ def closed_windows(rows,now_ms):
     return result
 
 def get_markets():
-    """Public Bitget USDT-M perpetual contracts only."""
-    bg=http_json('bitget','/api/v2/mix/market/contracts',{'productType':'USDT-FUTURES'})
-    if not isinstance(bg,list):raise ExchangeAPIError('Bitget contracts response missing')
+    """Fetch all active USDT perpetuals; classify crypto via authoritative V3 metadata."""
+    contracts=http_json('bitget','/api/v2/mix/market/contracts',{'productType':'USDT-FUTURES'})
+    if not isinstance(contracts,list):raise ExchangeAPIError('Bitget active contracts response missing')
+    # The V2 contract's symbolType='perpetual' does NOT establish underlying type.
+    # V3 returns symbolType='crypto/stock/metal/commodity' and instrumentType.
+    # Classification outages must never silently turn stocks into crypto picks.
+    official_types={}
+    try:
+        instruments=http_json('bitget','/api/v3/market/instruments',{'category':'USDT-FUTURES'})
+        if not isinstance(instruments,list):raise ExchangeAPIError('Bitget V3 instrument response missing')
+        for item in instruments:
+            if not isinstance(item,dict) or not item.get('symbol'):continue
+            symbol_type=str(item.get('symbolType') or '').lower()
+            instrument_type=str(item.get('instrumentType') or '').lower()
+            if symbol_type=='crypto' and instrument_type=='crypto':
+                verdict='VERIFIED_CRYPTO'
+            elif symbol_type in {'stock','metal','commodity','energy','etf','forex'} or instrument_type in {'stock','metal','commodity','energy','etf','forex'}:
+                verdict='NON_CRYPTO'
+            else:
+                verdict='UNVERIFIED'
+            official_types[item['symbol']]=verdict
+    except ExchangeAPIError as e:
+        # Futures candles and OI can still be recorded, but no buy-like ranking.
+        print('INSTRUMENT_IDENTITY_UNAVAILABLE '+str(e)[:180])
     futures=[{'venue':'bitget','symbol':m['symbol'],'baseCoin':m.get('baseCoin'),
               'quoteCoin':m.get('quoteCoin'),'contract_status':m.get('symbolStatus'),
               'symbolType':m.get('symbolType'),'isRwa':m.get('isRwa'),
-              'launchTime':m.get('launchTime')}
-          for m in bg if isinstance(m,dict) and m.get('symbolStatus')=='normal'
+              'launchTime':m.get('launchTime'),
+              'asset_identity':official_types.get(m['symbol'],'UNVERIFIED')}
+          for m in contracts if isinstance(m,dict) and m.get('symbolStatus')=='normal'
           and m.get('symbolType')=='perpetual' and m.get('quoteCoin')=='USDT'
           and str(m.get('symbol','')).endswith('USDT')]
     if not futures:raise ExchangeAPIError('No active USDT perpetual contracts')
@@ -278,6 +300,7 @@ def gather(now_utc=None,old_state=None,fetch_markets=get_markets,fetch_warnings=
             entry['rank_score']=interval_score(entry)
             # Watch: official warning excludes any prospective buy-like candidate.
             if market['venue']=='bithumb' and entry['risk_clearance']!='NO_OFFICIAL_WARNING_AT_SNAPSHOT':entry['rank_score']=-1
+            if market['venue']=='bitget' and market.get('asset_identity')!='VERIFIED_CRYPTO':entry['rank_score']=-1
             result.append(entry)
     result.sort(key=lambda x:x['rank_score'],reverse=True)
     # OI for *all* active Bitget USDT perpetual contracts; unavailable is explicit.
@@ -318,6 +341,9 @@ def gather(now_utc=None,old_state=None,fetch_markets=get_markets,fetch_warnings=
     stats={'bithumb_listed_krw':len(spots),'bitget_active_usdt_perpetual':len(futures),
            'candle_symbols_success':num_ok,'candle_symbols_failed':len(markets)-num_ok,
            'oi_symbols_success':len(oi_cache),'oi_symbols_failed':len(futures)-len(oi_cache),
+           'instrument_verified_crypto':sum(m.get('asset_identity')=='VERIFIED_CRYPTO' for m in futures),
+           'instrument_noncrypto':sum(m.get('asset_identity')=='NON_CRYPTO' for m in futures),
+           'instrument_identity_unverified':sum(m.get('asset_identity')=='UNVERIFIED' for m in futures),
            'trade_samples_success':len(flow_cache),'warning_feed_ok':warning_data_ok,'funding_feed_ok':funding_data_ok}
     health_ok=(num_ok==len(markets) and len(oi_cache)==len(futures)
                and warning_data_ok and funding_data_ok and len(markets)>0)
@@ -328,7 +354,7 @@ def gather(now_utc=None,old_state=None,fetch_markets=get_markets,fetch_warnings=
             'limitations':{'historical_60m_CVD':'NOT_MEASURED_FUTURES_FILL_SAMPLE_IS_NOT_SPOT_CVD',
                            'orderbook_absorption':'NOT_MEASURED_BY_HOURLY_SNAPSHOTS',
                            'exchange_inout':'NOT_MEASURED',
-                           'underlying_asset_identity':'NOT_CRYPTO_PROJECT_VERIFIED_ON_ALL_FUTURES',
+                           'underlying_asset_identity':'V3_CLASSIFIED_CRYPTO_ONLY_IN_WATCHLIST_OTHER_UNDERLYINGS_EXCLUDED',
                            'external_announcement_delisting':'REQUIRES_INDEPENDENT_CHECK',
                            'same_time_historical_baseline':'NOT_MEASURED_BY_5M_SCANNER',
                            'top_taker_samples':'TOP_25_FUTURES_ONLY',
