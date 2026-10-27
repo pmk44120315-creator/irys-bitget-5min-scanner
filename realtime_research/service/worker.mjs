@@ -45,22 +45,36 @@ export class RealtimeEvidenceDO {
         if(generation!==this.generation||!this.config.enabled){ws.close(1000,'STALE_CONNECTION');return;}
         this.socket=ws;this.lastMessage=this.now();
         for(const market of markets)this.db.start(market,this.lastMessage);
+        // Cloudflare's outbound WebSocket may deliver Blob, ArrayBuffer or string.
+        // Serialize asynchronous Blob decoding so order-book/trade causality is preserved.
+        let inboundQueue=Promise.resolve();
         ws.addEventListener('message',event=>{
           if(this.socket!==ws)return;
-          const at=this.now();this.lastMessage=at;this.frameReceived++;
-          try{
-            const raw=typeof event.data==='string'?event.data:new TextDecoder().decode(event.data);
-            const parsed=parseFrame(raw,at);
-            if(parsed&&this.config.markets.includes(parsed.market)){
-              if(this.db.ingest(raw,at))this.frameIngested++;
-              else this.lastFrameError={type:'INGEST_UNVERIFIED',at_ms:at};
-            }else for(const market of this.config.markets)this.db.quality(market,at,at+1,'INVALID_OR_UNEXPECTED_FRAME');
-          }catch(e){
-            this.frameErrors++;
-            this.lastFrameError={type:String(e?.name||'UNKNOWN'),detail:String(e?.message||'').slice(0,180),at_ms:at};
-            try{for(const market of this.config.markets)this.db.quality(market,at,at+1,'FRAME_PARSE_FAILED');}
-            catch(err){this.lastFrameError.secondary=String(err?.message||'').slice(0,120);}
-          }
+          const at=this.now(),payload=event.data;
+          this.lastMessage=at;this.frameReceived++;
+          inboundQueue=inboundQueue.then(async()=>{
+            if(this.socket!==ws)return;
+            try{
+              let raw;
+              if(typeof payload==='string')raw=payload;
+              else if(payload&&typeof payload.text==='function')raw=await payload.text();
+              else if(payload instanceof ArrayBuffer||ArrayBuffer.isView(payload))raw=new TextDecoder().decode(payload);
+              else if(payload&&typeof payload.arrayBuffer==='function')raw=new TextDecoder().decode(await payload.arrayBuffer());
+              else throw new TypeError('UNSUPPORTED_WEBSOCKET_FRAME_TYPE');
+              if(this.socket!==ws)return;
+              const parsed=parseFrame(raw,at);
+              if(parsed&&this.config.markets.includes(parsed.market)){
+                if(this.db.ingest(raw,at))this.frameIngested++;
+                else this.lastFrameError={type:'INGEST_UNVERIFIED',at_ms:at};
+              }else for(const market of this.config.markets)this.db.quality(market,at,at+1,'INVALID_OR_UNEXPECTED_FRAME');
+            }catch(e){
+              this.frameErrors++;
+              this.lastFrameError={type:String(e?.name||'UNKNOWN'),detail:String(e?.message||'').slice(0,180),frame_kind:Object.prototype.toString.call(payload).slice(0,70),at_ms:at};
+              try{for(const market of this.config.markets)this.db.quality(market,at,at+1,'FRAME_PARSE_FAILED');}
+              catch(err){this.lastFrameError.secondary=String(err?.message||'').slice(0,120);}
+            }
+          }).catch(e=>{this.frameErrors++;this.lastFrameError={type:'UNHANDLED_FRAME_QUEUE_ERROR',detail:String(e?.message||'').slice(0,180),at_ms:at};});
+          this.ctx.waitUntil(inboundQueue);
         });
         const close=()=>{if(this.socket!==ws)return;this.socket=null;for(const market of this.config.markets)this.db.stop(market,this.now());if(this.config.enabled)this.ctx.waitUntil(this.ctx.storage.setAlarm(this.now()+5000));};
         ws.addEventListener('close',close);ws.addEventListener('error',close);
