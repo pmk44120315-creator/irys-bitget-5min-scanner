@@ -19,6 +19,9 @@ class TestSpotBasics(unittest.TestCase):
         self.assertTrue(x['coverage'])
         self.assertGreater(x['buy_share'],.6)
         self.assertFalse(x['full_cvd_verified'])
+        events[1]['sequential_id']=events[0]['sequential_id']
+        colliding=s.trade_sample('KRW-AAA',MS,fake)
+        self.assertEqual(colliding['count'],44)
 
     def test_candle_spike_and_previous_55min(self):
         raw=[]
