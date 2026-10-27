@@ -27,6 +27,23 @@ test('Cloudflare global fetch invocation preserves its required receiver',async(
   } finally {globalThis.fetch=original;}
 });
 test('feed diagnostics are read only and never start WebSocket or expose secrets',async()=>{const d=deps(),o=new RealtimeEvidenceDO(state(),{},d);const r=await o.fetch(req('/diagnostics/feeds'));assert.equal(r.status,200);const b=await r.json();assert.equal(b.read_only,true);assert.equal(b.checks.length,2);assert.equal(b.checks[0].source,'MARKET_LIST');assert.equal(d.sends,0);assert.equal(JSON.stringify(b).includes(TOKEN),false);});
+
+test('runtime frame ingestion failure is disclosed rather than incorrectly marked as CVD success',async()=>{
+  const d=deps(),handlers={};
+  const ws={readyState:1,accept(){},send(){},addEventListener(name,fn){handlers[name]=fn;},close(){this.readyState=3;}};
+  const realtime={...d,fetch:async url=>String(url).includes('websocket')?{webSocket:ws}:new Response(JSON.stringify([{market:'KRW-WLD'}]))};
+  const o=new RealtimeEvidenceDO(state(),{},realtime);
+  const started=await o.fetch(req('/control/start','POST',{markets:['KRW-WLD']}));
+  assert.equal(started.status,200);
+  o.db.ingest=()=>{throw Error('FORCED_TEST_DB_WRITE_FAILURE');};
+  handlers.message({data:JSON.stringify({type:'trade',code:'KRW-WLD',timestamp:1793121000000,trade_price:100,trade_volume:1,ask_bid:'BID',sequential_id:'17931210000000000'})});
+  const status=await (await o.fetch(req('/status'))).json();
+  assert.equal(status.frame_stats.received,1);
+  assert.equal(status.frame_stats.ingested,0);
+  assert.equal(status.frame_stats.errors,1);
+  assert.ok(status.frame_stats.last_error.detail.includes('FORCED_TEST_DB_WRITE_FAILURE'));
+  await o.fetch(req('/control/stop','POST'));
+});
 test('standalone DO initializes stopped; status read does not connect',async()=>{const d=deps(),o=new RealtimeEvidenceDO(state(),{},d);const r=await o.fetch(req('/status'));assert.equal(r.status,200);assert.equal((await r.json()).enabled,false);assert.equal(d.sends,0);});
 test('start validates listed KRW markets then subscribes both channels',async()=>{const d=deps(),o=new RealtimeEvidenceDO(state(),{},d);const r=await o.fetch(req('/control/start','POST',{markets:['KRW-WLD']}));assert.equal(r.status,200);assert.equal(d.sends,1);const b=await (await o.fetch(req('/status'))).json();assert.equal(b.enabled,true);assert.equal(b.live_trade_alerts_enabled,false);});
 test('unlisted market cannot start; existing V7 binding never used',async()=>{const d=deps(),o=new RealtimeEvidenceDO(state(),{IRYS_KV:{get(){throw Error('old worker storage used');}}},d);const r=await o.fetch(req('/control/start','POST',{markets:['KRW-FAKE']}));assert.equal(r.status,400);assert.equal(d.sends,0);});
