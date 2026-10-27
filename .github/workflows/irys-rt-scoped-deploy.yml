@@ -33,7 +33,7 @@ jobs:
         run: |
           set -euo pipefail
           [[ -n "${CLOUDFLARE_API_TOKEN}" && -n "${CLOUDFLARE_ACCOUNT_ID}" ]] || { echo "::error::Credentials missing"; exit 1; }
-          node --input-type=module -e 'import {readFileSync} from "node:fs"; const c=JSON.parse(readFileSync("realtime_research/service/wrangler.jsonc","utf8")); if(c.name!=="irys-realtime-evidence"||c.vars?.ALLOW_TELEGRAM_TEST!=="false"||c.vars?.ENABLE_ONCHAIN!=="false"||c.vars?.KNOWN_WALLETS_JSON!=="[]"||c.routes||c.route||c.durable_objects?.bindings?.length!==1||c.durable_objects.bindings[0].name!=="IRYS_RT")process.exit(2); console.log("SAFETY_PASS: only isolated shadow Worker, no Telegram, onchain or routes");'
+          node --input-type=module -e 'import {readFileSync} from "node:fs"; const c=JSON.parse(readFileSync("realtime_research/service/wrangler.jsonc","utf8")); if(Date.parse(c.compatibility_date+"T00:00:00Z")>Date.now())process.exit(3); if(c.name!=="irys-realtime-evidence"||c.vars?.ALLOW_TELEGRAM_TEST!=="false"||c.vars?.ENABLE_ONCHAIN!=="false"||c.vars?.KNOWN_WALLETS_JSON!=="[]"||c.routes||c.route||c.durable_objects?.bindings?.length!==1||c.durable_objects.bindings[0].name!=="IRYS_RT")process.exit(2); console.log("SAFETY_PASS: only isolated shadow Worker, no Telegram, onchain or routes");'
       - name: Existing scanner and independent AI regression
         run: |
           python -m unittest discover -s tests -v
