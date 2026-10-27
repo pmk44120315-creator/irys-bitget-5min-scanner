@@ -40,8 +40,20 @@ jobs:
           ADMIN="$(node -e 'const c=require("node:crypto");const k=process.env.CLOUDFLARE_API_TOKEN;if(!k||k.length<16)process.exit(2);process.stdout.write(c.createHmac("sha256",k).update("irys-realtime-evidence/admin-control/v1").digest("hex"));')"
           if [[ "${#ADMIN}" != 64 ]]; then echo "::error::Admin secret derivation failed"; exit 2; fi
           # Store separate nonreversible per-app secret, NEVER reusing the Cloudflare API token as Bearer.
-          printf "%s" "$ADMIN" | npx --yes wrangler@4.154.0 secret put IRYS_RT_ADMIN_TOKEN --config realtime_research/service/wrangler.jsonc >/tmp/rt-secret-put
-          echo "ADMIN_SECRET_PASS: scope-limited Worker secret configured (value never logged)"
+          CURRENT_CODE=$(curl --silent --show-error --max-time 20 -o /tmp/rt-current-status -w "%{http_code}" -H "Authorization: Bearer ${ADMIN}" "${URL}/status" || true)
+          if [[ "$CURRENT_CODE" == "200" ]]; then
+            echo "ADMIN_ALREADY_ACTIVE: reuse scoped Worker secret; do not re-deploy"
+          else
+            printf "%s" "$ADMIN" | npx --yes wrangler@4.154.0 secret put IRYS_RT_ADMIN_TOKEN --config realtime_research/service/wrangler.jsonc >/tmp/rt-secret-put
+            echo "ADMIN_SECRET_SAVED: waiting for Cloudflare deployment propagation"
+            ready=0
+            for i in 1 2 3 4 5 6 7 8 9 10 11 12; do
+              sleep 5
+              CURRENT_CODE=$(curl --silent --show-error --max-time 20 -o /tmp/rt-current-status -w "%{http_code}" -H "Authorization: Bearer ${ADMIN}" "${URL}/status" || true)
+              if [[ "$CURRENT_CODE" == "200" ]]; then ready=1; break; fi
+            done
+            if [[ "$ready" != "1" ]]; then echo "::error::Admin binding not active after propagation; cannot start"; exit 1; fi
+          fi
           START_ATTEMPTED=0
           stop_shadow() {
             local prior=$?
@@ -54,8 +66,8 @@ jobs:
             return "$prior"
           }
           trap stop_shadow EXIT
-          CODE=$(curl --silent --show-error --max-time 30 -o /tmp/rt-start -w "%{http_code}" -X POST -H "Authorization: Bearer ${ADMIN}" -H "Content-Type: application/json" --data '{"markets":["KRW-WLD"]}' "${URL}/control/start")
           START_ATTEMPTED=1
+          CODE=$(curl --silent --show-error --max-time 30 -o /tmp/rt-start -w "%{http_code}" -X POST -H "Authorization: Bearer ${ADMIN}" -H "Content-Type: application/json" --data '{"markets":["KRW-WLD"]}' "${URL}/control/start")
           if [[ "$CODE" != "200" ]]; then echo "::error::START_HTTP_${CODE}"; cat /tmp/rt-start; exit 1; fi
           node -e 'const d=JSON.parse(require("fs").readFileSync("/tmp/rt-start","utf8"));console.log("START_RESULT",JSON.stringify(d));if(!d.enabled||!d.connected||d.live_trade_alerts_enabled!==false)process.exit(2);'
           NOW="$(date -u +%s)"
