@@ -5,6 +5,7 @@ on:
       - 'spot_continuity.py'
       - 'spot_flow.py'
       - 'tests/**'
+      - 'smoke_spot_public_api.py'
       - '.github/workflows/verify-spot-continuity.yml'
   workflow_dispatch:
 permissions:
@@ -22,3 +23,5 @@ jobs:
         run: python -m py_compile collector.py spot_flow.py spot_continuity.py
       - name: Run offline test suite (no exchange/API calls)
         run: python -m unittest discover -s tests -v
+      - name: Check live public Bithumb REST schema (read only, no orders)
+        run: python smoke_spot_public_api.py
