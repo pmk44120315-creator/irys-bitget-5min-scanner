@@ -179,7 +179,7 @@ test('Bitget futures outcome uses first post-alert CLOSED 1m baseline, not old p
   const rows=parseBitgetOutcomeCandles({code:'00000',data:raw},now);
   assert.equal(parseBitgetOutcomeCandles({code:'50000',data:raw},now).size,0);
   const record={market:'ABCUSDT',alert_ms:at,direction:'UP',
-    first_postalert_close_usdt:rows.get(NOW).close,results:{}};
+    first_postalert_close_usdt:rows.get(NOW+M).close,results:{}};
   assert.equal(evaluateFuturesOutcome(record,60,NOW+M,rows),null);
   for(const min of [5,15,30,60]){
     const result=evaluateFuturesOutcome(record,min,now,rows);
@@ -213,7 +213,7 @@ test('Bitget futures outcome uses first post-alert CLOSED 1m baseline, not old p
     assert.equal(out.updated,4);
     assert.equal(out.followups_sent,1);
     assert.equal(state.futuresOutcomesV13[0].followup_sent,true);
-    assert.equal(state.futuresOutcomesV13[0].first_postalert_close_usdt,rows.get(NOW).close);
+    assert.equal(state.futuresOutcomesV13[0].first_postalert_close_usdt,rows.get(NOW+M).close);
     assert.equal(state.futuresOutcomesV13[0].results['60m'].direction_right,true);
     assert.ok(gets.some(s=>s.includes('/sendMessage')));
   }finally{globalThis.fetch=saved;}
