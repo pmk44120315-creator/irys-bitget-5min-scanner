@@ -30,7 +30,7 @@ const result={
   source_exact_match:deployed.sha256===expected,
   cron,required_bindings_missing:missing,
   runtime_code_version:last.codeVersion||null,
-  runtime_v11_seen:last.codeVersion==='IRYS-V11-SPOT-BITGET-VERIFIED-20261028',
+  runtime_v11_seen:last.codeVersion==='IRYS-V11-SPOT-FUTURES-EARLY-WATCH-20261028',
   last_run_status:last.status||null,last_run_kst:last.time||null,
   github_dispatch:last.githubDispatchStatus||null,
   futures_direction:last.futuresDirection||null,
