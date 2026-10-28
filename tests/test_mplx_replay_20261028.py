@@ -19,7 +19,7 @@ def case(time_utc,elapsed,previous_price,price,previous_total,current_total,
              "acc_trade_price":1_000_000,"acc_trade_price_24h":10_000_000,
              "signed_change_rate":0} for i in range(101))
     baseline={"KRW-MPLX":[previous_price,previous_total,previous_ema,previous_count]}
-    baseline.update({"KRW-T%03d"%i:[100,1_000_000,100_000,9] for i in range(101))
+    baseline.update({"KRW-T%03d"%i:[100,1_000_000,100_000,9] for i in range(101)})
     state={"spot_fast":{"time_ms":base,
              "kst_day":now.astimezone(KST).date().isoformat(),"prices":baseline}}
     def api(venue,path,opts=None):
