@@ -13,6 +13,39 @@ async function get(url){
     }catch(e){if(attempt===2)throw e;await new Promise(ok=>setTimeout(ok,1200*(attempt+1)));}
   }
 }
+
+const funnel={};
+const bump=x=>funnel[x]=(funnel[x]||0)+1;
+function probe(x,finished){
+  bump('total_watchlist_records');
+  if(x?.asset_identity!=='VERIFIED_CRYPTO'||x.isRwa!=='NO'||
+    x.contract_status!=='normal'||x.symbolType!=='perpetual')return bump('excluded_identity_or_product');
+  bump('verified_crypto');
+  const w=x.windows||{},f=w['5m'],q=w['15m'],h=w['60m'];
+  if(!f||!q||!h||f.coverage!==1||q.coverage!==1||h.coverage!==1)return bump('coverage_missing');
+  bump('coverage_pass');
+  if(!(f.quote_turnover>=30000&&q.quote_turnover>=90000&&f.prior_adjacent_quote_turnover>=2000))
+    return bump('turnover_or_baseline_too_low');
+  bump('turnover_pass');
+  const ti=x.recent_trades_sample||{},oi=x.oi||{};
+  if(ti.total_trades_sampled<40||!(ti.buy_taker_quote+ti.sell_taker_quote>=12000)||
+    !(ti.newest_trade_timestamp_ms>=finished-90000)||
+    !(ti.oldest_trade_timestamp_ms>=finished-15*60000)||
+    !(ti.newest_trade_timestamp_ms-ti.oldest_trade_timestamp_ms>=30000))
+    return bump('trade_sample_stale_thin_or_too_short');
+  bump('trade_sample_pass');
+  if(oi.status!=='OK'||oi.change_pct_from_previous_run<-.6||oi.change_pct_from_previous_run>15||
+    oi.elapsed_min_since_previous_snapshot<3||oi.elapsed_min_since_previous_snapshot>8||
+    Math.abs(x.funding_rate)>.002)return bump('OI_or_funding');
+  bump('oi_pass');
+  const buy=ti.buy_taker_quote/(ti.buy_taker_quote+ti.sell_taker_quote),p5=f.price_change_pct,p15=q.price_change_pct;
+  const aligned=(p5>=.12&&p15>=.25&&buy>=.64)||(p5<=-.12&&p15<=-.25&&buy<=.36);
+  if(!aligned)return bump('direction_or_taker_conflict');
+  bump('aligned_price_and_taker');
+  if(bitgetTickEvidence(x,finished,finished+60000))bump('all_filters_pass');
+  else bump('late_or_wick_or_other');
+}
+
 const start='2026-10-28T00:00:00Z';
 let commits=[];
 for(let page=1;page<=3;page++){
@@ -33,6 +66,7 @@ for(const commit of commits){
  if(previous&&finished-previous>8*60000)gaps++;
  previous=finished;
  for(const w of snap.watchlist){
+  probe(w,finished);
   const m=bitgetTickEvidence(w,finished,finished+60000);
   if(m){samples++;counts[m.symbol]=(counts[m.symbol]||0)+1;}
  }
@@ -46,6 +80,7 @@ console.log('BITGET_V9_HISTORICAL_REPLAY',JSON.stringify({
  start_utc:start,through_utc:commits.at(-1)?.commit?.committer?.date||null,
  commits_discovered:commits.length,snapshots_checked:checked,
  snapshot_gap_gt_8m:gaps,
+ funnel,
  valid_independent_candidate_samples:samples,
  symbols_with_samples:Object.keys(counts).length,top_sample_counts:longest,
  four_step_signals:confirmed.length,signals:confirmed.slice(0,40),
