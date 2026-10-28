@@ -1,0 +1,20 @@
+name: IRYS Bitget public futures WebSocket research-only smoke
+on:
+  push:
+    branches: [fix/irys-evidence-gates-20261028]
+    paths:
+      - 'diagnostics/bitget_live_ws_futures_smoke.mjs'
+      - '.github/workflows/diagnose-bitget-public-ws.yml'
+permissions:
+  contents: read
+jobs:
+  websocket:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Read official Bitget public futures trade and book WS; no tokens no alerts no persistence
+        run: node diagnostics/bitget_live_ws_futures_smoke.mjs
