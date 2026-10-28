@@ -1,0 +1,20 @@
+name: IRYS V7 production public-health diagnosis (read only)
+on:
+  push:
+    branches: [fix/irys-evidence-gates-20261028]
+    paths:
+      - '.github/workflows/diagnose-v7-public-health.yml'
+      - 'diagnostics/v7_health_check.mjs'
+permissions:
+  contents: read
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Inspect public V7 health response only without alerting
+        run: node diagnostics/v7_health_check.mjs
