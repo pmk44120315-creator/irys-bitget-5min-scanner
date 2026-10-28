@@ -673,7 +673,7 @@ function evaluateFutures(state,snap,now){
     if(p&&p.direction===proof.direction&&
        proof.asof_ms-p.asof_ms>=4*60000&&proof.asof_ms-p.asof_ms<=FUT_CHECKS_MS&&
        proof.oi_delta_pct+p.oi_delta_pct>=.12&&
-       proof.oi_delta_pct>=0&&p.oi_delta_pct>=0&&
+       proof.oi_delta_pct>=.02&&p.oi_delta_pct>=.02&&
        (proof.direction==='LONG'?
            proof.price/p.price>=1.00035&&proof.price/p.price<=1.020:
            proof.price/p.price<=.99965&&proof.price/p.price>=.980)){
