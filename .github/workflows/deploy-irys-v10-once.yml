@@ -1,0 +1,45 @@
+name: IRYS V10 guarded code-only release, once, after exact marker
+on:
+  push:
+    branches: [fix/irys-v10-bitget-longshort-proof-20261028]
+    paths:
+      - 'deployment/IRYS_V10_RELEASE_APPROVED_20261028.txt'
+permissions:
+  contents: read
+concurrency:
+  group: irys-surge-monitor-v10-one-time-release
+  cancel-in-progress: false
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      IRYS_V7_CF_API_TOKEN: ${{ secrets.IRYS_V7_CF_API_TOKEN }}
+      IRYS_REALTIME_CF_ACCOUNT_ID: ${{ secrets.IRYS_REALTIME_CF_ACCOUNT_ID }}
+      IRYS_V10_RELEASE_ONCE: AUTHORIZED_FROM_REVIEWED_MARKER
+      IRYS_V10_RELEASE_DRY_RUN: '0'
+      IRYS_V10_EXPECTED_SHA256: '5c5c2f045fe2140c2ae245f15c7f02f9320f30533cf1c6ba75777dc604c7f1b1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify exact one-time marker and reviewed V10 blob
+        shell: bash
+        run: |
+          grep -Fxq 'IRYS_V10_RELEASE_MARKER=CODE_ONLY_VALIDATED_20261028' deployment/IRYS_V10_RELEASE_APPROVED_20261028.txt
+          grep -Fxq 'V10_SHA256=5c5c2f045fe2140c2ae245f15c7f02f9320f30533cf1c6ba75777dc604c7f1b1' deployment/IRYS_V10_RELEASE_APPROVED_20261028.txt
+          test "$(git hash-object deployment/IRYS_V10_VERIFIED_FUTURES_WORKER.mjs)" = '157a266180a01df660e8c7d08b2e08d9bbd2fa77'
+          echo 'Pinned V10 source and release marker verified.'
+      - name: Full existing collector and AI regression and restored LONG SHORT plus Bithumb protection integration
+        run: |
+          node --check deployment/release-v10-safe.mjs
+          node --check deployment/IRYS_V10_VERIFIED_FUTURES_WORKER.mjs
+          python -m unittest discover -s tests -p 'test_*.py' -v
+          python -m unittest discover -s ai_twin/tests -p 'test_*.py' -v
+          node --test tests/test_cloudflare_source_parser.mjs tests/test_irys_v10_futures_integration.mjs tests/test_irys_v10_spot_ai_compat.mjs tests/test_irys_v10_spot_scheduler.mjs
+      - name: Code-only replace irys-surge-monitor, compare hashes, verify Cron + bindings, auto rollback on failure
+        run: node deployment/release-v10-safe.mjs
