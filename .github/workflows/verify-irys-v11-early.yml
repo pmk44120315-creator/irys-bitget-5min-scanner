@@ -1,0 +1,30 @@
+name: IRYS V11 MPLX first-impulse Telegram and V10 regression tests (NO DEPLOYMENT)
+on:
+  push:
+    branches: [fix/irys-v11-mplx-telegram-watch-20261028]
+    paths:
+      - 'deployment/IRYS_V11_EARLY_FRAGMENT.mjs'
+      - 'deployment/IRYS_V11_SPOT_FUTURES_EARLY_WATCH_WORKER.mjs'
+      - 'tests/test_irys_v11_*.mjs'
+      - '.github/workflows/verify-irys-v11-early.yml'
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Check source and historical Python spot collector tests
+        run: |
+          node --check deployment/IRYS_V11_EARLY_FRAGMENT.mjs
+          node --check deployment/IRYS_V11_SPOT_FUTURES_EARLY_WATCH_WORKER.mjs
+          python -m unittest discover -s tests -p 'test_*.py' -v
+          python -m unittest discover -s ai_twin/tests -p 'test_*.py' -v
+      - name: New early-MPLX alert, negatives, original spot and futures integration
+        run: node --test tests/test_irys_v11_mplx_early_watch.mjs tests/test_irys_v11_futures_compat.mjs tests/test_irys_v11_spot_ai_compat.mjs tests/test_irys_v11_spot_scheduler.mjs
