@@ -159,6 +159,12 @@ test('post-alert 5, 15, 30, 60m directional score is strictly future closed cand
     assert.ok(result.excursion_full_coverage);
   }
   assert.equal(evaluateOutcomeAtHorizon(item,60,now,new Map()),null,'Missing candle must be unknown');
+  const flats=new Map(rows);
+  const last=Math.ceil((at+60*M)/M)*M-M;
+  flats.set(last,{close:100.05,high:100.06,low:100.04});
+  const neutral=evaluateOutcomeAtHorizon(item,60,now,flats);
+  assert.equal(neutral.realized_direction,'FLAT');
+  assert.equal(neutral.direction_right,null,'Price noise is NOT a directional win');
 });
 
 test('Bitget futures outcome uses first post-alert CLOSED 1m baseline, not old pre-alert snapshot',async()=>{
