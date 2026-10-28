@@ -1,0 +1,36 @@
+name: IRYS V13 causal directional evidence and outcome replay (NO DEPLOY)
+on:
+  push:
+    branches: [fix/irys-v13-directional-proof-outcomes-20261029]
+    paths:
+      - 'spot_direction.py'
+      - 'spot_flow.py'
+      - 'collector.py'
+      - 'tests/**'
+      - 'deployment/IRYS_V13_CAUSAL_DIRECTION_OUTCOMES_WORKER.mjs'
+      - '.github/workflows/verify-irys-v13-directional.yml'
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Python syntax plus all original and V13 causal tests
+        run: |
+          python -m py_compile collector.py spot_flow.py spot_continuity.py spot_direction.py bitget_futures_cvd.py
+          python -m unittest discover -s tests -p 'test_*.py' -v
+          python -m unittest discover -s ai_twin/tests -p 'test_*.py' -v
+      - name: V13 Worker structural, direction, risk, old volume alert suppression and future outcome test
+        run: |
+          node --check deployment/IRYS_V13_CAUSAL_DIRECTION_OUTCOMES_WORKER.mjs
+          node --test tests/test_irys_v13_directional_outcomes.mjs
+      - name: Live public Bithumb REST schema only (read-only)
+        run: python smoke_spot_public_api.py
