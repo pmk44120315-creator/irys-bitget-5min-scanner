@@ -562,6 +562,9 @@ async function runMorningAi(env,source,state,nowMs){
 }
 // ===== END IRYS V7 =====
 
+function shouldRunExpensiveAi(status,source,confirmed){
+  return status==='PASS'&&!!source&&Array.isArray(confirmed)&&confirmed.length>0;
+}
 async function scheduledCore(env,now=Date.now(),preDispatch=null){
   if(!env.IRYS_KV)throw Error('IRYS_KV_MISSING');
   const dispatch=preDispatch||await dispatchGithub(env);
@@ -595,7 +598,7 @@ async function scheduledCore(env,now=Date.now(),preDispatch=null){
   // The previous V7 called a large model every 5 minutes for unverified preselection,
   // exhausting 10,000 free neurons and emitting directional alerts on 2m evidence.
   // Do not spend any AI quota or run an independent alert pipeline without sustained proof.
-  if(status==='PASS'&&source&&confirmed.length>0){
+  if(shouldRunExpensiveAi(status,source,confirmed)){
     try{aiRun=await runMorningAi(env,source,state,Date.now());}
     catch(e){aiRun={status:'AI_PIPELINE_ERROR',configured:!!env.AI?.run,model:AI_MODEL,
       alerts_sent:0,error:clean(e.message,130)};}
@@ -637,4 +640,5 @@ export default {
   async scheduled(_controller,env){await scheduledCore(env,Date.now());}
 };
 export {validateSignal,officialRiskCheck,readGithub,dispatchGithub,scheduledCore,message,
-  scanAiSpot,selectAiFutures,parseAiDecisions,verifyModelAlert,morningMessage,runMorningAi};
+  scanAiSpot,selectAiFutures,parseAiDecisions,verifyModelAlert,morningMessage,runMorningAi,
+  shouldRunExpensiveAi};
