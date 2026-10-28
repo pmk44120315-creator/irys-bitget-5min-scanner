@@ -78,8 +78,7 @@ function validateSignal(s,now){
      val(c.candle_relative_error)===null||c.candle_relative_error<0||
      c.candle_relative_error>.005 ||
      !Array.isArray(c.blocks)||c.blocks.length!==3||
-     c.blocks.some((b,i)=>b.start_ms!==c.start_ms+i*5*60000||
-       b.end_ms!==c.start_ms+(i+1)*5*60000||
+     c.blocks.some(b=>!Number.isSafeInteger(b.trades)||b.trades<10||
        val(b.net_buy_krw)===null||b.net_buy_krw<=0||
        val(b.buy_share)===null||b.buy_share<.55))return false;
   const bookTimes=books.map(b=>val(b.timestamp_ms));
