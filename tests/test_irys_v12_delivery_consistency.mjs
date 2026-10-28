@@ -102,6 +102,22 @@ test('Telegram ok without message id is not counted as a verified API acknowledg
     assert.equal(m.get().last.telegramApiAckedThisRun,0);
   }finally{globalThis.fetch=backup;}
 });
+test('an optional event-key KV failure does not falsely erase a Telegram API acknowledgement',async()=>{
+  const backup=globalThis.fetch,m=mock();globalThis.fetch=http(m,{price:70});
+  const originalPut=m.env.IRYS_KV.put;
+  m.env.IRYS_KV.put=async(key,v,options)=>{
+    if(key!==STATE)throw Error('KV_EVENT_KEY_429_MOCK');
+    return originalPut(key,v,options);
+  };
+  try{
+    const res=await scheduledCore(m.env,NOW,{status:'ACCEPTED',error:null});
+    assert.equal(res.last.earlyMarketWatch.sent,1);
+    assert.equal(res.last.telegramApiAckedThisRun,1);
+    assert.equal(res.last.telegramLastApiReceipt.kv_receipt_persisted,false);
+    assert.equal(m.stateWrites.length,1);
+    assert.equal(m.messages.length,1);
+  }finally{globalThis.fetch=backup;}
+});
 test('an additional 6% price runup after collection is not sent as an early alert',async()=>{
   const backup=globalThis.fetch,m=mock();globalThis.fetch=http(m,{price:73});
   try{
