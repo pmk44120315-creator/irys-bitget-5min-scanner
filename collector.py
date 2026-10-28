@@ -442,7 +442,7 @@ def main():
         # the original 5m collector/spot alert pipeline is not altered.
         try:
             latest['futures_flow']=collect_futures_flow_observations(
-                latest,int(utc_now().timestamp()*1000),http_json,limit=6)
+                latest,int(utc_now().timestamp()*1000),http_json,limit=6,state=state)
         except Exception as exc:
             latest['futures_flow']={'status':'FAILED','observations':[],
                 'alert_eligible':False,'observation_only':True,
