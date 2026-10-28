@@ -1,0 +1,23 @@
+name: IRYS V12 first-live-Cron production integrity READ ONLY
+on:
+  push:
+    branches: [fix/irys-v12-delivery-dedupe-20261028]
+    paths:
+      - 'deployment/check-v12-live.mjs'
+      - '.github/workflows/check-irys-v12-live.yml'
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      IRYS_V7_CF_API_TOKEN: ${{ secrets.IRYS_V7_CF_API_TOKEN }}
+      IRYS_REALTIME_CF_ACCOUNT_ID: ${{ secrets.IRYS_REALTIME_CF_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Read-only verify actual running V12 source/Cron/KV/Telegram API receipt contract
+        run: node deployment/check-v12-live.mjs
