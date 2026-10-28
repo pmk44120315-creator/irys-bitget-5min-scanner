@@ -1,0 +1,31 @@
+name: IRYS V12 production preflight READ ONLY dry-run (NEVER DEPLOY)
+on:
+  push:
+    branches: [fix/irys-v12-delivery-dedupe-20261028]
+    paths:
+      - 'deployment/release-v12-safe.mjs'
+      - '.github/workflows/verify-irys-v12-production-dry-run.yml'
+permissions:
+  contents: read
+jobs:
+  preflight:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    env:
+      IRYS_V7_CF_API_TOKEN: ${{ secrets.IRYS_V7_CF_API_TOKEN }}
+      IRYS_REALTIME_CF_ACCOUNT_ID: ${{ secrets.IRYS_REALTIME_CF_ACCOUNT_ID }}
+      IRYS_V12_RELEASE_ONCE: AUTHORIZED_FROM_REVIEWED_MARKER
+      IRYS_V12_RELEASE_DRY_RUN: '1'
+      IRYS_V12_EXPECTED_SHA256: 'c888edd8b5d48940af77173e04a8b39face3b5a5d72516e2f8836fd4e01a9492'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify exact immutable tested candidate and no network mutation path
+        run: |
+          node --check deployment/release-v12-safe.mjs
+          node --check deployment/IRYS_V12_DELIVERY_CONSISTENCY_WORKER.mjs
+          test "$(sha256sum deployment/IRYS_V12_DELIVERY_CONSISTENCY_WORKER.mjs | cut -d' ' -f1)" = "$IRYS_V12_EXPECTED_SHA256"
+      - name: Read live V11 exact source, Cron, bindings, health and test predeploy lease ONLY
+        run: node deployment/release-v12-safe.mjs
