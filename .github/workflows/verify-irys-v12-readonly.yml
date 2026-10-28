@@ -1,0 +1,31 @@
+name: IRYS V12 duplicate-dispatch and delivery receipt proof (NO DEPLOYMENT)
+on:
+  push:
+    branches: [fix/irys-v12-delivery-dedupe-20261028]
+    paths:
+      - 'deployment/IRYS_V12_DELIVERY_CONSISTENCY_WORKER.mjs'
+      - 'tests/test_irys_v12_delivery_consistency.mjs'
+      - '.github/workflows/verify-irys-v12-readonly.yml'
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Syntax and all source-compat regressions
+        run: |
+          node --check deployment/IRYS_V12_DELIVERY_CONSISTENCY_WORKER.mjs
+          python -m py_compile spot_flow.py collector.py bitget_futures_cvd.py
+          python -m unittest discover -s tests -p 'test_*.py' -v
+          python -m unittest discover -s ai_twin/tests -p 'test_*.py' -v
+      - name: V11 safety compatibility and isolated V12 failure replay
+        run: |
+          node --test tests/test_cloudflare_source_parser.mjs tests/test_irys_v11_mplx_early_watch.mjs tests/test_irys_v11_futures_compat.mjs tests/test_irys_v11_spot_ai_compat.mjs tests/test_irys_v11_spot_scheduler.mjs tests/test_irys_v12_delivery_consistency.mjs
