@@ -4,6 +4,7 @@ import {scheduledCore,earlyMessage,recheckEarlyMarkets} from '../deployment/IRYS
 
 const NOW=Date.parse('2026-10-28T08:10:00Z');
 const ROOT='https://raw.githubusercontent.com/pmk44120315-creator/irys-bitget-5min-scanner/main/data/latest.json';
+const STATE='irys:fast:state:v1';
 function watch(){
   return {market:'KRW-MPLX',price_krw:68.01,interval_minutes:4.91,
     interval_price_change_pct:3.061,five_minute_equivalent_turnover_krw:34173381,
@@ -24,11 +25,16 @@ function snapshot(){
       markets:489,tickers:489,signals:[],early_watch_observations:[watch()]}};
 }
 function mock(){
-  let stored=null;const messages=[],calls=[];
+  let stored=null;const messages=[],calls=[],receiptWrites=[],stateWrites=[];
   const env={IRYS_KV:{get:async()=>stored?JSON.stringify(stored):null,
-    put:async(_,v)=>{stored=JSON.parse(v);}},
+    put:async(key,v,options)=>{
+      if(key===STATE){stateWrites.push(key);stored=JSON.parse(v);}
+      else {assert.match(key,/^irys:fast:delivery-receipt:v12:/);
+        assert.equal(options.expirationTtl,7*86400);
+        receiptWrites.push({key,receipt:JSON.parse(v)});}
+    }},
     TELEGRAM_BOT_TOKEN:'offline-only-mock',TELEGRAM_CHAT_ID:'123456789'};
-  return {env,messages,calls,get:()=>stored,set:v=>{stored=v;}};
+  return {env,messages,calls,receiptWrites,stateWrites,get:()=>stored,set:v=>{stored=v;}};
 }
 function http(mockState,{price=70.0,receipt=8124,warning=false}={}){
   return async(url,opts={})=>{
@@ -76,10 +82,15 @@ test('real Telegram API message_id is recorded and cooldown blocks a repeated ea
     assert.equal(res.last.telegramLastApiReceipt.channel,'BITHUMB_EARLY_WATCH');
     assert.equal(m.messages.length,1);
     assert.equal(m.get().deliveryReceiptsV12.length,1);
+    assert.equal(m.get().deliveryReceiptsV12[0].kv_receipt_persisted,true);
+    assert.equal(m.receiptWrites.length,1);
+    assert.equal(m.stateWrites.length,1,'never write the main KV state twice within a tick');
     const next=NOW+5*60_000;
     const again=await scheduledCore(m.env,next,{status:'ACCEPTED',error:null});
     assert.equal(again.last.earlyMarketWatch.blocked_cooldown,1);
     assert.equal(m.messages.length,1);
+    assert.equal(m.stateWrites.length,2,'one main KV state write per 5m invocation');
+    assert.equal(m.receiptWrites.length,1,'duplicate does not persist a fake receipt');
   }finally{globalThis.fetch=backup;}
 });
 test('Telegram ok without message id is not counted as a verified API acknowledgement',async()=>{
