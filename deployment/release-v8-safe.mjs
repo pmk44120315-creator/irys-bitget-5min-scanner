@@ -74,6 +74,7 @@ async function main(){
   check(source.includes("const VERSION='IRYS-MORNING-AI-V8-PROOF-GATED-20261028'"),'V8_MARKER_MISSING');
   check(source.includes('const AI_ALERT_TRANSPORT_ENABLED=false;'),'AI_TELEGRAM_MUST_BE_DISABLED');
   const v8Hash=sha(candidate);
+  check(v8Hash==='5d31ecaee1196dfeb33c9883f46e0782271298be059e5797e28fc14e28cd075b','UNREVIEWED_V8_BINARY_HASH');
   const live=await getScript();
   check(live.sha256===originalHash,'PREDEPLOY_SOURCE_MISMATCH');
   check(live.selectedPart==='worker.js','PREDEPLOY_MAIN_MODULE_CHANGED');
