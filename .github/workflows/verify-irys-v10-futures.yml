@@ -1,0 +1,31 @@
+name: IRYS V10 protected futures long short proof and legacy spot CI (NO DEPLOYMENT)
+on:
+  push:
+    branches: [fix/irys-v10-bitget-longshort-proof-20261028]
+    paths:
+      - 'deployment/IRYS_V10_VERIFIED_FUTURES_WORKER.mjs'
+      - 'deployment/IRYS_V10_FUTURES_FRAGMENT.mjs'
+      - 'tests/test_irys_v10_futures_integration.mjs'
+      - 'tests/test_irys_v10_spot_ai_compat.mjs'
+      - '.github/workflows/verify-irys-v10-futures.yml'
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Validate V10 candidate JS syntax and whole existing 5m Python tests
+        run: |
+          node --check deployment/IRYS_V10_VERIFIED_FUTURES_WORKER.mjs
+          node --check deployment/IRYS_V10_FUTURES_FRAGMENT.mjs
+          python -m unittest discover -s tests -p 'test_*.py' -v
+          python -m unittest discover -s ai_twin/tests -p 'test_*.py' -v
+      - name: Validate full V10 futures direction gates and original V8 spot/AI protections
+        run: node --test tests/test_irys_v10_futures_integration.mjs tests/test_irys_v10_spot_ai_compat.mjs
