@@ -99,8 +99,9 @@ test('OI fails and flat or faded aggressive trade samples cannot trigger',()=>{
  ];
  for(const change of scenarios){
   const state={};
-  for(let i=0;i<4;i++){const x=snap(i);change(x.snap.watchlist[0]);accumulateBitgetProof(state,x,x.finished+70000);}
-  assert.equal((state.bitgetFlowHistory.TESTUSDT?.history||[]).length<4,true);
+  let result;
+  for(let i=0;i<4;i++){const x=snap(i);change(x.snap.watchlist[0]);result=accumulateBitgetProof(state,x,x.finished+70000);}
+  assert.equal(result.confirmed,0,'Unverified directional evidence must not trigger');
  }
 });
 test('actual scheduledCore sends Bitget independently even if Bithumb status PARTIAL; no AI calls',async()=>{
