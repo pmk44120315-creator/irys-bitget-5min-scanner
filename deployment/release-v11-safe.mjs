@@ -23,7 +23,7 @@ async function getJson(path){
 }
 async function getHealth(){
   const r=await fetch(publicUrl,{signal:AbortSignal.timeout(16000),headers:{accept:'application/json'}});
-  check(r.ok,'V7_PUBLIC_HEALTH_HTTP_'+r.status);
+  check(r.ok,'EXISTING_PUBLIC_HEALTH_HTTP_'+r.status);
   return r.json();
 }
 function bindingIdentity(settings){
@@ -67,7 +67,7 @@ async function replaceWorkerSource(bytes){
 }
 async function main(){
   check(/^[a-f0-9]{32}$/.test(account),'ACCOUNT_ID_INVALID');
-  check(token.length>=20,'V7_EDITOR_TOKEN_MISSING');
+  check(token.length>=20,'WORKER_EDITOR_TOKEN_MISSING');
   check(process.env.IRYS_V11_RELEASE_ONCE==='AUTHORIZED_FROM_REVIEWED_MARKER','RELEASE_MARKER_MISSING');
   check(process.env.GITHUB_REF==='refs/heads/fix/irys-v11-mplx-telegram-watch-20261028','WRONG_GITHUB_BRANCH');
   const source=candidate.toString('utf8');
@@ -114,7 +114,7 @@ async function main(){
     check(success,'POSTDEPLOY_INTEGRITY_UNVERIFIED_'+reason);
     console.log('V11_CODE_ONLY_DEPLOY_PASS',JSON.stringify({
       worker,sha256:v11Hash,bindings_preserved:true,cron_preserved:true,
-      first_live_scheduled_v8_run_verified:false,telegram_receipt_verified:false,
+      first_live_scheduled_v11_run_verified:false,telegram_receipt_verified:false,
       direction_accuracy_verified:false}));
   }catch(e){
     if(wrote){
@@ -124,9 +124,9 @@ async function main(){
           await replaceWorkerSource(live.data);
           check((await getScript()).sha256===originalHash,'ROLLBACK_SOURCE_MISMATCH');
           await configCheck(config);
-          console.error('V11_DEPLOY_FAILED_AUTO_ROLLBACK_TO_V7_PASS');
+          console.error('V11_DEPLOY_FAILED_AUTO_ROLLBACK_TO_V10_PASS');
         }else if(latest.sha256===originalHash){
-          console.error('V11_DEPLOY_FAILED_V7_STILL_ACTIVE');
+          console.error('V11_DEPLOY_FAILED_V10_STILL_ACTIVE');
         }else console.error('V11_DEPLOY_FAILED_SOURCE_RACE_NO_OVERWRITE');
       }catch(rollbackErr){
         console.error('V11_ROLLBACK_FAILED_OR_UNVERIFIED',String(rollbackErr?.message||rollbackErr).slice(0,120));
