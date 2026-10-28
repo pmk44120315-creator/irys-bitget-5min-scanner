@@ -1,0 +1,43 @@
+name: IRYS V12 guarded code-only delivery consistency rollout (one-time marker)
+on:
+  push:
+    branches: [fix/irys-v12-delivery-dedupe-20261028]
+    paths:
+      - 'deployment/IRYS_V12_RELEASE_APPROVED_20261028.txt'
+permissions:
+  contents: read
+concurrency:
+  group: irys-surge-monitor-v12-release-once
+  cancel-in-progress: false
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      IRYS_V7_CF_API_TOKEN: ${{ secrets.IRYS_V7_CF_API_TOKEN }}
+      IRYS_REALTIME_CF_ACCOUNT_ID: ${{ secrets.IRYS_REALTIME_CF_ACCOUNT_ID }}
+      IRYS_V12_RELEASE_ONCE: AUTHORIZED_FROM_REVIEWED_MARKER
+      IRYS_V12_RELEASE_DRY_RUN: '0'
+      IRYS_V12_EXPECTED_SHA256: '65172792cca7103a53fe0f62c74961cd5c39b65f99a5559104a3cb69a4f84fec'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify reviewed authorization marker and exact immutable V12 binary
+        run: |
+          grep -Fxq 'IRYS_V12_RELEASE_MARKER=DELIVERY_CONSISTENCY_VERIFIED_20261028' deployment/IRYS_V12_RELEASE_APPROVED_20261028.txt
+          grep -Fxq 'V12_SHA256=65172792cca7103a53fe0f62c74961cd5c39b65f99a5559104a3cb69a4f84fec' deployment/IRYS_V12_RELEASE_APPROVED_20261028.txt
+          test "$(sha256sum deployment/IRYS_V12_DELIVERY_CONSISTENCY_WORKER.mjs | cut -d' ' -f1)" = "$IRYS_V12_EXPECTED_SHA256"
+      - name: Final original V11 compatibility and fixed V12 regressions
+        run: |
+          node --check deployment/IRYS_V12_DELIVERY_CONSISTENCY_WORKER.mjs
+          node --check deployment/release-v12-safe.mjs
+          python -m unittest discover -s tests -p 'test_*.py' -v
+          python -m unittest discover -s ai_twin/tests -p 'test_*.py' -v
+          node --test tests/test_cloudflare_source_parser.mjs tests/test_irys_v11_mplx_early_watch.mjs tests/test_irys_v11_futures_compat.mjs tests/test_irys_v11_spot_ai_compat.mjs tests/test_irys_v11_spot_scheduler.mjs tests/test_irys_v12_delivery_consistency.mjs
+      - name: Replace only irys-surge-monitor source bytes with preflight SHA lease and guarded rollback
+        run: node deployment/release-v12-safe.mjs
