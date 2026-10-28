@@ -1,0 +1,34 @@
+name: IRYS V8 production code-only release DRY RUN (no changes)
+on:
+  push:
+    branches: [fix/irys-evidence-gates-20261028]
+    paths:
+      - 'deployment/release-v8-safe.mjs'
+      - 'deployment/parse-cloudflare-script.mjs'
+      - '.github/workflows/verify-v8-release-dryrun.yml'
+permissions:
+  contents: read
+jobs:
+  preflight:
+    runs-on: ubuntu-latest
+    env:
+      IRYS_V7_CF_API_TOKEN: ${{ secrets.IRYS_V7_CF_API_TOKEN }}
+      IRYS_REALTIME_CF_ACCOUNT_ID: ${{ secrets.IRYS_REALTIME_CF_ACCOUNT_ID }}
+      IRYS_V8_RELEASE_ONCE: AUTHORIZED_FROM_REVIEWED_MARKER
+      IRYS_V8_RELEASE_DRY_RUN: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Pin V8 script to previously reviewed exact Git blob
+        shell: bash
+        run: |
+          test "$(git hash-object deployment/IRYS_V8_PROOF_GATED_WORKER.mjs)" = "f5fae7358b24dd7094cfc4b8feaf98f05e411b28"
+      - name: Validate source module, parser, and Worker syntax
+        run: |
+          node --check deployment/release-v8-safe.mjs
+          node --check deployment/IRYS_V8_PROOF_GATED_WORKER.mjs
+          node --test tests/test_cloudflare_source_parser.mjs
+      - name: Validate live V7 source and settings without replacing anything
+        run: node deployment/release-v8-safe.mjs
