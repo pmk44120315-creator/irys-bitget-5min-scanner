@@ -1,0 +1,24 @@
+name: IRYS verified futures taker-flow additive collector regression (no deployment)
+on:
+  push:
+    branches: [fix/irys-bitget-15m-verified-flow-20261028]
+    paths:
+      - 'collector.py'
+      - 'bitget_futures_cvd.py'
+      - 'tests/test_bitget_futures_cvd.py'
+      - 'tests/test_futures_flow_selector.py'
+      - '.github/workflows/verify-futures-taker-flow.yml'
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Syntax and complete existing collector regression including new full-CVD tests
+        run: |
+          python -m py_compile collector.py bitget_futures_cvd.py spot_continuity.py spot_flow.py
+          python -m unittest discover -s tests -p 'test_*.py' -v
