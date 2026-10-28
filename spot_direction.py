@@ -228,8 +228,14 @@ def collect_spot_directional(spot, state, now_ms, api):
             candidates[market] = old.get('seed', {})
     warning_now = {x.get('market') for x in spot.get('rally_watch_only', [])
                    if x.get('reason') == 'OFFICIAL_WARNING'}
+    # Matured watches get their second independent check before new pulses
+    # can crowd them out. All 489 markets are still prescreened upstream.
+    ordered = sorted(candidates.items(), key=lambda item: (
+        0 if state['spot_direction_tracking_v13'].get(item[0], {}).get('first_ms', now_ms) < now_ms else 1,
+        item[0]))
+    out['queued_for_next_scan'] = max(0, len(ordered) - MAX_CHECKED)
     cvd_consumed = 0
-    for market, seed in list(candidates.items())[:MAX_CHECKED]:
+    for market, seed in ordered[:MAX_CHECKED]:
         if market in warning_now:
             out['diagnostics'].append({'market': market, 'status': 'OFFICIAL_WARNING_BLOCKED'})
             memory.pop(market, None)
