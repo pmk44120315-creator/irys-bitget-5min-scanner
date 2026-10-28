@@ -4,7 +4,7 @@
  *
  * Requires scoped Individual Workers Editor token for irys-surge-monitor.
  */
-import {createHash} from 'node:crypto';
+import {extractWorkerSource} from './parse-cloudflare-script.mjs';
 const account=process.env.IRYS_REALTIME_CF_ACCOUNT_ID||'';
 const token=process.env.IRYS_V7_CF_API_TOKEN||'';
 const name='irys-surge-monitor';
@@ -26,8 +26,9 @@ try{
   ]);
   if(!publicResponse.ok)throw Error('V7_PUBLIC_HEALTH_'+publicResponse.status);
   const settings=await settingsResponse.json(),schedules=await schedulesResponse.json();
-  const deployed=await scriptResponse.arrayBuffer();
-  const currentHash=createHash('sha256').update(Buffer.from(deployed)).digest('hex');
+  const source=await extractWorkerSource(scriptResponse);
+  const deployed=source.data;
+  const currentHash=source.sha256;
   const ct=scriptResponse.headers.get('content-type')||'';
   const raw=Buffer.from(deployed).toString('utf8');
   const live=await publicResponse.json(),version=live.last?.codeVersion;
@@ -47,6 +48,10 @@ try{
   const checks={
     deployed_health_version:version,
     script_mime:ct.split(';')[0],
+    source_hash:currentHash,
+    reference_hash:legacyHash,
+    selected_part:source.selectedPart,
+    source_size:source.data.length,
     source_match:currentHash===legacyHash,
     source_has_v7_marker:raw.includes('IRYS-MORNING-AI-V7-CF-20261027'),
     worker_bindings:bindings,
