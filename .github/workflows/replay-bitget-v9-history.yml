@@ -1,0 +1,21 @@
+name: IRYS Bitget V9 real historical replay (no deployment)
+on:
+  push:
+    branches: [fix/irys-evidence-gates-20261028]
+    paths:
+      - 'diagnostics/replay_bitget_v9_history.mjs'
+      - '.github/workflows/replay-bitget-v9-history.yml'
+permissions:
+  contents: read
+jobs:
+  historical:
+    runs-on: ubuntu-latest
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Replay actual sequential 5-minute snapshots and print evidence acceptance statistics
+        run: node diagnostics/replay_bitget_v9_history.mjs
