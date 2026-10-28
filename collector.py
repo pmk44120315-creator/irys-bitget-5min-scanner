@@ -371,6 +371,28 @@ def gather(now_utc=None,old_state=None,fetch_markets=get_markets,fetch_warnings=
     state['last_collector_utc']=now_utc.isoformat()
     return latest,state
 
+def reconcile_bithumb_spot_stats(latest):
+    """Report separately collected Bithumb listings/tickers truthfully.
+
+    The futures-wide 1m candle count is NOT evidence that all KRW minute candles
+    were inspected. Spot detail candles are sampled only for selected candidates.
+    """
+    stats=latest.get('stats') or {}
+    spot=latest.get('spot_flow') or {}
+    markets=spot.get('markets');tickers=spot.get('tickers')
+    good=(spot.get('status')=='PASS' and isinstance(markets,int) and
+          isinstance(tickers,int) and markets>=100 and tickers>=.95*markets)
+    if good:
+        stats['bithumb_listed_krw']=markets
+        stats['bithumb_ticker_snapshots']=tickers
+        stats['bithumb_spot_data_scope']='ALL_KRW_LISTINGS_TICKERS_DETAILS_CANDIDATES_ONLY'
+    else:
+        stats['bithumb_listed_krw']=0
+        stats['bithumb_ticker_snapshots']=0
+        stats['bithumb_spot_data_scope']='SPOT_NOT_VERIFIED'
+    latest['stats']=stats
+    return good
+
 def main():
     now=utc_now()
     try:
@@ -404,6 +426,7 @@ def main():
             latest['spot_flow']={'status':'FAILED','signals':[],
                 'error':type(e).__name__+': '+str(e)[:200],
                 'source':'Bithumb public API read-only'}
+        reconcile_bithumb_spot_stats(latest)
         # An independent public futures read-only evidence stream. If it fails,
         # the original 5m collector/spot alert pipeline is not altered.
         try:
