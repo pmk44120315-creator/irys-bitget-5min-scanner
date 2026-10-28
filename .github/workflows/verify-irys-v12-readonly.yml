@@ -23,6 +23,7 @@ jobs:
       - name: Syntax and all source-compat regressions
         run: |
           node --check deployment/IRYS_V12_DELIVERY_CONSISTENCY_WORKER.mjs
+          echo 'IRYS_V12_CANDIDATE_SHA256' && sha256sum deployment/IRYS_V12_DELIVERY_CONSISTENCY_WORKER.mjs
           python -m py_compile spot_flow.py collector.py bitget_futures_cvd.py
           python -m unittest discover -s tests -p 'test_*.py' -v
           python -m unittest discover -s ai_twin/tests -p 'test_*.py' -v
