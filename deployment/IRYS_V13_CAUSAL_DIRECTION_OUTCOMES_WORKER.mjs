@@ -972,6 +972,8 @@ function evaluateOutcomeAtHorizon(record,minutes,now,rows){
   const at=targetEnd-60000,candle=rows.get(at);
   if(!candle)return null; // explicit missing candle; never interpolate.
   const pct=100*(candle.close/record.alert_price_krw-1);
+  // Do not call tiny movements an accurate prediction. Below 0.15% is neutral.
+  const actualDirection=pct>=.15?'UP':pct<=-.15?'DOWN':'FLAT';
   const begin=Math.floor(record.alert_ms/60000)*60000;
   const range=[...rows.entries()].filter(([t])=>t>=begin&&t<=at).map(([,r])=>r);
   const expected=Math.round((at-begin)/60000)+1;
@@ -980,7 +982,8 @@ function evaluateOutcomeAtHorizon(record,minutes,now,rows){
   const up=record.direction==='UP';
   return {status:'CLOSED_1M_PRICE_VERIFIED',target_end_ms:targetEnd,
     candle_start_ms:at,asof_ms:now,price_krw:candle.close,
-    return_pct:+pct.toFixed(4),direction_right:up?pct>0:pct<0,
+    return_pct:+pct.toFixed(4),realized_direction:actualDirection,
+    direction_right:actualDirection==='FLAT'?null:(up?actualDirection==='UP':actualDirection==='DOWN'),
     favourable_excursion_pct:maxHigh===null?null:
       +(100*(up?(maxHigh-record.alert_price_krw)/record.alert_price_krw:
          (record.alert_price_krw-minLow)/record.alert_price_krw)).toFixed(4),
@@ -994,7 +997,8 @@ function outcomeFollowupMessage(record){
   const horizons=OUTCOME_HORIZONS_MIN.map(h=>{
     const v=record.results[h+'m'];
     return h+'분 '+(v?.status==='CLOSED_1M_PRICE_VERIFIED'?
-       fmt(v.return_pct,2)+'% ('+(v.direction_right?'방향 일치':'방향 불일치')+')':'미확인');
+       fmt(v.return_pct,2)+'% ('+(v.direction_right===null?'보합·방향 판정 제외':
+         v.direction_right?'방향 일치':'방향 불일치')+')':'미확인');
   }).join(' · ');
   return '📊 [실제 알림 이후 가격 검증] '+record.market+'\n'+
     '알림 '+kst(record.alert_ms)+' · 당시 기준가격 '+fmt(record.alert_price_krw,8)+'원\n'+
@@ -1082,7 +1086,8 @@ function futuresOutcomeMessage(item){
   const parts=OUTCOME_HORIZONS_MIN.map(h=>{
     const v=item.results[h+'m'];
     return h+'분 '+(v?.status==='CLOSED_1M_PRICE_VERIFIED'?
-      fmt(v.return_pct,2)+'% ('+(v.direction_right?'방향 일치':'방향 불일치')+')':'미확인');
+      fmt(v.return_pct,2)+'% ('+(v.direction_right===null?'보합·방향 판정 제외':
+        v.direction_right?'방향 일치':'방향 불일치')+')':'미확인');
   }).join(' · ');
   return '📊 [비트겟 실제 알림 후 방향 검증] '+item.market+'\n'+
     '알림 '+kst(item.alert_ms)+' · '+item.original_direction+' 수급 관측\n'+
