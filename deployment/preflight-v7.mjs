@@ -9,7 +9,7 @@ const account=process.env.IRYS_REALTIME_CF_ACCOUNT_ID||'';
 const token=process.env.IRYS_V7_CF_API_TOKEN||'';
 const name='irys-surge-monitor';
 const legacyHash='0cb5bdf7b909cb0c5f2e301dbb0226034e0a5e81f96a5efc4eeaa467d45bcc5f';
-if(!token){console.log('V7_SCOPED_TOKEN_MISSING: no preflight or deployment performed');process.exit(0);}
+if(!token){console.error('V7_SCOPED_TOKEN_MISSING: preflight BLOCKED, no deployment performed');process.exit(2);}
 if(!/^[a-f0-9]{32}$/.test(account)||token.length<20){console.error('V7_PREFLIGHT_FAILED: invalid account ID or token presence');process.exit(2);}
 const root='https://api.cloudflare.com/client/v4/accounts/'+account+'/workers/scripts/'+name;
 async function call(url){
