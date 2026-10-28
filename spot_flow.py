@@ -195,7 +195,9 @@ def collect_spot_flow(now,state,api):
     previous=state.get('spot_fast') or {};prior=previous.get('prices') or {}
     prev_time=n(previous.get('time_ms'));minutes=(now_ms-prev_time)/60000 if prev_time else None
     comparison=minutes is not None and 3<=minutes<=8 and previous.get('kst_day')==today
-    fresh={};short=[]
+    fresh={};short=[];rally_watch=[];prescreen_drops={}
+    def record_drop(reason):
+        prescreen_drops[reason]=prescreen_drops.get(reason,0)+1
     for listing in markets:
         sym=listing['market'];t=tickers.get(sym)
         if not t:continue
@@ -208,14 +210,37 @@ def collect_spot_flow(now,state,api):
         count=int(old[3]) if isinstance(old,list) and len(old)>=4 else 0
         ema=past_ema if five is None else five if past_ema is None else .4*five+.6*past_ema
         fresh[sym]=[price,daily,ema,0 if five is None else min(count+1,100)]
-        if listing.get('market_warning','UNKNOWN')!='NONE' or sym in risk or t.get('is_trading_suspended') is True or t.get('delisting_date'):continue
-        if t.get('market_state') not in (None,'ACTIVE'):continue
-        if five is None or past_ema is None or past_ema<=0 or count<3:continue
-        change=100*(price/old[0]-1) if old[0]>0 else None
-        if change is None or not .1<=change<=3.5 or daily_pct is None or not -.08<=daily_pct<=.09:continue
-        if five<25000000 or five/past_ema<3 or five/(last24/288)<2:continue
+        warning=listing.get('market_warning','UNKNOWN')!='NONE' or sym in risk
+        suspended=t.get('is_trading_suspended') is True or bool(t.get('delisting_date')) or t.get('market_state') not in (None,'ACTIVE')
+        prior_price=n(old[0]) if isinstance(old,list) and len(old)>=4 else None
+        change=100*(price/prior_price-1) if prior_price and prior_price>0 else None
+        # Independent observability only. This must never be put into spot_flow.signals.
+        # Explicitly track fast movers that the strict alert preselector rejects.
+        if five is not None and five>=25000000 and change is not None and change>=.8:
+            if warning: reason='OFFICIAL_WARNING'
+            elif suspended: reason='MARKET_SUSPENDED'
+            elif past_ema is None or past_ema<=0 or count<3: reason='BASELINE_WARMING_UP'
+            elif change>3.5: reason='PRICE_ABOVE_EARLY_ENTRY_LIMIT'
+            elif daily_pct is None or not -.08<=daily_pct<=.09: reason='DAILY_MOVE_LIMIT'
+            elif five/past_ema<3 or five/(last24/288)<2: reason='VOLUME_RATIO_BELOW_EARLY_ENTRY'
+            else: reason='ELIGIBLE_FOR_DETAILED_CHECK'
+            rally_watch.append({'market':sym,'price_krw':price,
+                'observed_5m_price_change_pct':round(change,3),
+                'estimated_5m_turnover_krw':round(five),
+                'previous_5m_turnover_ema_krw':round(past_ema) if past_ema is not None else None,
+                'reason':reason,'observation_only':True,'send_allowed':False,
+                'turnover_method':'TICKER_KST_DAY_CUMULATIVE_DELTA_SCALED_TO_5M_NOT_CANDLE'})
+        if warning or suspended:
+            record_drop('WARNING_OR_SUSPENDED');continue
+        if five is None or past_ema is None or past_ema<=0 or count<3:
+            record_drop('BASELINE_NOT_READY');continue
+        if change is None or not .1<=change<=3.5 or daily_pct is None or not -.08<=daily_pct<=.09:
+            record_drop('PRICE_OR_DAILY_MOVE');continue
+        if five<25000000 or five/past_ema<3 or five/(last24/288)<2:
+            record_drop('TURNOVER_OR_RATIO');continue
         short.append((min(five/past_ema,80)*math.log10(1+five/10000000),sym,t))
     short.sort(key=lambda z:(-z[0],z[1]))
+    rally_watch.sort(key=lambda x:(-x['observed_5m_price_change_pct'],-x['estimated_5m_turnover_krw'],x['market']))
     state['spot_fast']={'time_ms':now_ms,'kst_day':today,'prices':fresh}
     examined=0;errors=0;decisions={};signals=[];detail_diagnostics=[]
     for rank,sym,t in short[:8]:
@@ -239,6 +264,8 @@ def collect_spot_flow(now,state,api):
             'observed_kst':kst.isoformat(timespec='seconds'),'markets':len(markets),'tickers':len(tickers),
             'shortlisted':len(short),'details_checked':examined,'details_failed':errors,
             'verdicts':decisions,'detail_diagnostics':detail_diagnostics,'signals':signals[:8],
+            'prescreen_drop_counts':prescreen_drops,'rally_watch_only':rally_watch[:20],
+            'rally_watch_total':len(rally_watch),
             'limitations':{'marketwide_full_CVD':False,'continuous_orderbook_absorption':False,
                  'exchange_inout_whale_tracking':False,'project_lockup':False,
                  'same_kst_hour_historical_baseline':'NOT_COLLECTED',
