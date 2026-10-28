@@ -55,7 +55,7 @@ for(let page=1;page<=3;page++){
  if(d.some(x=>(x.commit?.committer?.date||'')<start))break;
 }
 commits.sort((a,b)=>String(a.commit?.committer?.date).localeCompare(String(b.commit?.committer?.date)));
-let state={},samples=0,checked=0,confirmed=[],counts={},gaps=0,previous=null;
+let state={},samples=0,checked=0,confirmed=[],counts={},gaps=0,previous=null,historyRows=[];
 for(const commit of commits){
  const sha=commit.sha;
  let snap;
@@ -63,6 +63,7 @@ for(const commit of commits){
  catch(e){console.log('HISTORICAL_SNAPSHOT_UNAVAILABLE',JSON.stringify({sha,error:String(e).slice(0,80)}));continue;}
  const finished=Date.parse(snap.finished_utc||'');
  if(!Number.isFinite(finished)||!Array.isArray(snap.watchlist))continue;
+ historyRows.push({finished,snap});
  if(previous&&finished-previous>8*60000)gaps++;
  previous=finished;
  for(const w of snap.watchlist){
@@ -86,3 +87,52 @@ console.log('BITGET_V9_HISTORICAL_REPLAY',JSON.stringify({
  four_step_signals:confirmed.length,signals:confirmed.slice(0,40),
  note:'Historical code replay, not future-returns backtest; no orders; no Telegram'
 }));
+
+
+function calibrated(row,cfg){
+ const r=row, w=r.windows||{},f=w['5m'],q=w['15m'],h=w['60m'],t=r.recent_trades_sample||{},oi=r.oi||{};
+ if(r.venue!=='bitget'||r.asset_identity!=='VERIFIED_CRYPTO'||r.isRwa!=='NO'||
+    r.symbolType!=='perpetual'||r.contract_status!=='normal'||
+    f?.coverage!==1||q?.coverage!==1||h?.coverage!==1)return null;
+ const vol=f.quote_turnover,qvol=q.quote_turnover,buy=t.buy_taker_quote,sell=t.sell_taker_quote,
+    share=buy/(buy+sell);
+ if(!(vol>=cfg.vol&&qvol>=cfg.qvol&&buy+sell>=cfg.flow&&t.total_trades_sampled>=30))return null;
+ if(!(t.newest_trade_timestamp_ms>=r._at-cfg.fresh&&t.newest_trade_timestamp_ms<=r._at+60000))return null;
+ if(!(oi.status==='OK'&&oi.elapsed_min_since_previous_snapshot>=3&&oi.elapsed_min_since_previous_snapshot<=8&&
+    oi.change_pct_from_previous_run>=-1.5&&oi.change_pct_from_previous_run<=20&&
+    Math.abs(r.funding_rate)<=.002))return null;
+ const fp=f.price_change_pct,qp=q.price_change_pct,hp=h.price_change_pct;
+ if(Math.abs(hp)>10||Math.abs(qp)>5.5)return null;
+ let d=null;
+ if(fp>=cfg.p5&&qp>=cfg.p15&&share>=cfg.share&&f.upper_wick_ratio<=cfg.wick)d='LONG';
+ if(fp<=-cfg.p5&&qp<=-cfg.p15&&share<=1-cfg.share)d='SHORT';
+ return d?{symbol:r.symbol,dir:d,at:r._at,close:f.close,
+   newest:t.newest_trade_timestamp_ms,quote5:vol,pct5:fp,pct15:qp,
+   buy_share:share,oi_delta:oi.change_pct_from_previous_run}:null;
+}
+const scenarios=[
+ {name:'balanced',vol:15000,qvol:40000,flow:6000,fresh:120000,p5:.10,p15:.15,share:.65,wick:.48},
+ {name:'early',vol:8000,qvol:20000,flow:3500,fresh:150000,p5:.08,p15:.12,share:.62,wick:.58},
+ {name:'broad',vol:6000,qvol:14000,flow:2500,fresh:180000,p5:.07,p15:.10,share:.60,wick:.65},
+];
+for(const cfg of scenarios){
+ let raw=0,found=[],lastObs=new Map(),earlySeen=[];
+ for(const row of historyRows){
+  const finished=row.finished;
+  for(const w of (row.snap.watchlist||[])){
+   const k=calibrated({...w,_at:finished},cfg);
+   if(!k)continue;
+   raw++;const old=lastObs.get(k.symbol);
+   if(old&&old.dir===k.dir&&k.at-old.at<=6*60000&&k.at>old.at&&
+      k.newest>old.newest+30000){
+     const prev=found.find(y=>y.symbol===k.symbol&&y.dir===k.dir&&k.at-y.at<2*3600000);
+     if(!prev)found.push({symbol:k.symbol,dir:k.dir,at:k.at,pct5:k.pct5,pct15:k.pct15});
+   }
+   lastObs.set(k.symbol,k);
+   earlySeen.push({symbol:k.symbol,dir:k.dir});
+  }
+ }
+ console.log('BITGET_V9_CALIBRATION',JSON.stringify({scenario:cfg.name,raw_single_events:raw,
+    distinct_single_symbols:new Set(earlySeen.map(x=>x.symbol)).size,
+    consecutive_two_independent_scenarios:found.length,events:found.slice(0,25)}));
+}
