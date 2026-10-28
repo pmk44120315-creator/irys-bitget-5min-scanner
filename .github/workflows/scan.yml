@@ -22,7 +22,18 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 7
     steps:
+      # Always resolve the live branch at START, not the SHA frozen when
+      # workflow_dispatch was queued (a stale dispatch caused data rebase conflict).
       - uses: actions/checkout@v4
+        with:
+          ref: main
+      # No local collector changes exist yet. Re-check remote now so a queued
+      # 5m dispatch cannot start from a stale data/state or older source tree.
+      - name: Verify and fast-forward to latest main before collecting
+        run: |
+          git fetch --quiet origin main
+          git reset --hard origin/main
+          echo "IRYS_CHECKOUT_BASE_SHA=$(git rev-parse HEAD)"
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
