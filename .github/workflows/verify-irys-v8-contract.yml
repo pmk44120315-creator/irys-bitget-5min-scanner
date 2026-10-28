@@ -1,0 +1,39 @@
+name: IRYS V8 alert contract regression (no deployment)
+on:
+  push:
+    branches: [fix/irys-evidence-gates-20261028]
+    paths:
+      - '.github/workflows/verify-irys-v8-contract.yml'
+      - 'deployment/IRYS_V8_PROOF_GATED_WORKER.mjs'
+      - 'tests/test_irys_v8_alert_contract.mjs'
+      - 'spot_flow.py'
+      - 'spot_continuity.py'
+      - 'tests/**'
+  pull_request:
+    paths:
+      - '.github/workflows/verify-irys-v8-contract.yml'
+      - 'deployment/**'
+      - 'tests/**'
+      - 'spot_flow.py'
+      - 'spot_continuity.py'
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify standalone V8 Worker syntax without deploying
+        run: node --check deployment/IRYS_V8_PROOF_GATED_WORKER.mjs
+      - name: Regress previous 5m spot collector and independent AI functionality
+        run: |
+          python -m unittest discover -s tests -p 'test_*.py' -v
+          python -m unittest discover -s ai_twin/tests -p 'test_*.py' -v
+      - name: Verify old 2m signals and AI bypass cannot send
+        run: node --test tests/test_irys_v8_alert_contract.mjs
