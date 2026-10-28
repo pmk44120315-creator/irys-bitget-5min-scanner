@@ -1098,7 +1098,14 @@ function futuresOutcomeMessage(item){
 async function updateFuturesOutcomes(env,state,now){
   const list=Array.isArray(state.futuresOutcomesV13)?state.futuresOutcomesV13:[];
   const out={tracked:list.length,pending:list.filter(x=>!x?.results?.['60m']).length,
-    updated:0,api_not_confirmed:0,followups_sent:0,last_completed:[]};
+    updated:0,api_not_confirmed:0,followups_sent:0,last_completed:[],
+    status:'FUTURES_HISTORY_NO_DUE_OUTCOME'};
+  if(Number.isFinite(state.futuresOutcomeBackoffUntilV13)&&
+     now<state.futuresOutcomeBackoffUntilV13){
+    out.status='FUTURES_HISTORY_API_BACKOFF';
+    out.backoff_until_ms=state.futuresOutcomeBackoffUntilV13;
+    return out;
+  }
   let checked=0;
   for(const rec of list){
     if(checked>=3)break;
@@ -1115,6 +1122,8 @@ async function updateFuturesOutcomes(env,state,now){
         '&limit=180&startTime='+start+'&endTime='+end;
       const doc=await requestJson(url,{},8500);
       const rows=parseBitgetOutcomeCandles(doc,now);
+      if(!rows.size){out.api_not_confirmed++;out.status='FUTURES_HISTORY_INVALID_OR_EMPTY';break;}
+      out.status='FUTURES_HISTORY_READ';
       const first=Math.floor(rec.alert_ms/60000)*60000;
       if(!rec.first_postalert_close_usdt&&rows.has(first))
         rec.first_postalert_close_usdt=rows.get(first).close;
@@ -1127,7 +1136,12 @@ async function updateFuturesOutcomes(env,state,now){
           out.last_completed.push({symbol:rec.market,horizon_min:h,
             return_pct:v.return_pct,direction_right:v.direction_right});}
       }
-    }catch(_e){out.api_not_confirmed++;}
+    }catch(_e){
+      out.api_not_confirmed++;
+      out.status='FUTURES_HISTORY_API_UNREACHABLE';
+      state.futuresOutcomeBackoffUntilV13=now+15*60000;
+      break; // no multiple slow retries on the same blocked endpoint.
+    }
   }
   for(const rec of list){
     if(out.followups_sent>=1)break;
