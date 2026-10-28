@@ -602,6 +602,25 @@ async function runMorningAi(env,source,state,nowMs){
 // ===== END IRYS V7 =====
 
 // V10 verified futures evidence. Pure market assertions; no LLM or orders.
+function validFuturesBookProof(o,side,now){
+  const data=o?.book_proof_v13;
+  if(data?.status!=='TWO_DISTINCT_BOOK_SNAPSHOTS'||
+     data.continuous_absorption_verified!==false||
+     data.position_owner_verified!==false||
+     !Array.isArray(data.snapshots)||data.snapshots.length!==2)return null;
+  const [old,cur]=data.snapshots,
+    t0=val(old?.timestamp_ms),t1=val(cur?.timestamp_ms),
+    r0=val(old?.bid_ask_top5_ratio),r1=val(cur?.bid_ask_top5_ratio),
+    s0=val(old?.spread_pct),s1=val(cur?.spread_pct);
+  if([t0,t1,r0,r1,s0,s1].some(x=>x===null)||
+     t1-t0<3*60000||t1-t0>9*60000||t1>now+60000||
+     now-t1>12*60000||s0<0||s1<0||s0>.8||s1>.8||
+     old.continuous_absorption_verified!==false||
+     cur.continuous_absorption_verified!==false)return null;
+  if(side==='LONG'?(r0<1||r1<1.05):(r0>1||r1>.95))return null;
+  return {observations:2,latest_bid_ask_top5_ratio:r1,
+    no_continuous_absorption_claim:true};
+}
 const FUT_MAX_AGE_MS=12*60000,FUT_CHECKS_MS=8*60000,FUT_COOLDOWN_MS=2*3600000;
 function futuresSnapshotProof(snapshot,o,now){
   if(!snapshot||snapshot.collector_status!=='PASS')return null;
@@ -668,7 +687,10 @@ function futuresSnapshotProof(snapshot,o,now){
     blocks.every(b=>b.net_buy_usdt<0&&b.buy_share<=.42)&&
     newest.net_buy_usdt<=-2500&&newest.buy_share<=.38&&bottomWick<=.38&&bottom15<=.43;
   if(!longGood&&!shortGood)return null;
-  return {symbol:sym,direction:longGood?'LONG':'SHORT',asof_ms:e.end_ms,
+  const side=longGood?'LONG':'SHORT';
+  const book=validFuturesBookProof(o,side,now);
+  if(!book)return null;
+  return {symbol:sym,direction:side,book_evidence:book,asof_ms:e.end_ms,
     price:close,pct5,pct15,oi_delta_pct:oiDelta,funding:fund,share,
     net_usdt:net,quote15:total,recent5_quote:lastQuote,
     recent5_net:newest.net_buy_usdt,recent5_share:newest.buy_share,
@@ -690,7 +712,12 @@ function evaluateFutures(state,snap,now){
   for(const obs of flow.observations.slice(0,10)){
     results.inspected++;
     const proof=futuresSnapshotProof(snap,obs,now);
-    if(!proof){reject('CONTRACT_OR_DATA_OR_DIRECTION_NOT_VERIFIED');continue;}
+    if(!proof){
+      if(obs?.book_proof_v13?.status!=='TWO_DISTINCT_BOOK_SNAPSHOTS')
+        reject('TWO_DISTINCT_FUTURES_BOOKS_UNAVAILABLE');
+      else reject('CONTRACT_OR_DATA_OR_DIRECTION_NOT_VERIFIED');
+      continue;
+    }
     if(seen.has(proof.symbol)){reject('DUPLICATE_SYMBOL');continue;}
     seen.add(proof.symbol);results.qualified++;
     const p=prev[proof.symbol];
@@ -725,7 +752,8 @@ function futuresMessage(p,now){
     '실제 체결 '+fmt(p.trades,0)+'건 · 15분 거래대금 '+fmt(p.quote15,0)+' USDT\n'+
     '공격적 '+(isLong?'매수':'매도')+' '+fmt((isLong?p.share:1-p.share)*100,1)+'% · 5분 3구간 지속 · 다른 5분 시각에서 재확인\n'+
     '15분 체결 순'+(isLong?'매수':'매도')+' '+fmt(Math.abs(p.net_usdt),0)+' USDT · 최근 OI 증감 '+fmt(p.oi_delta_pct,2)+'%\n'+
-    '⚠️ 현물 유입·실제 롱/숏 포지션 소유·미래 방향 적중은 미확인. 진입 지시·자동매매 아님.\n'+
+    '서로 다른 두 시각 선물 호가 확인 · 최근 상위5호가 매수/매도비 '+fmt(p.book_evidence.latest_bid_ask_top5_ratio,2)+'배\n'+
+    '⚠️ 현물 유입·연속 호가 흡수·실제 롱/숏 포지션 소유·미래 방향 적중은 미확인. 진입 지시·자동매매 아님.\n'+
     '출처: 비트겟 공식 선물 체결·분봉·OI / GitHub 5분 수집';
 }
 // END V10
@@ -1298,4 +1326,5 @@ export {validateSignal,officialRiskCheck,readGithub,dispatchGithub,scheduledCore
   earlyCandidateProof,recheckEarlyMarkets,earlyMessage,sendEarlyWatch,
   validDirectionalProof,directionalMessage,sendSpotDirectional,
   evaluateOutcomeAtHorizon,parseOutcomeCandles,updateSpotOutcomes,
-  parseBitgetOutcomeCandles,evaluateFuturesOutcome,updateFuturesOutcomes};
+  parseBitgetOutcomeCandles,evaluateFuturesOutcome,updateFuturesOutcomes,
+  validFuturesBookProof};
