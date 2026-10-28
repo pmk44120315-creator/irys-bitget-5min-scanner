@@ -194,8 +194,12 @@ def collect_spot_flow(now,state,api):
     if len(tickers)<.95*len(markets):raise ValueError('Bithumb ticker coverage incomplete')
     previous=state.get('spot_fast') or {};prior=previous.get('prices') or {}
     prev_time=n(previous.get('time_ms'));minutes=(now_ms-prev_time)/60000 if prev_time else None
-    comparison=minutes is not None and 3<=minutes<=8 and previous.get('kst_day')==today
-    fresh={};short=[];rally_watch=[];prescreen_drops={}
+    # Real GitHub queues can complete scans after 2.5-3 minutes (observed MPLX 17:11 KST).
+    # Discarding a <3-minute scan AND resetting count destroyed all 489 baselines.
+    # Accept 2..8 minute intervals with honest elapsed-time-normalized quote turnover.
+    comparison=minutes is not None and 2<=minutes<=8 and previous.get('kst_day')==today
+    very_short=minutes is not None and 0<minutes<2 and previous.get('kst_day')==today
+    fresh={};short=[];rally_watch=[];early_watch=[];prescreen_drops={}
     def record_drop(reason):
         prescreen_drops[reason]=prescreen_drops.get(reason,0)+1
     for listing in markets:
@@ -209,7 +213,12 @@ def collect_spot_flow(now,state,api):
         past_ema=n(old[2]) if isinstance(old,list) and len(old)>=4 else None
         count=int(old[3]) if isinstance(old,list) and len(old)>=4 else 0
         ema=past_ema if five is None else five if past_ema is None else .4*five+.6*past_ema
-        fresh[sym]=[price,daily,ema,0 if five is None else min(count+1,100)]
+        # A rapid duplicate snapshot is not a fresh 5-minute observation:
+        # keep the older comparison anchor/EMA/counter, instead of wiping them.
+        if very_short and isinstance(old,list) and len(old)>=4:
+            fresh[sym]=old
+        else:
+            fresh[sym]=[price,daily,ema,0 if five is None else min(count+1,100)]
         warning=listing.get('market_warning','UNKNOWN')!='NONE' or sym in risk
         suspended=t.get('is_trading_suspended') is True or bool(t.get('delisting_date')) or t.get('market_state') not in (None,'ACTIVE')
         prior_price=n(old[0]) if isinstance(old,list) and len(old)>=4 else None
@@ -230,6 +239,31 @@ def collect_spot_flow(now,state,api):
                 'previous_5m_turnover_ema_krw':round(past_ema) if past_ema is not None else None,
                 'reason':reason,'observation_only':True,'send_allowed':False,
                 'turnover_method':'TICKER_KST_DAY_CUMULATIVE_DELTA_SCALED_TO_5M_NOT_CANDLE'})
+        # Fast market-movement notifications are a DIFFERENT channel from verified BUY.
+        # They do not need complete 15m CVD, but they MUST NOT claim buy pressure.
+        # Daily +9%/fast >3.5% movement is tagged late-chase, not concealed.
+        if (not warning and not suspended and comparison and
+            past_ema is not None and past_ema>0 and count>=2 and
+            daily_pct is not None and five is not None and
+            change is not None and change>=.9 and five>=30000000 and
+            five/past_ema>=2.5 and five/(last24/288)>=2 and
+            minutes is not None and 2<=minutes<=8):
+            early_watch.append({
+                'market':sym,'price_krw':price,
+                'interval_minutes':round(minutes,3),
+                'interval_price_change_pct':round(change,3),
+                'five_minute_equivalent_turnover_krw':round(five),
+                'five_minute_prior_ema_krw':round(past_ema),
+                'turnover_ratio_prior_ema':round(five/past_ema,2),
+                'day_price_change_pct':round(daily_pct*100,3),
+                'risk_class':'LATE_CHASE_CAUTION' if change>3.5 or daily_pct>.09
+                    else 'EARLY_MOMENTUM_WATCH',
+                'official_warning_checked':True,'risk_status':'NO_OFFICIAL_WARNING_AT_COLLECTION',
+                'observation_only':True,'is_buy_signal':False,
+                'order_allowed':False,'notify_observation_eligible':True,
+                'source':'Bithumb public KRW ticker/market/official-warning snapshots',
+                'limitations':'Ticker-to-ticker price + KST-day cumulative turnover delta; NOT full spot CVD, orderbook absorption, or future direction'
+            })
         if warning or suspended:
             record_drop('WARNING_OR_SUSPENDED');continue
         if five is None or past_ema is None or past_ema<=0 or count<3:
@@ -241,6 +275,10 @@ def collect_spot_flow(now,state,api):
         short.append((min(five/past_ema,80)*math.log10(1+five/10000000),sym,t))
     short.sort(key=lambda z:(-z[0],z[1]))
     rally_watch.sort(key=lambda x:(-x['observed_5m_price_change_pct'],-x['estimated_5m_turnover_krw'],x['market']))
+    # Prefer the first meaningful impulse; cap candidates and preserve full caution.
+    early_watch.sort(key=lambda x:(
+        1 if x['risk_class']=='LATE_CHASE_CAUTION' else 0,
+        -x['turnover_ratio_prior_ema'],-x['five_minute_equivalent_turnover_krw'],x['market']))
     state['spot_fast']={'time_ms':now_ms,'kst_day':today,'prices':fresh}
     examined=0;errors=0;decisions={};signals=[];detail_diagnostics=[]
     for rank,sym,t in short[:8]:
@@ -266,6 +304,9 @@ def collect_spot_flow(now,state,api):
             'verdicts':decisions,'detail_diagnostics':detail_diagnostics,'signals':signals[:8],
             'prescreen_drop_counts':prescreen_drops,'rally_watch_only':rally_watch[:20],
             'rally_watch_total':len(rally_watch),
+            'early_watch_observations':early_watch[:8],
+            'early_watch_total':len(early_watch),
+            'early_watch_is_buy_signal':False,
             'limitations':{'marketwide_full_CVD':False,'continuous_orderbook_absorption':False,
                  'exchange_inout_whale_tracking':False,'project_lockup':False,
                  'same_kst_hour_historical_baseline':'NOT_COLLECTED',
