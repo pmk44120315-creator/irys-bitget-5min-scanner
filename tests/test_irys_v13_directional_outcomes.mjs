@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 import {
   validDirectionalProof,directionalMessage,sendSpotDirectional,scheduledCore,
   evaluateOutcomeAtHorizon,parseOutcomeCandles,updateSpotOutcomes,
-  parseBitgetOutcomeCandles,evaluateFuturesOutcome,updateFuturesOutcomes
+  parseBitgetOutcomeCandles,evaluateFuturesOutcome,updateFuturesOutcomes,
+  validFuturesBookProof
 } from '../deployment/IRYS_V13_CAUSAL_DIRECTION_OUTCOMES_WORKER.mjs';
 
 const NOW=Date.parse('2026-10-29T00:20:00Z');
@@ -232,4 +233,28 @@ test('Blocked Bitget public price API records UNVERIFIED, never fabricates direc
     assert.equal(out.followups_sent,0);
     assert.deepEqual(state.futuresOutcomesV13[0].results,{});
   }finally{globalThis.fetch=backup;}
+});
+
+test('futures LONG/SHORT requires TWO separate same-venue orderbook snapshots',()=>{
+  const book=(time,ratio)=>({timestamp_ms:time,bid_ask_top5_ratio:ratio,
+    spread_pct:.15,continuous_absorption_verified:false});
+  const proof=(dir)=>{
+    const up=dir==='LONG';
+    return {book_proof_v13:{status:'TWO_DISTINCT_BOOK_SNAPSHOTS',
+      continuous_absorption_verified:false,position_owner_verified:false,
+      snapshots:[book(NOW-6*M,up?1.25:.74),book(NOW-M,up?1.4:.65)]}};
+  };
+  for(const dir of ['LONG','SHORT']){
+    const valid=proof(dir);
+    assert.equal(validFuturesBookProof(valid,dir,NOW)?.observations,2);
+    const fake=structuredClone(valid);
+    fake.book_proof_v13.snapshots[0].timestamp_ms=NOW-M;
+    assert.equal(validFuturesBookProof(fake,dir,NOW),null,'Duplicated book timestamp');
+    const conflict=structuredClone(valid);
+    conflict.book_proof_v13.snapshots[1].bid_ask_top5_ratio=dir==='LONG'?.5:1.7;
+    assert.equal(validFuturesBookProof(conflict,dir,NOW),null,'Opposing current wall');
+    const unverified=structuredClone(valid);
+    unverified.book_proof_v13.continuous_absorption_verified=true;
+    assert.equal(validFuturesBookProof(unverified,dir,NOW),null,'Never assert absorption');
+  }
 });
