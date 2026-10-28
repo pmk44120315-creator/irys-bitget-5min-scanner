@@ -85,6 +85,12 @@ async function main(){
     cron:config.cron,required_bindings_present:config.binding.length>=5}));
   // Just-in-time lease: never replace an intervening deployment.
   check((await getScript()).sha256===originalHash,'SOURCE_CHANGED_DURING_PREFLIGHT');
+  if(process.env.IRYS_V8_RELEASE_DRY_RUN==='1'){
+    console.log('V8_DRY_RUN_PASS_NO_DEPLOYMENT',JSON.stringify({
+      original_sha256:live.sha256,proposed_sha256:v8Hash,
+      bindings_preserved:true,cron_preserved:true,worker}));
+    return;
+  }
   let wrote=false;
   try{
     wrote=true;
