@@ -59,7 +59,10 @@ if(!Number.isFinite(stamp)||Date.now()-stamp>20*60000||stamp>Date.now()+60000)
 if(!last.futuresDirection||!last.earlyMarketWatch||!last.spotDirectional||
    !last.spotOutcomeAudit||!last.futuresOutcomeAudit||
    last.earlyMarketWatch.status!=='PRICE_TURNOVER_ONLY_INTERNAL_WATCH_NOT_TELEGRAM'||
-   last.earlyMarketWatch.sent!==0||last.githubDispatchStatus!=='ACCEPTED')
+   last.earlyMarketWatch.sent!==0||last.githubDispatchStatus!=='ACCEPTED'||
+   !['NO_QUALIFIED_DIRECTION','WAIT_SEND_RISK_CHECK','DIRECTIONAL_PROOF_ALERT_SENT',
+      'DIRECTION_DUPLICATE_OR_CAP','DIRECTION_OFFICIAL_RISK_BLOCKED'].includes(
+          last.spotDirectional.status))
   throw Error('V13_DIRECTION_OR_OUTCOME_ROUTE_NOT_READY');
 if(last.status!=='PASS'||!Number.isInteger(result.telegram_api_acknowledgements_total)||
    result.telegram_device_receipt_verified!==false)
