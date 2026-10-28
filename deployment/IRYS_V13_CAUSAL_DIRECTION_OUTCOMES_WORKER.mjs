@@ -1044,6 +1044,101 @@ async function updateSpotOutcomes(env,state,now){
   out.last_completed=out.last_completed.slice(-5);
   return out;
 }
+function addFuturesOutcome(state,p,now,ack){
+  const list=Array.isArray(state.futuresOutcomesV13)?state.futuresOutcomesV13:[];
+  if(!/^[A-Z0-9]{2,25}USDT$/.test(p.symbol||'')||!['LONG','SHORT'].includes(p.direction))return;
+  list.push({market:p.symbol,direction:p.direction==='LONG'?'UP':'DOWN',
+    original_direction:p.direction,alert_ms:now,prealert_snapshot_price_usdt:p.price,
+    first_postalert_close_usdt:null,telegram_message_id:ack.message_id,
+    results:{},followup_sent:false,
+    reference_method:'FIRST_CLOSED_1M_AFTER_TELEGRAM_ALERT_NOT_EXECUTION_PRICE'});
+  state.futuresOutcomesV13=list.slice(-50);
+}
+function parseBitgetOutcomeCandles(doc,now){
+  const out=new Map(),end=Math.floor(now/60000)*60000;
+  if(doc?.code!=='00000'||!Array.isArray(doc.data))return out;
+  for(const v of doc.data){
+    if(!Array.isArray(v)||v.length<7)continue;
+    const at=val(v[0]),open=val(v[1]),high=val(v[2]),low=val(v[3]),close=val(v[4]);
+    if(at===null||!Number.isSafeInteger(at)||at%60000!==0||at>=end||at<end-190*60000||
+       [open,high,low,close].some(x=>x===null)||open<=0||low<=0||high<low||
+       close<low||close>high)continue;
+    out.set(at,{open,high,low,close});
+  }
+  return out;
+}
+function evaluateFuturesOutcome(rec,horizon,now,rows){
+  const reference=val(rec.first_postalert_close_usdt);
+  if(reference===null||reference<=0)return null;
+  const base={direction:rec.direction,alert_ms:rec.alert_ms,alert_price_krw:reference};
+  const result=evaluateOutcomeAtHorizon(base,horizon,now,rows);
+  if(!result)return null;
+  const {price_krw,...rest}=result;
+  return {...rest,price_usdt:price_krw,reference_price_usdt:reference,
+    source:'BITGET_OFFICIAL_CLOSED_1M_HISTORY',
+    baseline_is_first_postalert_minute:true};
+}
+function futuresOutcomeMessage(item){
+  const parts=OUTCOME_HORIZONS_MIN.map(h=>{
+    const v=item.results[h+'m'];
+    return h+'분 '+(v?.status==='CLOSED_1M_PRICE_VERIFIED'?
+      fmt(v.return_pct,2)+'% ('+(v.direction_right?'방향 일치':'방향 불일치')+')':'미확인');
+  }).join(' · ');
+  return '📊 [비트겟 실제 알림 후 방향 검증] '+item.market+'\n'+
+    '알림 '+kst(item.alert_ms)+' · '+item.original_direction+' 수급 관측\n'+
+    '비교 시작: 알림 이후 첫 완료 1분봉 '+fmt(item.first_postalert_close_usdt,7)+
+    ' USDT (실제 진입가 아님)\n'+parts+'\n'+
+    '공식 선물 완성 1분봉 기준. 수수료·펀딩·슬리피지는 미반영. 미래 방향 적중 보장 아님.';
+}
+async function updateFuturesOutcomes(env,state,now){
+  const list=Array.isArray(state.futuresOutcomesV13)?state.futuresOutcomesV13:[];
+  const out={tracked:list.length,pending:list.filter(x=>!x?.results?.['60m']).length,
+    updated:0,api_not_confirmed:0,followups_sent:0,last_completed:[]};
+  let checked=0;
+  for(const rec of list){
+    if(checked>=3)break;
+    if(!rec||!Number.isSafeInteger(rec.alert_ms)||now-rec.alert_ms<60000||
+       now-rec.alert_ms>3*3600000||rec.results?.['60m']||
+       !/^[A-Z0-9]{2,25}USDT$/.test(rec.market||''))continue;
+    checked++;
+    try{
+      // Public historical Bitget market candles only, never a private account API.
+      const start=Math.floor(rec.alert_ms/60000)*60000-60000;
+      const end=Math.floor(now/60000)*60000;
+      const url='https://api.bitget.com/api/v2/mix/market/history-candles?symbol='+
+        encodeURIComponent(rec.market)+'&productType=USDT-FUTURES&granularity=1m'+
+        '&limit=180&startTime='+start+'&endTime='+end;
+      const doc=await requestJson(url,{},8500);
+      const rows=parseBitgetOutcomeCandles(doc,now);
+      const first=Math.floor(rec.alert_ms/60000)*60000;
+      if(!rec.first_postalert_close_usdt&&rows.has(first))
+        rec.first_postalert_close_usdt=rows.get(first).close;
+      if(!rec.first_postalert_close_usdt){out.api_not_confirmed++;continue;}
+      rec.results=rec.results||{};
+      for(const h of OUTCOME_HORIZONS_MIN){
+        if(rec.results[h+'m'])continue;
+        const v=evaluateFuturesOutcome(rec,h,now,rows);
+        if(v){rec.results[h+'m']=v;out.updated++;
+          out.last_completed.push({symbol:rec.market,horizon_min:h,
+            return_pct:v.return_pct,direction_right:v.direction_right});}
+      }
+    }catch(_e){out.api_not_confirmed++;}
+  }
+  for(const rec of list){
+    if(out.followups_sent>=1)break;
+    if(rec?.results?.['60m']?.status!=='CLOSED_1M_PRICE_VERIFIED'||rec.followup_sent)continue;
+    try{
+      const ack=await telegram(env,futuresOutcomeMessage(rec));
+      const receipt=recordReceipt(state,'BITGET_DIRECTION_OUTCOME_60M',rec.market,now,ack);
+      receipt.kv_receipt_persisted=await persistReceiptEvent(env,receipt,now);
+      rec.followup_sent=true;out.followups_sent++;
+    }catch(_e){out.followup_send_error='TELEGRAM_FUTURES_FOLLOWUP_UNVERIFIED';}
+  }
+  out.pending=list.filter(x=>!x?.results?.['60m']).length;
+  out.last_completed=out.last_completed.slice(-5);
+  return out;
+}
+
 // ===== END V13 =====
 
 function shouldRunExpensiveAi(status,source,confirmed){
@@ -1101,6 +1196,7 @@ async function scheduledCore(env,now=Date.now(),preDispatch=null){
       state.lastAlert[key]=now;
       const row=recordReceipt(state,'BITGET_VERIFIED_FUTURES_FLOW',proof.symbol,now,ack);
       row.kv_receipt_persisted=await persistReceiptEvent(env,row,now);
+      addFuturesOutcome(state,proof,now,ack);
       futuresSent++;
     }catch(e){futuresSendError=String(e).slice(0,150);break;}
   }
@@ -1114,6 +1210,7 @@ async function scheduledCore(env,now=Date.now(),preDispatch=null){
   // Compare real future CLOSED prices to the Telegram acknowledgement price.
   // Failed outcome reads never invent a win/loss and never block market scanning.
   const outcomeRun=await updateSpotOutcomes(env,state,now);
+  const futuresOutcomeRun=await updateFuturesOutcomes(env,state,now);
   // Legacy Workers AI direct directional Telegram transport remains disabled.
   let aiRun={status:status==='PASS'?'SKIPPED_NO_SUSTAINED_SPOT_SIGNAL':'DATA_SOURCE_NOT_READY',
     configured:!!env.AI?.run,model:AI_MODEL,alerts_sent:0};
@@ -1129,7 +1226,7 @@ async function scheduledCore(env,now=Date.now(),preDispatch=null){
   for(const key of Object.keys(state.lastAlert))if(now-(val(state.lastAlert[key])||0)>86400000)delete state.lastAlert[key];
   state.prevAt=now;state.run=(state.run||0)+1;
   state.telegramConnectionVerified=Boolean(state.telegramConnectionVerified||sent>0||futuresSent>0||
-    directionalRun.sent>0||outcomeRun.followups_sent>0);
+    directionalRun.sent>0||outcomeRun.followups_sent>0||futuresOutcomeRun.followups_sent>0);
   state.last={time:kst(now),codeVersion:VERSION,status,
     githubDispatchStatus:dispatch.status,githubDispatchError:dispatch.error,
     marketB,marketG,cryptoVerifiedCount,bgSource:source?'GITHUB_PUBLIC':'UNAVAILABLE',
@@ -1139,13 +1236,15 @@ async function scheduledCore(env,now=Date.now(),preDispatch=null){
     spotEarlyAlerts:source?.spot.signals?.length||0,blockedByRisk:candidates.length-confirmed.length,
     sent,skippedDuplicates,telegramConfigured:!!(env.TELEGRAM_BOT_TOKEN&&env.TELEGRAM_CHAT_ID),
     telegramSendVerified:state.telegramConnectionVerified,sendError,
-    telegramApiAckedThisRun:sent+futuresSent+directionalRun.sent+outcomeRun.followups_sent,
+    telegramApiAckedThisRun:sent+futuresSent+directionalRun.sent+
+      outcomeRun.followups_sent+futuresOutcomeRun.followups_sent,
     telegramApiAcknowledgementsTotal:state.telegramAcknowledgementsTotal||0,
     telegramLastApiReceipt:(state.deliveryReceiptsV12||[]).at(-1)||null,
     telegramDeviceReceiptVerified:false,
     aiJudgment:aiRun,
     earlyMarketWatch:earlyRun,
     spotDirectional:directionalRun,spotOutcomeAudit:outcomeRun,
+    futuresOutcomeAudit:futuresOutcomeRun,
     futuresDirection:{status:futuresRun.status,inspected:futuresRun.inspected,
       qualified:futuresRun.qualified,confirmed:futuresRun.confirmed,
       sent:futuresSent,skipped_duplicates:futuresSkipped,send_error:futuresSendError,
@@ -1179,4 +1278,5 @@ export {validateSignal,officialRiskCheck,readGithub,dispatchGithub,scheduledCore
   shouldRunExpensiveAi,readGithubCore,spotFromCore,futuresSnapshotProof,evaluateFutures,futuresMessage,
   earlyCandidateProof,recheckEarlyMarkets,earlyMessage,sendEarlyWatch,
   validDirectionalProof,directionalMessage,sendSpotDirectional,
-  evaluateOutcomeAtHorizon,parseOutcomeCandles,updateSpotOutcomes};
+  evaluateOutcomeAtHorizon,parseOutcomeCandles,updateSpotOutcomes,
+  parseBitgetOutcomeCandles,evaluateFuturesOutcome,updateFuturesOutcomes};
