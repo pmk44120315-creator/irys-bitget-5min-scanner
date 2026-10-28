@@ -6,6 +6,7 @@ Python 3 standard library only. Designed for public GitHub Actions; outputs publ
 from __future__ import annotations
 import concurrent.futures
 from spot_flow import collect_spot_flow
+from spot_direction import collect_spot_directional
 from bitget_futures_cvd import collect_futures_flow_observations
 import datetime as dt
 import json
@@ -427,6 +428,16 @@ def main():
                 'error':type(e).__name__+': '+str(e)[:200],
                 'source':'Bithumb public API read-only'}
         reconcile_bithumb_spot_stats(latest)
+        # Evidence-backed direction is a separate nonblocking stream.
+        # No BUY/SHORT assertion or order follows from ticker/turnover alone.
+        try:
+            observed_at=dt.datetime.fromisoformat(latest['spot_flow']['observed_utc'].replace('Z','+00:00'))
+            stamp=int(observed_at.timestamp()*1000)
+            latest['spot_directional']=collect_spot_directional(
+                latest['spot_flow'],state,stamp,http_json)
+        except Exception as exc:
+            latest['spot_directional']={'status':'FAILED','signals':[],
+                'error_type':type(exc).__name__,'observation_only':True}
         # An independent public futures read-only evidence stream. If it fails,
         # the original 5m collector/spot alert pipeline is not altered.
         try:
