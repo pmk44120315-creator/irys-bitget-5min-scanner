@@ -173,11 +173,22 @@ function recordReceipt(state,channel,symbol,at,ack){
   if(!Number.isSafeInteger(ack?.message_id)||ack.message_id<=0)
     throw Error('TELEGRAM_RECEIPT_INVALID');
   const prior=Array.isArray(state.deliveryReceiptsV12)?state.deliveryReceiptsV12:[];
-  prior.push({channel,symbol,telegram_message_id:ack.message_id,accepted_at:kst(at),
-    status:'TELEGRAM_API_ACK_ONLY_DEVICE_RECEIPT_UNVERIFIED'});
+  const row={channel,symbol,telegram_message_id:ack.message_id,accepted_at:kst(at),
+    status:'TELEGRAM_API_ACK_ONLY_DEVICE_RECEIPT_UNVERIFIED',kv_receipt_persisted:false};
+  prior.push(row);
   state.deliveryReceiptsV12=prior.slice(-40);
   state.telegramAcknowledgementsTotal=(Number.isSafeInteger(state.telegramAcknowledgementsTotal)
     ?state.telegramAcknowledgementsTotal:0)+1;
+  return row;
+}
+async function persistReceiptEvent(env,row,at){
+  // Separate event key: Cloudflare KV limits the SAME key to 1 write/second.
+  // Do not put the main state key twice inside one scheduled invocation.
+  const key='irys:fast:delivery-receipt:v12:'+row.channel+':'+row.symbol+':'+at;
+  try{
+    await env.IRYS_KV.put(key,JSON.stringify(row),{expirationTtl:7*86400});
+    return true;
+  }catch(_e){return false;} // API acknowledgement remains distinct from KV persistence.
 }
 async function dispatchGithub(env){
   const token=typeof env.GITHUB_DISPATCH_TOKEN==='string'?env.GITHUB_DISPATCH_TOKEN.trim():'';
@@ -814,9 +825,8 @@ async function sendEarlyWatch(env,state,spot,now,capacity){
     try{
       const ack=await telegram(env,earlyMessage(s,now));
       state.lastAlert[key]=now;state.earlyAlertHistory.push(now);
-      recordReceipt(state,'BITHUMB_EARLY_WATCH',s.market,now,ack);
-      // Checkpoint the receipt now, not only after later processing.
-      await env.IRYS_KV.put(STATE,JSON.stringify(state));
+      const row=recordReceipt(state,'BITHUMB_EARLY_WATCH',s.market,now,ack);
+      row.kv_receipt_persisted=await persistReceiptEvent(env,row,now);
       record.sent++;
     }catch(e){record.send_error=clean(e?.message,150);break;}
   }
@@ -861,8 +871,8 @@ async function scheduledCore(env,now=Date.now(),preDispatch=null){
       try{
         const ack=await telegram(env,message(signal,now));
         state.lastAlert[key]=now;
-        recordReceipt(state,'BITHUMB_SUSTAINED_BUY',signal.market,now,ack);
-        await env.IRYS_KV.put(STATE,JSON.stringify(state));
+        const row=recordReceipt(state,'BITHUMB_SUSTAINED_BUY',signal.market,now,ack);
+        row.kv_receipt_persisted=await persistReceiptEvent(env,row,now);
         sent++;
       }catch(e){sendError=String(e).slice(0,150);break;}
     }
@@ -879,8 +889,8 @@ async function scheduledCore(env,now=Date.now(),preDispatch=null){
     try{
       const ack=await telegram(env,futuresMessage(proof,now));
       state.lastAlert[key]=now;
-      recordReceipt(state,'BITGET_VERIFIED_FUTURES_FLOW',proof.symbol,now,ack);
-      await env.IRYS_KV.put(STATE,JSON.stringify(state));
+      const row=recordReceipt(state,'BITGET_VERIFIED_FUTURES_FLOW',proof.symbol,now,ack);
+      row.kv_receipt_persisted=await persistReceiptEvent(env,row,now);
       futuresSent++;
     }catch(e){futuresSendError=String(e).slice(0,150);break;}
   }
