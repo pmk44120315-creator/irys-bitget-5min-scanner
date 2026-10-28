@@ -1,0 +1,20 @@
+name: IRYS Bitget METIS 15m official minute-level CVD mismatch forensics read-only
+on:
+  push:
+    branches: [fix/irys-evidence-gates-20261028]
+    paths:
+      - 'diagnostics/metis_cvd_mismatch_perminute.py'
+      - '.github/workflows/diagnose-metis-cvd-minute.yml'
+permissions:
+  contents: read
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Reconcile historical Bitget METIS individual closed minute candles and all public fills
+        run: python diagnostics/metis_cvd_mismatch_perminute.py
