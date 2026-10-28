@@ -1,0 +1,19 @@
+name: IRYS Bitget 2-snapshot direction actual 5 15 30m outcome audit
+on:
+  push:
+    branches: [fix/irys-evidence-gates-20261028]
+    paths:
+      - 'diagnostics/bitget_direction_outcome_probe.mjs'
+      - '.github/workflows/diagnose-bitget-direction-outcomes.yml'
+permissions:
+  contents: read
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Compare candidate timestamp with later completed official Bitget 1m candles (read-only)
+        run: node diagnostics/bitget_direction_outcome_probe.mjs
