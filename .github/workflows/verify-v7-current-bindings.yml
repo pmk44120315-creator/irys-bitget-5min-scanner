@@ -1,0 +1,23 @@
+name: IRYS existing V7 scoped Cloudflare PRE-DEPLOY audit (read only)
+on:
+  push:
+    branches: [fix/irys-evidence-gates-20261028]
+    paths:
+      - 'deployment/preflight-v7.mjs'
+      - '.github/workflows/verify-v7-current-bindings.yml'
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    env:
+      IRYS_V7_CF_API_TOKEN: ${{ secrets.IRYS_V7_CF_API_TOKEN }}
+      IRYS_REALTIME_CF_ACCOUNT_ID: ${{ secrets.IRYS_REALTIME_CF_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Compare existing V7 deployed source identity, KV, AI, Telegram, and unchanged cron
+        run: node deployment/preflight-v7.mjs
