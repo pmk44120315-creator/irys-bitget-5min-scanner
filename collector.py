@@ -6,6 +6,7 @@ Python 3 standard library only. Designed for public GitHub Actions; outputs publ
 from __future__ import annotations
 import concurrent.futures
 from spot_flow import collect_spot_flow
+from bitget_futures_cvd import collect_futures_flow_observations
 import datetime as dt
 import json
 import math
@@ -403,6 +404,15 @@ def main():
             latest['spot_flow']={'status':'FAILED','signals':[],
                 'error':type(e).__name__+': '+str(e)[:200],
                 'source':'Bithumb public API read-only'}
+        # An independent public futures read-only evidence stream. If it fails,
+        # the original 5m collector/spot alert pipeline is not altered.
+        try:
+            latest['futures_flow']=collect_futures_flow_observations(
+                latest,int(utc_now().timestamp()*1000),http_json,limit=6)
+        except Exception as exc:
+            latest['futures_flow']={'status':'FAILED','observations':[],
+                'alert_eligible':False,'observation_only':True,
+                'error':type(exc).__name__+': '+str(exc)[:150]}
         # Mark actual completion only after both futures and spot observation work.
         latest['finished_utc']=utc_now().isoformat()
         write_json_atomic(LATEST,latest)
