@@ -1,0 +1,31 @@
+name: IRYS V13 production Cloudflare preflight READ ONLY (NEVER DEPLOY)
+on:
+  push:
+    branches: [fix/irys-v13-directional-proof-outcomes-20261029]
+    paths:
+      - 'deployment/release-v13-safe.mjs'
+      - '.github/workflows/verify-irys-v13-cloudflare-preflight.yml'
+permissions:
+  contents: read
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    env:
+      IRYS_V7_CF_API_TOKEN: ${{ secrets.IRYS_V7_CF_API_TOKEN }}
+      IRYS_REALTIME_CF_ACCOUNT_ID: ${{ secrets.IRYS_REALTIME_CF_ACCOUNT_ID }}
+      IRYS_V13_RELEASE_ONCE: AUTHORIZED_FROM_REVIEWED_MARKER
+      IRYS_V13_RELEASE_DRY_RUN: '1'
+      IRYS_V13_EXPECTED_SHA256: 'fe282f1742385db5f12db2f77fd32252db972b9852698d388360937e6996e5a2'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify immutable tested V13 Worker and release syntax
+        run: |
+          node --check deployment/IRYS_V13_CAUSAL_DIRECTION_OUTCOMES_WORKER.mjs
+          node --check deployment/release-v13-safe.mjs
+          test "$(sha256sum deployment/IRYS_V13_CAUSAL_DIRECTION_OUTCOMES_WORKER.mjs | cut -d' ' -f1)" = "$IRYS_V13_EXPECTED_SHA256"
+      - name: READ ONLY predeploy compare exact live V12 SHA, Cron, binding identity and rollback reference
+        run: node deployment/release-v13-safe.mjs
