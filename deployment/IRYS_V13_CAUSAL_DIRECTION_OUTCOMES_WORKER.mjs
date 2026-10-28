@@ -1297,7 +1297,7 @@ async function scheduledCore(env,now=Date.now(),preDispatch=null){
       sent:futuresSent,skipped_duplicates:futuresSkipped,send_error:futuresSendError,
       reasons:futuresRun.reasons,proof_type:'15m public futures fills, two snapshots; not long/short position owners'},
     alertContract:'V13_2_DISTINCT_BOOK_AND_TAKER_15M_RECONCILED_LOCAL_CVD_STRUCTURE',aiDirectTransportEnabled:AI_ALERT_TRANSPORT_ENABLED,
-    note:'V7 Workers AI cross-evidence assessment (not GPT-6); no orders, no complete CVD or absorption proof'};
+    note:'V13 verified venue-local 15m taker flow + distinct books + price structure. Bitget additionally checks OI. Workers AI directional transport disabled. No all-exchange CVD, continuous absorption, future hit-rate, or orders.'};
   await env.IRYS_KV.put(STATE,JSON.stringify(state));
   console.log(JSON.stringify(state.last));
   if(sendError||futuresSendError||directionalRun.send_error&&
