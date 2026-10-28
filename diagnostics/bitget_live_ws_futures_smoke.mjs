@@ -43,9 +43,9 @@ ws.addEventListener('message',e=>{
   for(const row of obj.data){
    const entries=Array.isArray(row)?row:[row];
    for(const q of entries){
-     const side=String(q?.side||'').toLowerCase();
-     const px=Number(q?.price),qty=Number(q?.size),time=Number(q?.ts??q?.timestamp);
-     const id=String(q?.tradeId??q?.execId??'');
+     const side=String(q?.S??q?.side??'').toLowerCase();
+     const px=Number(q?.p??q?.price),qty=Number(q?.v??q?.size),time=Number(q?.T??q?.ts??q?.timestamp);
+     const id=String(q?.i??q?.tradeId??q?.execId??'');
      const sym=obj.arg?.symbol||q?.symbol||'UNKNOWN';
      if(!['buy','sell'].includes(side)||!Number.isFinite(px)||!Number.isFinite(qty)||
         px<=0||qty<=0||!Number.isSafeInteger(time)||Math.abs(time-Date.now())>60000||!id){stats.unknown_data++;continue;}
