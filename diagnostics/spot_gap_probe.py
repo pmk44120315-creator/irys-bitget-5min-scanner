@@ -3,6 +3,9 @@ import datetime as dt
 import json
 import urllib.parse
 import urllib.request
+import sys
+from pathlib import Path
+sys.path.insert(0,str(Path(__file__).resolve().parent.parent))
 from spot_flow import candles, window
 
 def check(market, now_ms):
