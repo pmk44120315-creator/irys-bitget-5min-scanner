@@ -2,7 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   validDirectionalProof,directionalMessage,sendSpotDirectional,scheduledCore,
-  evaluateOutcomeAtHorizon,parseOutcomeCandles,updateSpotOutcomes
+  evaluateOutcomeAtHorizon,parseOutcomeCandles,updateSpotOutcomes,
+  parseBitgetOutcomeCandles,evaluateFuturesOutcome,updateFuturesOutcomes
 } from '../deployment/IRYS_V13_CAUSAL_DIRECTION_OUTCOMES_WORKER.mjs';
 
 const NOW=Date.parse('2026-10-29T00:20:00Z');
@@ -158,4 +159,71 @@ test('post-alert 5, 15, 30, 60m directional score is strictly future closed cand
     assert.ok(result.excursion_full_coverage);
   }
   assert.equal(evaluateOutcomeAtHorizon(item,60,now,new Map()),null,'Missing candle must be unknown');
+});
+
+test('Bitget futures outcome uses first post-alert CLOSED 1m baseline, not old pre-alert snapshot',async()=>{
+  const at=NOW+25_000,now=NOW+62*M;
+  const raw=Array.from({length:73},(_,i)=>{
+    const t=NOW+(i-3)*M;
+    const p=1.0+(i-3)*.0004;
+    return [String(t),String(p-.0001),String(p+.0001),String(p-.0002),
+      String(p),'100','100'];
+  });
+  const rows=parseBitgetOutcomeCandles({code:'00000',data:raw},now);
+  assert.equal(parseBitgetOutcomeCandles({code:'50000',data:raw},now).size,0);
+  const record={market:'ABCUSDT',alert_ms:at,direction:'UP',
+    first_postalert_close_usdt:rows.get(NOW).close,results:{}};
+  assert.equal(evaluateFuturesOutcome(record,60,NOW+M,rows),null);
+  for(const min of [5,15,30,60]){
+    const result=evaluateFuturesOutcome(record,min,now,rows);
+    assert.equal(result.status,'CLOSED_1M_PRICE_VERIFIED');
+    assert.equal(result.direction_right,true);
+    assert.equal(result.source,'BITGET_OFFICIAL_CLOSED_1M_HISTORY');
+    assert.equal(result.baseline_is_first_postalert_minute,true);
+  }
+  // State transitions in an independent offline HTTP-mocked scan.
+  const state={version:1,prevAt:0,lastAlert:{},
+    futuresOutcomesV13:[{market:'ABCUSDT',direction:'UP',
+      original_direction:'LONG',alert_ms:at,first_postalert_close_usdt:null,
+      prealert_snapshot_price_usdt:.5,results:{},followup_sent:false}]};
+  const gets=[];
+  const env={TELEGRAM_BOT_TOKEN:'offline-only',TELEGRAM_CHAT_ID:'123456789',
+    IRYS_KV:{put:async()=>{}}};
+  const saved=globalThis.fetch;
+  globalThis.fetch=async(url,opts={})=>{
+    const s=String(url);gets.push(s);
+    if(s.includes('/api/v2/mix/market/history-candles')){
+      assert.match(s,/symbol=ABCUSDT/);
+      return new Response(JSON.stringify({code:'00000',data:raw}),{status:200});
+    }
+    if(s.includes('/sendMessage'))
+      return new Response(JSON.stringify({ok:true,result:{message_id:765,
+        chat:{id:123456789}}}),{status:200});
+    throw Error('unplanned '+s);
+  };
+  try{
+    const out=await updateFuturesOutcomes(env,state,now);
+    assert.equal(out.updated,4);
+    assert.equal(out.followups_sent,1);
+    assert.equal(state.futuresOutcomesV13[0].followup_sent,true);
+    assert.equal(state.futuresOutcomesV13[0].first_postalert_close_usdt,rows.get(NOW).close);
+    assert.equal(state.futuresOutcomesV13[0].results['60m'].direction_right,true);
+    assert.ok(gets.some(s=>s.includes('/sendMessage')));
+  }finally{globalThis.fetch=saved;}
+});
+
+test('Blocked Bitget public price API records UNVERIFIED, never fabricates directional outcome',async()=>{
+  const now=NOW+60*M;
+  const state={futuresOutcomesV13:[{market:'ABCUSDT',direction:'DOWN',
+    original_direction:'SHORT',alert_ms:NOW-1000,results:{},
+    first_postalert_close_usdt:null,followup_sent:false}]};
+  const backup=globalThis.fetch;
+  globalThis.fetch=async()=>{throw Error('EGRESS_UNAVAILABLE');};
+  try{
+    const out=await updateFuturesOutcomes({},state,now);
+    assert.equal(out.api_not_confirmed,1);
+    assert.equal(out.updated,0);
+    assert.equal(out.followups_sent,0);
+    assert.deepEqual(state.futuresOutcomesV13[0].results,{});
+  }finally{globalThis.fetch=backup;}
 });
