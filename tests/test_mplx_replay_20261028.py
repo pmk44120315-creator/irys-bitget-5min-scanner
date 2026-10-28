@@ -61,6 +61,36 @@ class TestMplxEarlyRally(unittest.TestCase):
         self.assertEqual(state["spot_fast"]["prices"]["KRW-MPLX"],
             [68.01,81_530_031,13_703_182,11])
         self.assertEqual(x["early_watch_observations"],[])
+        # A duplicate must preserve the timestamp as well as every coin's EMA.
+        duplicate_now=int(dt.datetime.fromisoformat("2026-10-28T08:10:00+00:00").timestamp()*1000)
+        self.assertEqual(state["spot_fast"]["time_ms"],duplicate_now-int(1.1*60000))
+        self.assertTrue(x["sub2m_duplicate_anchor_preserved"])
+        self.assertEqual(x["spot_baseline_anchor_ms"],duplicate_now-int(1.1*60000))
+
+    def test_following_run_uses_full_elapsed_time_not_duplicate_time(self):
+        _,state=case("2026-10-28T08:10:00Z",1.1,68.01,74.0,
+             81_530_031,96_000_000,13_703_182,11)
+        now=dt.datetime.fromisoformat("2026-10-28T08:13:54+00:00")
+        future_acc=120_000_000
+        tickers=[{"market":"KRW-MPLX","trade_price":74.96,
+                  "acc_trade_price":future_acc,"acc_trade_price_24h":1_500_000_000,
+                  "signed_change_rate":.16}]
+        tickers += [{"market":"KRW-T%03d"%i,"trade_price":100,
+                     "acc_trade_price":1_000_000,"acc_trade_price_24h":10_000_000,
+                     "signed_change_rate":0} for i in range(101)]
+        markets=[{"market":z["market"],"market_warning":"NONE"} for z in tickers]
+        def api(venue,path,opts=None):
+            if path=="/v1/market/all":return markets
+            if path=="/v1/market/virtual_asset_warning":return []
+            if path=="/v1/ticker":return [z for z in tickers if z["market"] in opts["markets"].split(",")]
+            if path=="/v1/candles/minutes/1":return []
+            raise AssertionError(path)
+        out=collect_spot_flow(now,state,api)
+        self.assertTrue(out["comparison_valid"])
+        self.assertAlmostEqual(out["comparison_gap_minutes"],5,places=2)
+        mover=next(z for z in out["rally_watch_only"] if z["market"]=="KRW-MPLX")
+        self.assertAlmostEqual(mover["estimated_5m_turnover_krw"],future_acc-81_530_031,delta=1)
+        self.assertEqual(state["spot_fast"]["time_ms"],int(now.timestamp()*1000))
 
     def test_official_warning_never_allows_notification_or_buy(self):
         x,_=case("2026-10-28T08:08:23.129Z",4.91,65.99,68.01,
