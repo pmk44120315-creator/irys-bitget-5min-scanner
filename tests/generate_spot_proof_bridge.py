@@ -1,6 +1,9 @@
 """Bridge integration: generate an actual Python 4x5m sustained spot proof for the V8 Worker."""
 import datetime as dt
 import json
+import sys
+from pathlib import Path
+sys.path.insert(0,str(Path(__file__).resolve().parent.parent))
 from spot_continuity import verify_continuity
 
 NOW = int(dt.datetime(2026, 10, 28, 4, 0, tzinfo=dt.timezone.utc).timestamp()*1000)
