@@ -64,7 +64,7 @@ function validateSignal(s,now){
   const v=s.verification, c=v?.candle_reconciled_15m_spot_taker;
   const books=v?.book_snapshots;
   if(v?.alert_classification!=='SUSTAINED_EARLY_SPOT_OBSERVATION_ONLY' ||
-     v.independent_5m_checks!==4 || v.elapsed_minutes<15 ||
+     v.independent_5m_checks!==4 || v.elapsed_minutes!==15 ||
      v.continuous_orderbook_absorption_verified!==false ||
      v.all_exchange_inout_verified!==false || v.token_unlock_verified!==false ||
      !Array.isArray(books)||books.length!==4||
@@ -72,10 +72,20 @@ function validateSignal(s,now){
        val(b.spread_pct)===null||val(b.spread_pct)>.8||
        val(b.bid_ask_top5_ratio)===null||val(b.bid_ask_top5_ratio)<.8) ||
      c?.verified!==true||c.marketwide_cvd_verified!==false||
-     val(c.candle_relative_error)===null||c.candle_relative_error>.005 ||
+     !Number.isSafeInteger(c.start_ms)||!Number.isSafeInteger(c.end_ms)||
+     c.end_ms-c.start_ms!==15*60000||c.start_ms%60000!==0||
+     c.end_ms>now+60000||now-c.end_ms>SIGNAL_AGE_MS||
+     val(c.candle_relative_error)===null||c.candle_relative_error<0||
+     c.candle_relative_error>.005 ||
      !Array.isArray(c.blocks)||c.blocks.length!==3||
-     c.blocks.some(b=>val(b.net_buy_krw)===null||b.net_buy_krw<=0||
+     c.blocks.some((b,i)=>b.start_ms!==c.start_ms+i*5*60000||
+       b.end_ms!==c.start_ms+(i+1)*5*60000||
+       val(b.net_buy_krw)===null||b.net_buy_krw<=0||
        val(b.buy_share)===null||b.buy_share<.55))return false;
+  const bookTimes=books.map(b=>val(b.timestamp_ms));
+  if(bookTimes.some(t=>t===null||t>now+60000||now-t>21*60000)||
+     bookTimes.some((t,i)=>i>0&&(t-bookTimes[i-1]<3*60000||
+       t-bookTimes[i-1]>7*60000)))return false;
   const at=Date.parse(s.timestamp_utc||'');
   if(!Number.isFinite(at)||at>now+60000||now-at>SIGNAL_AGE_MS)return false;
   const f=s.windows?.['5m'],q=s.windows?.['15m'],h=s.windows?.['60m'];
