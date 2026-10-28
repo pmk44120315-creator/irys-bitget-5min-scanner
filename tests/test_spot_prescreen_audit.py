@@ -32,6 +32,7 @@ def scenario(markets):
         if path=="/v1/market/virtual_asset_warning":return []
         if path=="/v1/ticker":
             return [x for x in prices if x["market"] in opts["markets"].split(",")]
+        if path=="/v1/candles/minutes/1":return []  # Existing BUY gate still waits for closed data.
         raise AssertionError("Unexpected detail API: "+path)
     return collect_spot_flow(NOW,state,fake_api),state
 
@@ -59,6 +60,26 @@ class TestPrescreenAudit(unittest.TestCase):
         self.assertEqual(output["rally_watch_only"][0]["reason"],"OFFICIAL_WARNING")
         self.assertEqual(output["rally_watch_only"][0]["send_allowed"],False)
         self.assertEqual(output["signals"],[])
+
+    def test_xan_reports_real_early_channel_rejection_not_strict_buy_reason(self):
+        out,_=scenario({"KRW-XAN":{"price":102.36,"five":39_287_198,
+            "past_ema":10_327_402,"daily24":15_633_080_267,"daily_rate":.30}})
+        w=out["rally_watch_only"][0]
+        self.assertEqual(w["reason"],"DAILY_MOVE_LIMIT")  # Separate sustained-BUY path.
+        self.assertEqual(w["early_notification_reason"],"TURNOVER_BELOW_2X_24H_BASELINE")
+        self.assertFalse(w["early_notify_eligible"])
+        self.assertEqual(out["early_watch_total"],0)
+        self.assertEqual(out["early_watch_prescreen_reasons"]["TURNOVER_BELOW_2X_24H_BASELINE"],1)
+
+    def test_pons_sufficient_first_impulse_is_recorded_but_never_buy(self):
+        out,_=scenario({"KRW-PONS":{"price":102.75,"five":97_708_706,
+            "past_ema":11_163_603,"daily24":450_000_000,"daily_rate":.04}})
+        w=out["rally_watch_only"][0]
+        self.assertEqual(w["early_notification_reason"],"EARLY_WATCH_ELIGIBLE")
+        self.assertTrue(w["early_notify_eligible"])
+        self.assertEqual(out["early_watch_total"],1)
+        self.assertTrue(out["early_watch_observations"][0]["observation_only"])
+        self.assertEqual(out["signals"],[])
 
     def test_watchlist_is_bounded_and_explicitly_non_alerting(self):
         markets={("KRW-X%02d"%i):{"price":105+i/100,"five":90_000_000}
