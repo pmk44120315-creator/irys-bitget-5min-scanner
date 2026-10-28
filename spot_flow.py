@@ -233,11 +233,26 @@ def collect_spot_flow(now,state,api):
             elif daily_pct is None or not -.08<=daily_pct<=.09: reason='DAILY_MOVE_LIMIT'
             elif five/past_ema<3 or five/(last24/288)<2: reason='VOLUME_RATIO_BELOW_EARLY_ENTRY'
             else: reason='ELIGIBLE_FOR_DETAILED_CHECK'
+            # Early-watch eligibility is NOT the 15m sustained BUY gate. Report the
+            # independent early cause: an old DAILY_MOVE_LIMIT label hid the real
+            # 24h-relative-volume failure of movers such as XAN.
+            if warning: early_reason='OFFICIAL_WARNING'
+            elif suspended: early_reason='MARKET_SUSPENDED'
+            elif not comparison: early_reason='NOT_COMPARABLE_INTERVAL'
+            elif past_ema is None or past_ema<=0 or count<2: early_reason='BASELINE_WARMING_UP'
+            elif change<.9: early_reason='PRICE_IMPULSE_BELOW_0_9_PCT'
+            elif five<30000000: early_reason='TURNOVER_BELOW_30M_KRW'
+            elif five/past_ema<2.5: early_reason='TURNOVER_BELOW_2_5X_EMA'
+            elif five/(last24/288)<2: early_reason='TURNOVER_BELOW_2X_24H_BASELINE'
+            elif daily_pct is None: early_reason='DAILY_PRICE_STATUS_UNAVAILABLE'
+            else: early_reason='EARLY_WATCH_ELIGIBLE'
             rally_watch.append({'market':sym,'price_krw':price,
                 'observed_5m_price_change_pct':round(change,3),
                 'estimated_5m_turnover_krw':round(five),
                 'previous_5m_turnover_ema_krw':round(past_ema) if past_ema is not None else None,
-                'reason':reason,'observation_only':True,'send_allowed':False,
+                'reason':reason,'early_notification_reason':early_reason,
+                'early_notify_eligible':early_reason=='EARLY_WATCH_ELIGIBLE',
+                'observation_only':True,'send_allowed':False,
                 'turnover_method':'TICKER_KST_DAY_CUMULATIVE_DELTA_SCALED_TO_5M_NOT_CANDLE'})
         # Fast market-movement notifications are a DIFFERENT channel from verified BUY.
         # They do not need complete 15m CVD, but they MUST NOT claim buy pressure.
@@ -279,7 +294,11 @@ def collect_spot_flow(now,state,api):
     early_watch.sort(key=lambda x:(
         1 if x['risk_class']=='LATE_CHASE_CAUTION' else 0,
         -x['turnover_ratio_prior_ema'],-x['five_minute_equivalent_turnover_krw'],x['market']))
-    state['spot_fast']={'time_ms':now_ms,'kst_day':today,'prices':fresh}
+    # The anchor timestamp and its prices/turnover/EMA are one atomic snapshot.
+    # A sub-2m duplicate must NOT advance the timestamp while keeping old values:
+    # the next normalized quote-turnover would then be spuriously inflated.
+    if not very_short:
+        state['spot_fast']={'time_ms':now_ms,'kst_day':today,'prices':fresh}
     examined=0;errors=0;decisions={};signals=[];detail_diagnostics=[]
     for rank,sym,t in short[:8]:
         try:
@@ -304,6 +323,11 @@ def collect_spot_flow(now,state,api):
             'verdicts':decisions,'detail_diagnostics':detail_diagnostics,'signals':signals[:8],
             'prescreen_drop_counts':prescreen_drops,'rally_watch_only':rally_watch[:20],
             'rally_watch_total':len(rally_watch),
+            'comparison_gap_minutes':round(minutes,3) if minutes is not None else None,
+            'comparison_valid':comparison,'sub2m_duplicate_anchor_preserved':very_short,
+            'spot_baseline_anchor_ms':(state.get('spot_fast') or {}).get('time_ms'),
+            'early_watch_prescreen_reasons':{reason:sum(x['early_notification_reason']==reason
+                for x in rally_watch) for reason in {x['early_notification_reason'] for x in rally_watch}},
             'early_watch_observations':early_watch[:8],
             'early_watch_total':len(early_watch),
             'early_watch_is_buy_signal':False,
