@@ -33,13 +33,14 @@ try{
   const live=await publicResponse.json(),version=live.last?.codeVersion;
   const bindings=(settings.result?.bindings??[]).map(b=>({name:b.name,type:b.type}));
   const required={
-    IRYS_KV:'kv_namespace',
-    AI:'ai',
-    GITHUB_DISPATCH_TOKEN:'secret_text',
-    TELEGRAM_BOT_TOKEN:'secret_text',
-    TELEGRAM_CHAT_ID:'secret_text'
+    IRYS_KV:['kv_namespace'],
+    AI:['ai'],
+    GITHUB_DISPATCH_TOKEN:['secret_text'],
+    TELEGRAM_BOT_TOKEN:['secret_text'],
+    TELEGRAM_CHAT_ID:['secret_text','plain_text']
   };
-  const missing=Object.entries(required).filter(([name,type])=>!bindings.some(b=>b.name===name&&b.type===type)).map(x=>x[0]);
+  const missing=Object.entries(required).filter(([name,types])=>
+    !bindings.some(b=>b.name===name&&types.includes(b.type))).map(x=>x[0]);
   const sched=Array.isArray(schedules.result?.schedules)?schedules.result.schedules:
               (Array.isArray(schedules.result)?schedules.result:[]);
   const cron=sched.map(x=>x.cron).filter(Boolean);
