@@ -36,4 +36,4 @@ jobs:
           python -m unittest discover -s tests -p 'test_*.py' -v
           python -m unittest discover -s ai_twin/tests -p 'test_*.py' -v
       - name: Verify old 2m signals and AI bypass cannot send
-        run: node --test tests/test_irys_v8_alert_contract.mjs tests/test_irys_cross_language.mjs
+        run: node --test tests/test_irys_v8_alert_contract.mjs tests/test_irys_cross_language.mjs tests/test_irys_v8_scheduler_gate.mjs
