@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {validateSignal,runMorningAi} from '../deployment/IRYS_V8_PROOF_GATED_WORKER.mjs';
+import {validateSignal,runMorningAi,shouldRunExpensiveAi} from '../deployment/IRYS_V8_PROOF_GATED_WORKER.mjs';
 
 const NOW=Date.parse('2026-10-28T04:00:00Z');
 function valid(){
@@ -39,6 +39,13 @@ function valid(){
     }
   };
 }
+test('no persisted, risk-checked sustained candidate means zero costly AI calls',()=>{
+  assert.equal(shouldRunExpensiveAi('PASS',{},[]),false);
+  assert.equal(shouldRunExpensiveAi('PASS',{},null),false);
+  assert.equal(shouldRunExpensiveAi('PARTIAL',{},[{}]),false);
+  assert.equal(shouldRunExpensiveAi('PASS',null,[{}]),false);
+  assert.equal(shouldRunExpensiveAi('PASS',{},[valid()]),true);
+});
 test('verified 4x5m plus reconciled 15m sustained flow may pass a read-only observation',()=>{
   assert.equal(validateSignal(valid(),NOW),true);
 });
