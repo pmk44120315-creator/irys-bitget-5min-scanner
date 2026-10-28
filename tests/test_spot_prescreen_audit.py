@@ -26,7 +26,7 @@ def scenario(markets):
             "acc_trade_price":10_000_000+five,
             "acc_trade_price_24h":entry.get("daily24", 500_000_000),
             "signed_change_rate":entry.get("daily_rate", 0.0)})
-    def fake_api(venue,path,opts):
+    def fake_api(venue,path,opts=None):
         assert venue == "bithumb"
         if path=="/v1/market/all":return listed
         if path=="/v1/market/virtual_asset_warning":return []
