@@ -1,0 +1,21 @@
+name: IRYS queued-checkout source freshness safety regression (no deployment)
+on:
+  push:
+    branches: [fix/irys-scan-stale-checkout-20261028]
+    paths:
+      - '.github/workflows/scan.yml'
+      - 'tests/test_queue_checkout_safety.py'
+      - '.github/workflows/verify-queued-scan-checkout.yml'
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify current-main checkout, safe main writer lock, complete offline regression
+        run: |
+          python -m unittest discover -s tests -p 'test_*.py' -v
