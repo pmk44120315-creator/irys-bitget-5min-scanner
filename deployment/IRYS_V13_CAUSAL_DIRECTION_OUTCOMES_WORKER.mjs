@@ -1152,7 +1152,8 @@ async function updateFuturesOutcomes(env,state,now){
       const rows=parseBitgetOutcomeCandles(doc,now);
       if(!rows.size){out.api_not_confirmed++;out.status='FUTURES_HISTORY_INVALID_OR_EMPTY';break;}
       out.status='FUTURES_HISTORY_READ';
-      const first=Math.floor(rec.alert_ms/60000)*60000;
+      // First COMPLETE candle whose entire minute begins after Telegram API acknowledgement.
+      const first=Math.ceil(rec.alert_ms/60000)*60000;
       if(!rec.first_postalert_close_usdt&&rows.has(first))
         rec.first_postalert_close_usdt=rows.get(first).close;
       if(!rec.first_postalert_close_usdt){out.api_not_confirmed++;continue;}
