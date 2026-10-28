@@ -73,7 +73,8 @@ def main():
                 error=f"{type(exc).__name__}: {str(exc)[:110]}";break
         candle_info={"status":"UNVERIFIED"}
         try:
-            payload=request_candles(sym,start,window_end)
+            # Bitget v2 candle startTime is exclusive; fetch one extra minute, then filter closed timestamps.
+            payload=request_candles(sym,start-60000,window_end+60000)
             rows=payload.get("data")
             if payload.get("code")!="00000" or not isinstance(rows,list):
                 raise RuntimeError("CANDLE_ENVELOPE_"+str(payload.get("code")))
