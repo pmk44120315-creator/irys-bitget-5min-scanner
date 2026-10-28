@@ -500,6 +500,9 @@ async function runMorningAi(env,source,state,nowMs){
   if(!env.AI||typeof env.AI.run!=='function'){
     out.status='AI_BINDING_NOT_CONFIGURED';return out;
   }
+  if(Number.isFinite(state.aiQuotaBackoffUntil)&&nowMs<state.aiQuotaBackoffUntil){
+    out.status='AI_QUOTA_BACKOFF_ACTIVE';return out;
+  }
   if(!items.length){out.status=spot.warmed?'NO_EVIDENCE_CANDIDATES':'WARMING_SPOT_BASELINE';return out;}
   let decisions=[];
   try{
@@ -517,7 +520,15 @@ async function runMorningAi(env,source,state,nowMs){
     decisions=parseAiDecisions(modelText(answer));
     out.model_decisions=decisions.length;
     out.status='MODEL_REPLIED';
-  }catch(e){out.status='AI_INFERENCE_FAILED';out.error=clean(e.message,120);return out;}
+  }catch(e){
+    out.error=clean(e.message,120);
+    const quota=/4006|10,000\s*neurons|daily\s*free\s*allocation/i.test(String(e.message||''));
+    if(quota){
+      state.aiQuotaBackoffUntil=nowMs+6*3600000;
+      out.status='AI_DAILY_QUOTA_EXHAUSTED_BACKOFF';
+    }else out.status='AI_INFERENCE_FAILED';
+    return out;
+  }
   // Retain AI research/composite judgement, but DO NOT send UP/DOWN notifications
   // until they have a separately implemented, independent directional outcome gate.
   if(!AI_ALERT_TRANSPORT_ENABLED){
@@ -579,8 +590,12 @@ async function scheduledCore(env,now=Date.now(),preDispatch=null){
     }
   }
   // New independent LLM judgment stage. Preserve legacy V6 alert pipeline.
-  let aiRun={status:'DATA_SOURCE_NOT_READY',configured:!!env.AI?.run,model:AI_MODEL,alerts_sent:0};
-  if(status==='PASS'&&source){
+  let aiRun={status:status==='PASS'?'SKIPPED_NO_SUSTAINED_SPOT_SIGNAL':'DATA_SOURCE_NOT_READY',
+    configured:!!env.AI?.run,model:AI_MODEL,alerts_sent:0};
+  // The previous V7 called a large model every 5 minutes for unverified preselection,
+  // exhausting 10,000 free neurons and emitting directional alerts on 2m evidence.
+  // Do not spend any AI quota or run an independent alert pipeline without sustained proof.
+  if(status==='PASS'&&source&&confirmed.length>0){
     try{aiRun=await runMorningAi(env,source,state,Date.now());}
     catch(e){aiRun={status:'AI_PIPELINE_ERROR',configured:!!env.AI?.run,model:AI_MODEL,
       alerts_sent:0,error:clean(e.message,130)};}
