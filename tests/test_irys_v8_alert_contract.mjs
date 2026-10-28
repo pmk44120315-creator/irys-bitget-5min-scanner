@@ -32,9 +32,10 @@ function valid(){
       })),
       candle_reconciled_15m_spot_taker:{
         verified:true,marketwide_cvd_verified:false,candle_relative_error:.0013,
-        blocks:[{net_buy_krw:6_000_000,buy_share:.68},
-                {net_buy_krw:7_000_000,buy_share:.7},
-                {net_buy_krw:5_000_000,buy_share:.67}]
+        start_ms:NOW-15*60_000,end_ms:NOW,
+        blocks:[{start_ms:NOW-15*60_000,end_ms:NOW-10*60_000,net_buy_krw:6_000_000,buy_share:.68},
+                {start_ms:NOW-10*60_000,end_ms:NOW-5*60_000,net_buy_krw:7_000_000,buy_share:.7},
+                {start_ms:NOW-5*60_000,end_ms:NOW,net_buy_krw:5_000_000,buy_share:.67}]
       }
     }
   };
@@ -65,7 +66,11 @@ test('missing closed candle, bad CVD interval, CVD mismatch and poor book all bl
     x=>{x.verification.candle_reconciled_15m_spot_taker.candle_relative_error=.01;},
     x=>{x.verification.book_snapshots[1].spread_pct=1.1;},
     x=>{x.verification.independent_5m_checks=3;},
-    x=>{x.verification.all_exchange_inout_verified=true;}
+    x=>{x.verification.all_exchange_inout_verified=true;},
+    x=>{x.verification.book_snapshots[2].timestamp_ms=x.verification.book_snapshots[1].timestamp_ms;},
+    x=>{x.verification.candle_reconciled_15m_spot_taker.blocks[1].start_ms+=60_000;},
+    x=>{x.verification.candle_reconciled_15m_spot_taker.candle_relative_error=-.01;},
+    x=>{x.verification.candle_reconciled_15m_spot_taker.end_ms-=60_000;}
   ];
   for(const bad of cases){const x=valid();bad(x);assert.equal(validateSignal(x,NOW),false);}
 });
