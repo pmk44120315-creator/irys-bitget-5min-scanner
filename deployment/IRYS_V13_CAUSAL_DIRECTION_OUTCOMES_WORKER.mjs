@@ -982,9 +982,11 @@ function evaluateOutcomeAtHorizon(record,minutes,now,rows){
     candle_start_ms:at,asof_ms:now,price_krw:candle.close,
     return_pct:+pct.toFixed(4),direction_right:up?pct>0:pct<0,
     favourable_excursion_pct:maxHigh===null?null:
-      +(100*((up?maxHigh/record.alert_price_krw):(record.alert_price_krw/minLow))-100).toFixed(4),
+      +(100*(up?(maxHigh-record.alert_price_krw)/record.alert_price_krw:
+         (record.alert_price_krw-minLow)/record.alert_price_krw)).toFixed(4),
     adverse_excursion_pct:minLow===null?null:
-      +(100*((up?record.alert_price_krw/minLow):(maxHigh/record.alert_price_krw))-100).toFixed(4),
+      +(100*(up?(record.alert_price_krw-minLow)/record.alert_price_krw:
+         (maxHigh-record.alert_price_krw)/record.alert_price_krw)).toFixed(4),
     excursion_candle_coverage:range.length+'/'+expected,
     excursion_full_coverage:range.length===expected};
 }
