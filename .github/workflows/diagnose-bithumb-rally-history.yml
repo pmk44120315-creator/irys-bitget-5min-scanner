@@ -1,0 +1,20 @@
+name: IRYS read-only historical Bithumb rally-candle replay
+on:
+  push:
+    branches: [fix/irys-evidence-gates-20261028]
+    paths:
+      - 'diagnostics/bithumb_early_rally_replay.py'
+      - '.github/workflows/diagnose-bithumb-rally-history.yml'
+permissions:
+  contents: read
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Replay original candle shortlist filters for historical top gainers (read-only)
+        run: python diagnostics/bithumb_early_rally_replay.py
