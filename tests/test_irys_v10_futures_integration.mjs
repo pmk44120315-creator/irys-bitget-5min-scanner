@@ -167,8 +167,10 @@ test('worker cannot send on GitHub dispatch failure or stale futures data',async
         calls++;
         throw Error('No Telegram on dispatch failure');
       };
-      const res=await scheduledCore(env,x.asof,{status:'FAILED',error:'NO_PERMISSION'});
-      assert.equal(res.last.futuresDirection.sent,0);
+      await assert.rejects(
+        ()=>scheduledCore(env,x.asof,{status:'FAILED',error:'NO_PERMISSION'}),
+        /GITHUB_DISPATCH_NOT_ACCEPTED/);
+      assert.equal(state.last.futuresDirection.sent,0);
     }
     assert.equal(calls,0);
   }finally{globalThis.fetch=orig;}
