@@ -1,0 +1,36 @@
+name: IRYS V13 official Bithumb and Bitget depth API integration READ ONLY
+on:
+  push:
+    branches: [fix/irys-v13-directional-proof-outcomes-20261029]
+    paths:
+      - '.github/workflows/verify-irys-v13-live-depth-readonly.yml'
+permissions:
+  contents: read
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify new official Bitget futures top5 REST market depth against real responses
+        run: |
+          python - <<'PY'
+          import datetime as dt, json
+          from collector import http_json
+          from bitget_futures_cvd import futures_orderbook_snapshot
+          now=int(dt.datetime.now(dt.timezone.utc).timestamp()*1000)
+          try:
+              b=futures_orderbook_snapshot('BTCUSDT',now,http_json)
+              assert b is not None,'Bitget top5 book unavailable: block V13 deployment'
+              assert b['bid_ask_top5_ratio']>0 and 0<=b['spread_pct']<.8
+              assert abs(now-b['timestamp_ms'])<=120000
+              print('BITGET_PUBLIC_BOOK_SCHEMA_PASS',json.dumps(b))
+          except Exception as exc:
+              print('BITGET_PUBLIC_BOOK_SCHEMA_FAIL',type(exc).__name__)
+              raise
+          PY
+      - name: Verify Bithumb public books and trade field schema remain unchanged
+        run: python smoke_spot_public_api.py

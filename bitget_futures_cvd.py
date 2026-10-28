@@ -167,11 +167,57 @@ def classify_flow(evidence):
     return "MIXED_OR_INTERMITTENT_FUTURES_FLOW"
 
 
-def collect_futures_flow_observations(latest, now_ms, api, limit=6):
+def futures_orderbook_snapshot(symbol,now_ms,api):
+    """Bitget official USDT futures top5 book; one snapshot is not absorption."""
+    try:
+        raw=api('bitget','/api/v2/mix/market/merge-depth',{
+            'symbol':symbol,'productType':'USDT-FUTURES',
+            'precision':'scale0','limit':'15'})
+        if not isinstance(raw,dict):return None
+        when=finite(raw.get('ts'))
+        bids,asks=raw.get('bids'),raw.get('asks')
+        if when is None or abs(now_ms-when)>120_000 or not isinstance(bids,list) or not isinstance(asks,list):
+            return None
+        if len(bids)<5 or len(asks)<5:return None
+        def total(rows):
+            n=0
+            for row in rows[:5]:
+                if not isinstance(row,(list,tuple)) or len(row)<2:return None
+                price,qty=finite(row[0]),finite(row[1])
+                if price is None or price<=0 or qty is None or qty<0:return None
+                n+=price*qty
+            return n
+        bsum,asum=total(bids),total(asks)
+        bp,ap=finite(bids[0][0]),finite(asks[0][0])
+        if None in (bsum,asum,bp,ap) or bsum<=0 or asum<=0 or bp>=ap:return None
+        return {'timestamp_ms':int(when),'bid_ask_top5_ratio':round(bsum/asum,5),
+                'spread_pct':round(100*(ap-bp)/ap,5),
+                'continuous_absorption_verified':False,
+                'source':'Bitget USDT-FUTURES top5 public merge-depth scale0'}
+    except Exception:return None
+
+
+def paired_futures_books(sym,now_ms,api,memory):
+    before=memory.get(sym) if isinstance(memory.get(sym),dict) else None
+    current=futures_orderbook_snapshot(sym,now_ms,api)
+    if current is None:return {'status':'FUTURES_BOOK_UNAVAILABLE','snapshots':[]}
+    pair=[]
+    if before:
+        gap=current['timestamp_ms']-before.get('timestamp_ms',0)
+        if 3*ONE_MIN<=gap<=9*ONE_MIN and before.get('continuous_absorption_verified') is False:
+            pair=[before,current]
+    memory[sym]=current
+    return {'status':'TWO_DISTINCT_BOOK_SNAPSHOTS' if len(pair)==2 else 'WAIT_SECOND_BOOK',
+            'snapshots':pair,'continuous_absorption_verified':False,
+            'position_owner_verified':False}
+
+
+def collect_futures_flow_observations(latest, now_ms, api, limit=6, state=None):
     """Supplemental verified public-futures evidence. Never creates Telegram or BUY/SHORT signals."""
     if not isinstance(latest,dict) or latest.get("collector_status")!="PASS":
         return {"status":"SKIPPED_SOURCE_NOT_PASS","observations":[],
                 "alert_eligible":False,"observation_only":True}
+    book_memory=state.setdefault('futures_book_snapshots_v13',{}) if isinstance(state,dict) else {}
     items=[]
     seen=set()
     for o in list(latest.get("watchlist") or [])+list(latest.get("early_pool") or []):
@@ -202,6 +248,7 @@ def collect_futures_flow_observations(latest, now_ms, api, limit=6):
     for _rank,sym,meta in selected:
         evidence=verify_taker_flow(sym,now_ms,api,max_pages=10)
         flow=classify_flow(evidence)
+        book=paired_futures_books(sym,now_ms,api,book_memory)
         if evidence.get("verified"):out["verified_count"]+=1
         else:out["rejected_count"]+=1
         out["classifications"][flow]=out["classifications"].get(flow,0)+1
@@ -214,7 +261,14 @@ def collect_futures_flow_observations(latest, now_ms, api, limit=6):
             "funding_rate":meta.get("funding_rate"),
             "flow_class":flow,
             "taker_flow_15m":evidence,
+            "book_proof_v13":book,
             "observation_only":True,"send_allowed":False,
             "position_direction_verified":False,
         })
+    if len(book_memory)>50:
+        selected_symbols={s for _,s,_ in selected}
+        evict=sorted(((key,row.get('timestamp_ms',0)) for key,row in book_memory.items()
+            if key not in selected_symbols),key=lambda x:x[1])
+        for key,_ in evict[:max(0,len(book_memory)-50)]:
+            del book_memory[key]
     return out

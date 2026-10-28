@@ -1,0 +1,20 @@
+name: IRYS V13 actual four Telegram alerts 5-60min price audit (NO DEPLOY)
+on:
+  push:
+    branches: [fix/irys-v13-directional-proof-outcomes-20261029]
+    paths:
+      - 'audits/verify_four_telegram_alerts_20261029.py'
+      - '.github/workflows/audit-v13-four-alerts-readonly.yml'
+permissions:
+  contents: read
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Compare four screenshot alert times with Bithumb official completed 1m candles
+        run: python audits/verify_four_telegram_alerts_20261029.py
