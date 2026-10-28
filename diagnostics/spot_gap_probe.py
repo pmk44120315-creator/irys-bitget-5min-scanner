@@ -30,7 +30,7 @@ def check(market, now_ms):
 if __name__=='__main__':
     now=dt.datetime.now(dt.timezone.utc)
     stamp=int(now.timestamp()*1000)
-    for market in ('KRW-BTC','KRW-ETH','KRW-SOL','KRW-PENGU','KRW-NEAR','KRW-SUI'):
+    for market in ('KRW-BTC','KRW-ETH','KRW-SOL','KRW-PENGU','KRW-NEAR','KRW-SUI','KRW-WLD'):
         try:print(json.dumps(check(market,stamp),ensure_ascii=False))
         except Exception as e:
             print(json.dumps({'market':market,'error_type':type(e).__name__,'status':'UNVERIFIED'}))
