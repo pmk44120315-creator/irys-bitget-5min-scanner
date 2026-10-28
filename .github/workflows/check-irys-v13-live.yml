@@ -1,0 +1,23 @@
+name: IRYS V13 exact production script and first real directional Cron READ ONLY
+on:
+  push:
+    branches: [fix/irys-v13-directional-proof-outcomes-20261029]
+    paths:
+      - 'deployment/check-v13-live.mjs'
+      - '.github/workflows/check-irys-v13-live.yml'
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      IRYS_V7_CF_API_TOKEN: ${{ secrets.IRYS_V7_CF_API_TOKEN }}
+      IRYS_REALTIME_CF_ACCOUNT_ID: ${{ secrets.IRYS_REALTIME_CF_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Read exact live V13 SHA, 5-minute Cron, bindings, suppressed turnover-only and directional/outcome route
+        run: node deployment/check-v13-live.mjs
