@@ -31,6 +31,7 @@ jobs:
       - name: V13 Worker structural, direction, risk, old volume alert suppression and future outcome test
         run: |
           node --check deployment/IRYS_V13_CAUSAL_DIRECTION_OUTCOMES_WORKER.mjs
+          echo 'V13_TESTED_WORKER_SHA256' && sha256sum deployment/IRYS_V13_CAUSAL_DIRECTION_OUTCOMES_WORKER.mjs
           node --test tests/test_irys_v13_directional_outcomes.mjs
       - name: Live public Bithumb REST schema only (read-only)
         run: python smoke_spot_public_api.py
