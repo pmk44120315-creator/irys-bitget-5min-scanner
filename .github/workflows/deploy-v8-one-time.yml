@@ -1,0 +1,43 @@
+name: IRYS V8 code-only guarded production release (one-time marker)
+on:
+  push:
+    branches: [fix/irys-evidence-gates-20261028]
+    paths:
+      - 'deployment/RELEASE_V8_APPROVED_20261028.txt'
+permissions:
+  contents: read
+concurrency:
+  group: irys-surge-monitor-v8-one-time-release
+  cancel-in-progress: false
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      IRYS_V7_CF_API_TOKEN: ${{ secrets.IRYS_V7_CF_API_TOKEN }}
+      IRYS_REALTIME_CF_ACCOUNT_ID: ${{ secrets.IRYS_REALTIME_CF_ACCOUNT_ID }}
+      IRYS_V8_RELEASE_ONCE: AUTHORIZED_FROM_REVIEWED_MARKER
+      IRYS_V8_RELEASE_DRY_RUN: '0'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Confirm single-use release marker and exact V8 blob
+        shell: bash
+        run: |
+          grep -Fxq 'IRYS_V8_RELEASE_MARKER=20261028_SINGLE_WORKER_CODE_ONLY' deployment/RELEASE_V8_APPROVED_20261028.txt
+          grep -Fxq 'V8_SHA256=5d31ecaee1196dfeb33c9883f46e0782271298be059e5797e28fc14e28cd075b' deployment/RELEASE_V8_APPROVED_20261028.txt
+          test "$(git hash-object deployment/IRYS_V8_PROOF_GATED_WORKER.mjs)" = 'f5fae7358b24dd7094cfc4b8feaf98f05e411b28'
+      - name: Recheck V8 syntax and previous independent collector and AI tests
+        run: |
+          node --check deployment/IRYS_V8_PROOF_GATED_WORKER.mjs
+          node --check deployment/release-v8-safe.mjs
+          python -m unittest discover -s tests -p 'test_*.py' -v
+          python -m unittest discover -s ai_twin/tests -p 'test_*.py' -v
+          node --test tests/test_irys_v8_alert_contract.mjs tests/test_irys_cross_language.mjs tests/test_irys_v8_scheduler_gate.mjs tests/test_irys_v7_preflight.mjs tests/test_cloudflare_source_parser.mjs
+      - name: Replace ONLY irys-surge-monitor code; verify live hash, cron, bindings and rollback on failure
+        run: node deployment/release-v8-safe.mjs
