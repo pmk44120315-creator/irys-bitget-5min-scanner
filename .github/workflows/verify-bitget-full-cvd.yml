@@ -1,0 +1,26 @@
+name: IRYS verified Bitget futures 15m full-trades and 1m-candle regression (research only)
+on:
+  push:
+    branches: [fix/irys-evidence-gates-20261028]
+    paths:
+      - 'bitget_futures_cvd.py'
+      - 'tests/test_bitget_futures_cvd.py'
+      - 'diagnostics/verify_bitget_full_cvd_public.py'
+      - '.github/workflows/verify-bitget-full-cvd.yml'
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Run offline parser and CVD fail-closed regression
+        run: |
+          python -m py_compile bitget_futures_cvd.py
+          python -m unittest discover -s tests -p 'test_bitget_futures_cvd.py' -v
+      - name: Compare bounded official futures trade pages against exact 15 closed one-minute candles
+        run: python diagnostics/verify_bitget_full_cvd_public.py

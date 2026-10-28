@@ -1,0 +1,20 @@
+name: IRYS Bitget full 15m public taker flow no-lookahead replay of 7 older candidates
+on:
+  push:
+    branches: [fix/irys-evidence-gates-20261028]
+    paths:
+      - 'diagnostics/replay_bitget_full_cvd_20261028.py'
+      - '.github/workflows/replay-bitget-full-cvd-history.yml'
+permissions:
+  contents: read
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Compare exact historical pre-event 15m taker CVD with candidate direction
+        run: python diagnostics/replay_bitget_full_cvd_20261028.py

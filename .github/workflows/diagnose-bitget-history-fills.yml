@@ -1,0 +1,20 @@
+name: IRYS Bitget public 15-minute fills-history completeness probe (no deployment)
+on:
+  push:
+    branches: [fix/irys-evidence-gates-20261028]
+    paths:
+      - 'diagnostics/bitget_public_fills_history_probe.py'
+      - '.github/workflows/diagnose-bitget-history-fills.yml'
+permissions:
+  contents: read
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Read official historical public taker trade pages without credentials
+        run: python diagnostics/bitget_public_fills_history_probe.py

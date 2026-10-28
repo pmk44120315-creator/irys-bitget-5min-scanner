@@ -1,0 +1,20 @@
+name: IRYS read-only Bithumb 24h gainers missed-signal diagnosis
+on:
+  push:
+    branches: [fix/irys-evidence-gates-20261028]
+    paths:
+      - 'diagnostics/bithumb_rally_miss_audit.py'
+      - '.github/workflows/diagnose-bithumb-rally-misses.yml'
+permissions:
+  contents: read
+jobs:
+  diagnosis:
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Rank actual official Bithumb KRW 24h gainers and expose recent candle gaps (no changes)
+        run: python diagnostics/bithumb_rally_miss_audit.py

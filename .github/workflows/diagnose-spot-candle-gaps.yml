@@ -1,0 +1,20 @@
+name: IRYS independent Bithumb candle-gap diagnosis (read only)
+on:
+  push:
+    branches: [fix/irys-evidence-gates-20261028]
+    paths:
+      - '.github/workflows/diagnose-spot-candle-gaps.yml'
+      - 'diagnostics/spot_gap_probe.py'
+permissions:
+  contents: read
+jobs:
+  diagnosis:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Compare official raw Bithumb 1m candles against expected closed UTC minute buckets
+        run: python diagnostics/spot_gap_probe.py
