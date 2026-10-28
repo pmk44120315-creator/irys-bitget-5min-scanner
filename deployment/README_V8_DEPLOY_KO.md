@@ -16,6 +16,8 @@
 - 원본 V7의 `IRYS_KV` / Telegram secrets / GitHub dispatch secret / Workers AI binding / 기존 5분 cron 설정은 소스에서 그대로 참조. 주문·거래소 계정 API 없음.
 - 애초 신호가 없으면 무알림이 **정상**. `AI` 분석 유무가 현물 검증 신호를 자동매매/확정으로 바꾸지 않음.
 
+**교차언어 스키마 검증:** 원본 Python `spot_continuity`가 생성하는 15분 체결 3개 구간에는 각 구간의 `start_ms/end_ms`가 없고 `trades/net_buy_krw/buy_share`가 있다. V8 초안의 잘못된 구간 시각 요구를 수정했고, 실제 Python 생성 증거를 JS V8에 전달하는 통합 검증을 추가해 PASS를 확인했다. 구버전 테스트 실패도 GitHub 실행 기록에 보존된다.
+
 ## 배포 안전 규칙
 - 사용자가 GitHub에 등록한 `IRYS_REALTIME_CF_API_TOKEN`은 **새 Worker `irys-realtime-evidence` 전용**이고 V7 수정 권한이 없음. 이 토큰으로 V7 업데이트 불가.
 - 실제 배포 전에 현재 배포된 **V7 스크립트 소스의 버전/해시와 KV·AI·Secret bindings 및 5분 Cron**을 읽기 전용으로 확인해야 함. 보관본과 다를 경우 자동 교체 금지, 수동 비교.
@@ -24,7 +26,7 @@
 - Cloudflare 설정 중 `IRYS_KV`, AI, Telegram 관련 secrets, GitHub dispatch, 기존 cron을 삭제/재설정하지 말 것. 자동실거래/주문 금지.
 
 ## 검증
-- GitHub Actions: `IRYS V8 alert contract regression`에서 Python 기존 수집 33개, 기존 AI 별도 경로 22개, V8 Node 계약 검사 7개 = **62개** 통과, Node 문법 통과.
+- GitHub Actions: `IRYS V8 alert contract regression`에서 Python 기존 수집 33개, 기존 AI 별도 경로 22개, V8 Node 계약 검사 8개 = **63개** 통과, Node 문법 통과.
 - **미확인**: 현재 실제 V7 소스와 보관본의 바이트 동일성, V8 실제 Cloudflare 배포, V8 첫 정규 5분 실행 결과, V8 알림 수신/정확도, 미래 5·15·30분 수익성.
 
 ## 사용자가 할 수 있는 최단 단계
