@@ -2,7 +2,7 @@
 import {createHash} from 'node:crypto';
 import {extractWorkerSource} from './parse-cloudflare-script.mjs';
 const token=process.env.IRYS_V7_CF_API_TOKEN||'',account=process.env.IRYS_REALTIME_CF_ACCOUNT_ID||'';
-const expected='fe282f1742385db5f12db2f77fd32252db972b9852698d388360937e6996e5a2';
+const expected='b680fa910edecaa87e1d6ec798a1bb751e91f2c8c09c0eb3482342817efb5e6b';
 if(!/^[a-f0-9]{32}$/.test(account)||token.length<20)throw Error('MISSING_SCOPED_CREDENTIAL');
 const root='https://api.cloudflare.com/client/v4/accounts/'+account+'/workers/scripts/irys-surge-monitor';
 async function get(url,headers={}){
