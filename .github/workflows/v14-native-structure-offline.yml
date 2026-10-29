@@ -1,7 +1,7 @@
 name: IRYS V14 native completed 5m sparse-data causal regression NO DEPLOY
 on:
   push:
-    branches: [fix/irys-v14-native-market-evidence-20261029]
+    branches: [fix/irys-v14-native-market-evidence-20261029, fix/irys-v14-flow-diet-isolated-20261029]
     paths:
       - 'spot_native_structure.py'
       - 'spot_direction.py'
@@ -13,7 +13,6 @@ permissions:
 jobs:
   verify:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -30,7 +29,7 @@ jobs:
       - name: V13 legacy safety and V14 native directional risk/Telegram integration
         run: |
           node --check deployment/IRYS_V14_NATIVE_MARKET_EVIDENCE_WORKER.mjs
-          node --test tests/test_irys_v13_directional_outcomes.mjs tests/test_irys_v14_native_direction.mjs
+          node --test tests/test_irys_v13_directional_outcomes.mjs tests/test_irys_v14_native_direction.mjs tests/test_irys_v14_flow_diet.mjs
           echo 'V14_CANDIDATE_SHA256' && sha256sum deployment/IRYS_V14_NATIVE_MARKET_EVIDENCE_WORKER.mjs
       - name: Confirm GitHub real public Bithumb ticker, book and execution schemas
         run: python smoke_spot_public_api.py
