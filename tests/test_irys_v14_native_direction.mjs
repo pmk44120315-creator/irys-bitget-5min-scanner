@@ -51,6 +51,13 @@ function fakeRisk({warning=false,price=101,daily=.30}={}){
   };
   return get;
 }
+test('V14 rejects legacy 20x1m gate even if all 20 minute bars exist',()=>{
+  const p=nativeProof();
+  p.structure.source='OLD_LEGACY_1M_CANDLE_PROOF';
+  p.structure.closed_20m_candles=true;
+  assert.equal(validDirectionalProof(p,NOW),null,
+    'Native official 5m provenance must not be bypassed by 20 closed 1m');
+});
 test('sparse real 1m context passes if actual native 5m + two books + reconciled 15m CVD agree',()=>{
   for(const side of [true,false]){
     const p=nativeProof(side),valid=validDirectionalProof(p,NOW);
