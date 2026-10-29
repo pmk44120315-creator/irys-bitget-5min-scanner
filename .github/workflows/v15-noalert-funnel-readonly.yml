@@ -1,0 +1,23 @@
+name: IRYS V15 full stored market candidate loss reasons READ ONLY NO DEPLOY
+on:
+  push:
+    branches: [fix/irys-v15-telegram-closure-20261030]
+    paths:
+      - '.github/workflows/v15-noalert-funnel-readonly.yml'
+      - 'audits/v15_noalert_funnel_audit.py'
+permissions:
+  contents: read
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Replay actual stored candidate classifications and rejection reasons only
+        run: |
+          python -m py_compile audits/v15_noalert_funnel_audit.py
+          python audits/v15_noalert_funnel_audit.py
