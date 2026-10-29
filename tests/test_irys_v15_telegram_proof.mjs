@@ -38,6 +38,10 @@ test('One real-context scheduled transport proof sends clearly NONTRADING Telegr
     assert.equal(b.status,'ALREADY_ACKED');
     assert.equal(h.sends.length,1);
     assert.equal(h.writes(),2);
+    assert.equal(h.state.size,2,'claim and acknowledgement must use DIFFERENT Cloudflare KV keys');
+    const entries=[...h.state.entries()];
+    assert.equal(new Set(entries.map(([k])=>k)).size,2);
+    assert.ok(entries.some(([k,v])=>k.endsWith(':result')&&JSON.parse(v).message_id===731));
     assert.ok(JSON.stringify(a).indexOf(token)===-1);
   }finally{globalThis.fetch=saved}
 });
