@@ -1501,4 +1501,4 @@ export {validateSignal,officialRiskCheck,readGithub,dispatchGithub,scheduledCore
   evaluateOutcomeAtHorizon,parseOutcomeCandles,updateSpotOutcomes,
   parseBitgetOutcomeCandles,evaluateFuturesOutcome,updateFuturesOutcomes,
   validFuturesBookProof,officialDirectionalRiskCheck,telegramTransportProofOnce,
-  shouldRunExpensiveAi,officialAiSpotRiskCheck};
+  officialAiSpotRiskCheck};
