@@ -2,7 +2,7 @@
 
 An early ticker/turnover pulse starts a watch, NOT a Telegram alert. A direction
 is not accepted unless subsequent nonoverlapping real taker samples, two fresh
-orderbook snapshots, closed price structure, and complete venue-local 15m
+orderbook snapshots, actual completed 5m price context, and complete venue-local 15m
 candle-reconciled taker flow agree. Missing evidence is explicitly rejected.
 """
 from __future__ import annotations
@@ -95,7 +95,7 @@ def evaluate_market(seed, previous, now_ms, api, permit_cvd=True):
                   'net_buy_krw': flow.get('net_buy_krw'),
                   'recent_net_buy_krw': flow.get('recent_net_buy_krw'),
                   'trades': flow.get('count'),
-                  'close': structure['close']}
+                  'close': structure.get('close')}
         result['sample'] = sample
         result['recent_taker_sample'] = {
             'coverage': True, 'count': flow.get('count'),
