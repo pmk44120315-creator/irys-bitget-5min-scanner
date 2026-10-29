@@ -41,6 +41,12 @@ class FuturesSelector(unittest.TestCase):
         self.assertFalse(result["observations"][0]["send_allowed"])
         self.assertFalse(result["alert_eligible"])
         self.assertFalse(result["observations"][0]["position_direction_verified"])
+        shift=result["observations"][0]["recent5_pressure_shift_research"]
+        self.assertEqual(shift["status"],"REAL_15M_RECONCILED_RECENT5_VS_PRIOR10")
+        self.assertIs(shift["direction_signal"],False)
+        self.assertIs(shift["observation_only"],True)
+        self.assertLess(shift["recent_5m_net_taker_usdt"],0)
+        self.assertEqual(shift["recent_5m_trades"],20)
 
     def test_rwa_stocks_and_unverified_market_never_selected(self):
         for change in [
