@@ -271,6 +271,38 @@ class TestDirectionalV13(unittest.TestCase):
         self.assertEqual(result['diagnostics'][0]['candidate_source'],
                          'RANKED_PRICE_TURNOVER_REVIEW_ONLY')
 
+    def test_prior_real_flow_is_reviewed_before_many_ticker_only_pumps(self):
+        def ranked(name,late,score):
+            return {'market':name,'price_krw':100,
+                    'review_priority_score':score,
+                    'risk_class':'LATE_CHASE_CAUTION' if late else 'EARLY_MOMENTUM_WATCH',
+                    'source_channel':'RANKED_PRICE_TURNOVER_REVIEW_ONLY',
+                    'observation_only':True,'is_buy_signal':False}
+        spot={'status':'PASS','early_watch_observations':[
+                {'market':'KRW-EARLY','price_krw':100}],
+              'direction_review_seeds':[
+                ranked('KRW-LATE1',True,999),
+                ranked('KRW-LATE2',True,888),
+                ranked('KRW-NORMAL',False,1),
+                ranked('KRW-WITH_SAMPLE',True,0)],
+              'rally_watch_only':[]}
+        first=NOW-5*M
+        state={'spot_direction_tracking_v13':{
+            'KRW-WITH_SAMPLE':{'first_ms':first,
+                'seed':spot['direction_review_seeds'][3],
+                'sample':{'time_ms':first,'book':{'timestamp_ms':first}}}}}
+        observed=[]
+        def observe(seed,*args,**kwargs):
+            observed.append(seed['market'])
+            return {'market':seed['market'],'status':'RECENT_TAKER_OR_BOOK_INCOMPLETE',
+                    'direction':'WAIT','validated_direction':False,'sample':None}
+        with patch('spot_direction.evaluate_market',side_effect=observe):
+            result=collect_spot_directional(spot,state,NOW,lambda *a:None)
+        self.assertEqual(observed,['KRW-WITH_SAMPLE','KRW-EARLY',
+                                   'KRW-NORMAL','KRW-LATE1'])
+        self.assertEqual(result['queued_for_next_scan'],1)
+        self.assertEqual(result['signals'],[])
+
     def test_buy_side_only_is_not_direction_without_three_cvd_blocks(self):
         bad=cvd()
         bad['blocks'][1]['net_buy_krw']=-1
