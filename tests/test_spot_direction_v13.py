@@ -174,6 +174,35 @@ class TestDirectionalV13(unittest.TestCase):
             self.assertIsNotNone(r['sample'])
             trades.assert_called_once()
 
+    def test_independent_native_api_outage_preserves_actual_taker_and_book_sample(self):
+        data=feed()
+        def api(venue,path,opts=None):
+            if path=='/v1/candles/minutes/5':
+                raise RuntimeError('NATIVE_5M_OFFLINE')
+            return data(venue,path,opts)
+        with patch('spot_direction.trade_sample',return_value=flow()) as trades, \
+             patch('spot_direction.book_snapshot',return_value=book(NOW+5*M)):
+            r=evaluate_market(early(),{},NOW+5*M,api)
+            self.assertEqual(r['status'],'WAIT_NATIVE_5M_CONTEXT')
+            self.assertEqual(r['native_five_minute_api_error'],'RuntimeError')
+            self.assertIsNotNone(r['sample'])
+            trades.assert_called_once()
+
+    def test_one_minute_api_outage_cannot_fabricate_price_but_retains_live_book(self):
+        data=feed()
+        def api(venue,path,opts=None):
+            if path=='/v1/candles/minutes/1':
+                raise RuntimeError('ONE_MINUTE_OFFLINE')
+            return data(venue,path,opts)
+        with patch('spot_direction.trade_sample',return_value=flow()) as trades, \
+             patch('spot_direction.book_snapshot',return_value=book(NOW+5*M)):
+            r=evaluate_market(early(),{},NOW+5*M,api)
+            self.assertEqual(r['status'],'WAIT_RECENT_CLOSED_1M_PRICE')
+            self.assertEqual(r['one_minute_api_error'],'RuntimeError')
+            self.assertIsNotNone(r['sample'])
+            self.assertFalse(r['validated_direction'])
+            trades.assert_called_once()
+
     def test_high_prior_gain_late_chase_is_counter_evidence_not_blind_drop(self):
         with patch('spot_direction.trade_sample',return_value=flow()), \
              patch('spot_direction.book_snapshot',return_value=book(NOW+5*M)):
