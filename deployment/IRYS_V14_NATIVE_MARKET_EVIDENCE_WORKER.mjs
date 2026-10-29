@@ -10,7 +10,7 @@
  * Env existing: IRYS_KV, GITHUB_DISPATCH_TOKEN, TELEGRAM_BOT_TOKEN,
  * TELEGRAM_CHAT_ID. Existing 5m Cron remains unchanged.
  */
-const VERSION='IRYS-V14-NATIVE-MARKET-EVIDENCE-20261029';
+const VERSION='IRYS-V15-CAUSAL-PRICE-FLOW-ALIGNMENT-20261030';
 // Safety: AI market interpretations can inform review, but cannot bypass verified sustained-spot proof.
 const AI_ALERT_TRANSPORT_ENABLED=false;
 const ROOT='https://raw.githubusercontent.com/pmk44120315-creator/irys-bitget-5min-scanner/main/data/latest.json';
@@ -617,11 +617,11 @@ function validFuturesBookProof(o,side,now){
      now-t1>12*60000||s0<0||s1<0||s0>.8||s1>.8||
      old.continuous_absorption_verified!==false||
      cur.continuous_absorption_verified!==false)return null;
-  if(side==='LONG'?(r0<1||r1<1.05):(r0>1||r1>.95))return null;
+  if(side==='LONG'?(r0<1||r1<1):(r0>1||r1>1))return null;
   return {observations:2,latest_bid_ask_top5_ratio:r1,
     no_continuous_absorption_claim:true};
 }
-const FUT_MAX_AGE_MS=12*60000,FUT_CHECKS_MS=8*60000,FUT_COOLDOWN_MS=2*3600000;
+const FUT_MAX_AGE_MS=12*60000,FUT_COOLDOWN_MS=2*3600000;
 function futuresSnapshotProof(snapshot,o,now){
   if(!snapshot||snapshot.collector_status!=='PASS')return null;
   const sym=o?.symbol;
@@ -634,6 +634,12 @@ function futuresSnapshotProof(snapshot,o,now){
      contract.contract_status!=='normal'||contract.symbolType!=='perpetual'||
      contract.quoteCoin!=='USDT')return null;
   const e=o.taker_flow_15m,flow=o.flow_class;
+  // The first all-market candle pass and the selected-fill pass occur
+  // several minutes apart. A directional signal requires fresh re-read
+  // completed candles aligned to the EXACT same taker window.
+  if(o.price_context_status!=='ALIGNED_REAL_OFFICIAL_1M_CONTEXT'||!e||
+     o.price_context_end_ms!==e.end_ms||
+     contract.windows?.end_utc_ms!==e.end_ms)return null;
   if(!e||e.verified!==true||e.observation_only!==true||
      e.full_exchange_local_public_taker_flow_verified!==true||
      e.marketwide_all_exchanges_cvd_verified!==false||
@@ -654,12 +660,11 @@ function futuresSnapshotProof(snapshot,o,now){
   if(!f||!q||!hour||f.coverage!==1||q.coverage!==1||hour.coverage!==1||
      f.baseline_coverage!==1||q.baseline_coverage!==1||
      !oi||oi.status!=='OK'||oiAt===null||oiDelta===null||oiElapsed===null||
-     oiElapsed<3||oiElapsed>9||oiAt>now+60000||now-oiAt>FUT_MAX_AGE_MS||
-     oiDelta<-.05||oiDelta>12||fund===null||Math.abs(fund)>.001)return null;
+     oiElapsed<3||oiElapsed>9||oiAt>now+60000||now-oiAt>FUT_MAX_AGE_MS)return null; // OI freshness only.
   const blocks=e.blocks,total=val(e.taker_turnover_usdt),candle=val(e.candle_turnover_usdt);
   const relative=val(e.candle_relative_error),net=val(e.net_buy_usdt),share=val(e.buy_share);
   const q5=val(f.quote_turnover),q15=val(q.quote_turnover);
-  if(!Array.isArray(blocks)||blocks.length!==3||total===null||total<30000||
+  if(!Array.isArray(blocks)||blocks.length!==3||total===null||
      candle===null||candle<=0||relative===null||relative<0||relative>.005||
      Math.abs(total-candle)/candle>.005||q5===null||q15===null||net===null||share===null||
      q15<=0||Math.abs(q15-total)/total>.30||
@@ -667,23 +672,22 @@ function futuresSnapshotProof(snapshot,o,now){
        !Number.isInteger(b.trades)||b.trades<10||
        val(b.buy_share)===null||val(b.net_buy_usdt)===null))return null;
   const newest=blocks[2],lastQuote=val(newest.buy_usdt)+val(newest.sell_usdt);
-  if(lastQuote<5000)return null;
+  if(lastQuote===null||lastQuote<=0)return null; // Valid observed last block, no arbitrary notional floor.
   const pct5=val(f.price_change_pct),pct15=val(q.price_change_pct),pct60=val(hour.price_change_pct);
   const open5=val(f.open),close=val(f.close),high5=val(f.high),low5=val(f.low);
   const open15=val(q.open),close15=val(q.close),high15=val(q.high),low15=val(q.low);
   if([pct5,pct15,pct60,open5,close,high5,low5,open15,close15,high15,low15].some(x=>x===null)||
-     close<=0||high5<=low5||high15<=low15||Math.abs(pct60)>7||
-     pct15< -4||pct15>4)return null;
+     close<=0||high5<=low5||high15<=low15)return null;
   const topWick=(high5-Math.max(open5,close))/(high5-low5);
   const bottomWick=(Math.min(open5,close)-low5)/(high5-low5);
   const top15=(high15-Math.max(open15,close15))/(high15-low15);
   const bottom15=(Math.min(open15,close15)-low15)/(high15-low15);
   const longGood=flow==='SUSTAINED_FUTURES_TAKER_BUY_PRESSURE'&&
-    pct5>=.12&&pct5<=1.8&&pct15>=.25&&pct15<=3.5&&share>=.62&&net>4000&&
+    pct5>0&&pct15>0&&share>=.62&&net>4000&&
     blocks.every(b=>b.net_buy_usdt>0&&b.buy_share>=.58)&&
     newest.net_buy_usdt>=2500&&newest.buy_share>=.62&&topWick<=.38&&top15<=.43;
   const shortGood=flow==='SUSTAINED_FUTURES_TAKER_SELL_PRESSURE'&&
-    pct5<=-.12&&pct5>=-1.8&&pct15<=-.25&&pct15>=-3.5&&share<=.38&&net< -4000&&
+    pct5<0&&pct15<0&&share<=.38&&net< -4000&&
     blocks.every(b=>b.net_buy_usdt<0&&b.buy_share<=.42)&&
     newest.net_buy_usdt<=-2500&&newest.buy_share<=.38&&bottomWick<=.38&&bottom15<=.43;
   if(!longGood&&!shortGood)return null;
@@ -713,7 +717,9 @@ function evaluateFutures(state,snap,now){
     results.inspected++;
     const proof=futuresSnapshotProof(snap,obs,now);
     if(!proof){
-      if(obs?.book_proof_v13?.status!=='TWO_DISTINCT_BOOK_SNAPSHOTS')
+      if(obs?.price_context_status!=='ALIGNED_REAL_OFFICIAL_1M_CONTEXT')
+        reject('PRICE_FILL_INTERVAL_NOT_ALIGNED');
+      else if(obs?.book_proof_v13?.status!=='TWO_DISTINCT_BOOK_SNAPSHOTS')
         reject('TWO_DISTINCT_FUTURES_BOOKS_UNAVAILABLE');
       else reject('CONTRACT_OR_DATA_OR_DIRECTION_NOT_VERIFIED');
       continue;
@@ -721,19 +727,17 @@ function evaluateFutures(state,snap,now){
     if(seen.has(proof.symbol)){reject('DUPLICATE_SYMBOL');continue;}
     seen.add(proof.symbol);results.qualified++;
     const p=prev[proof.symbol];
-    if(p?.asof_ms===proof.asof_ms)continue;
-    if(p&&p.direction===proof.direction&&
-       proof.asof_ms-p.asof_ms>=4*60000&&proof.asof_ms-p.asof_ms<=FUT_CHECKS_MS&&
-       proof.oi_delta_pct+p.oi_delta_pct>=.12&&
-       proof.oi_delta_pct>=.02&&p.oi_delta_pct>=.02&&
-       (proof.direction==='LONG'?
-           proof.price/p.price>=1.00035&&proof.price/p.price<=1.020:
-           proof.price/p.price<=.99965&&proof.price/p.price>=.980)){
-      results.signals.push({...proof,checks:2,distinct_recent_5m:true,
-        evidence_type:'VERIFIED_15M_FUTURES_TAKER_PRESSURE_2_SNAPSHOTS',
-        position_owners_verified:false,all_exchanges_verified:false,
-        direction_accuracy_verified:false});
+    if(p?.asof_ms===proof.asof_ms){
+      reject('DUPLICATE_SOURCE_SNAPSHOT');continue;
     }
+    // Two independently timed real books and 15 closed 1m candles reconciled
+    // with actual fills are already required by futuresSnapshotProof().
+    // A *third* confirmation cycle and positive OI gate delay early trends
+    // and do not identify whether positions are newly long or newly short.
+    results.signals.push({...proof,book_snapshots:2,distinct_recent_5m:true,
+      evidence_type:'VERIFIED_VENUE_15M_TAKER_AND_TWO_DISTINCT_BOOKS',
+      position_owners_verified:false,all_exchanges_verified:false,
+      direction_accuracy_verified:false});
     prev[proof.symbol]=proof;
   }
   for(const [key,p] of Object.entries(prev))
@@ -885,13 +889,13 @@ function validDirectionalProof(p,now){
      val(s.closed_15m_turnover_krw)>0;
   // Old 20-consecutive-1m requirement is intentionally NOT a native-data gate.
   if(price===null||price<=0||!s||s.status!=='PASS'||
-     (native?!nativeProvenance:s.closed_20m_candles!==true)||
+     !nativeProvenance||
      val(s.close)===null||Math.abs(s.close/price-1)>.0001||
      !Array.isArray(f)||f.length!==2||!c||c.verified!==true||
      c.marketwide_cvd_verified!==false||!Number.isSafeInteger(c.start_ms)||
      !Number.isSafeInteger(c.end_ms)||c.start_ms%60000!==0||
      c.end_ms-c.start_ms!==15*60000||
-     c.end_ms!==(native?s.anchor_end_ms:Math.floor(p.observed_ms/60000)*60000)||
+     c.end_ms!==s.anchor_end_ms||
      val(c.candle_relative_error)===null||c.candle_relative_error<0||c.candle_relative_error>.005||
      !Array.isArray(c.blocks)||c.blocks.length!==3)return null;
   const up=p.direction==='UP';
@@ -899,9 +903,7 @@ function validDirectionalProof(p,now){
   const p5=val(s.price_5m_pct),p15=val(s.price_15m_pct),wick=val(up?s.upper_wick_5m_ratio:s.lower_wick_5m_ratio);
   if(p5===null||p15===null||wick===null||wick<0||wick>1)return null;
   // Use signed real price/trade alignment, not made-up % cutoffs.
-  if(native?(up?!(p5>0&&p15>0):!(p5<0&&p15<0)):
-     (up?!(p5>=.15&&p5<=3.8&&p15>=.25&&p15<=6.5):
-         !(p5<=-.15&&p5>=-3.8&&p15<=-.25&&p15>=-6.5)))return null;
+  if(up?!(p5>0&&p15>0):!(p5<0&&p15<0))return null;
   let prev=null;
   for(const snap of f){
     const book=snap?.book,ts=val(snap?.time_ms),bt=val(book?.timestamp_ms),
@@ -1346,8 +1348,8 @@ async function scheduledCore(env,now=Date.now(),preDispatch=null){
       qualified:futuresRun.qualified,confirmed:futuresRun.confirmed,
       sent:futuresSent,skipped_duplicates:futuresSkipped,send_error:futuresSendError,
       reasons:futuresRun.reasons,proof_type:'15m public futures fills, two snapshots; not long/short position owners'},
-    alertContract:'V14_NATIVE_COMPLETED_5M_2_BOOK_TAKER_15M_RECONCILED_LOCAL_CVD',aiDirectTransportEnabled:AI_ALERT_TRANSPORT_ENABLED,
-    note:'V14 real native 5m context instead of 20 consecutive 1m; venue-local 15m taker CVD + distinct books. Bitget preserves OI gates. No 1m zero-fill, no all-exchange CVD, no future accuracy claim, no orders.'};
+    alertContract:'V15_EXACT_SAME_MINUTE_PRICE_TAKER_CONTEXT_2_BOOK_15M_REAL_CVD',aiDirectTransportEnabled:AI_ALERT_TRANSPORT_ENABLED,
+    note:'V15 causal alignment requires selected Bitget completed price candles and venue-local 15m fills to share exact end timestamp. Separate real books plus price/taker proof remain required. No zero-fill, no all-exchange CVD, no guaranteed future accuracy, no orders.'};
   await env.IRYS_KV.put(STATE,JSON.stringify(state));
   console.log(JSON.stringify(state.last));
   if(sendError||futuresSendError||directionalRun.send_error&&
