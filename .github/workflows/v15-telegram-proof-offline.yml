@@ -1,0 +1,29 @@
+name: IRYS V15 one-time Telegram transport proof offline regression NO DEPLOY
+on:
+  push:
+    branches: [fix/irys-v15-telegram-closure-20261030]
+    paths:
+      - '.github/workflows/v15-telegram-proof-offline.yml'
+      - 'deployment/IRYS_V15_TELEGRAM_TRANSPORT_PROOF_WORKER.mjs'
+      - 'tests/test_irys_v15_telegram_proof.mjs'
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Syntax and exact mock-only Telegram/market regression, no real send
+        run: |
+          node --check deployment/IRYS_V15_TELEGRAM_TRANSPORT_PROOF_WORKER.mjs
+          node --test tests/test_irys_v15_telegram_proof.mjs tests/test_irys_v13_directional_outcomes.mjs tests/test_irys_v14_native_direction.mjs tests/test_irys_v14_flow_diet.mjs
+          python -m unittest discover -s tests -p 'test_*.py' -v
+          python -m unittest discover -s ai_twin/tests -p 'test_*.py' -v
+          echo 'V15_TRANSPORT_PROOF_WORKER_SHA256'
+          sha256sum deployment/IRYS_V15_TELEGRAM_TRANSPORT_PROOF_WORKER.mjs
