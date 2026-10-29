@@ -10,7 +10,7 @@
  * Env existing: IRYS_KV, GITHUB_DISPATCH_TOKEN, TELEGRAM_BOT_TOKEN,
  * TELEGRAM_CHAT_ID. Existing 5m Cron remains unchanged.
  */
-const VERSION='IRYS-V15-TELEGRAM-TRANSPORT-PROOF-20261030';
+const VERSION='IRYS-V16-AI-FIRST-SHADOW-20261030';
 // Safety: AI market interpretations can inform review, but cannot bypass verified sustained-spot proof.
 const AI_ALERT_TRANSPORT_ENABLED=false;
 const ROOT='https://raw.githubusercontent.com/pmk44120315-creator/irys-bitget-5min-scanner/main/data/latest.json';
@@ -400,16 +400,15 @@ async function scanAiSpot(nowMs,state){
     fresh[sym]=[price,acc,ema,count];
     if(m.market_warning!=='NONE'||warning.has(sym)||t.is_trading_suspended||t.delisting_date||
        (t.market_state&&t.market_state!=='ACTIVE'))continue;
-    if(recent===null||pe===null||pe<=0||(pc||0)<2||pp===null||pp<=0)continue;
-    const ratio=recent/pe,pct=100*(price/pp-1),dailyPct=daily===null?null:daily*100;
-    if(recent<10000000||ratio<1.8||Math.abs(pct)<.06||Math.abs(pct)>4.5||
-       dailyPct===null||dailyPct>25||dailyPct< -25||recent/(turn24/288)<1.15)continue;
-    const score=Math.min(50,ratio)*Math.log10(1+recent/10000000)*Math.min(2,Math.max(.7,Math.abs(pct)*3));
+    if(recent===null||pp===null||pp<=0)continue; // No EMA warmup as an AI gate.
+    const ratio=pe&&pe>0?recent/pe:null,pct=100*(price/pp-1),dailyPct=daily===null?null:daily*100;
+    // Model sees real market movement BEFORE arbitrary price/turnover/day caps.
+    const score=Math.abs(pct)*Math.log1p(recent/10000000)+Math.log1p(Math.max(0,ratio||0));
     candidates.push({venue:'bithumb',market:sym,symbol:sym,
-      direction_hint:pct>0?'UP':'DOWN',price_krw:price,
-      price_change_snapshot_pct:+pct.toFixed(3),day_change_pct:+dailyPct.toFixed(3),
-      turnover5_est_krw:Math.round(recent),turnover5_baseline_ema_krw:Math.round(pe),
-      relative_turnover:+ratio.toFixed(3),
+      direction_hint:pct>0?'UP':pct<0?'DOWN':'WAIT',price_krw:price,
+      price_change_snapshot_pct:+pct.toFixed(3),day_change_pct:dailyPct===null?null:+dailyPct.toFixed(3),
+      turnover5_est_krw:Math.round(recent),turnover5_baseline_ema_krw:pe===null?null:Math.round(pe),
+      relative_turnover:ratio===null?null:+ratio.toFixed(3),
       comparison_gap_min:+deltaMin.toFixed(2),score:+score.toFixed(3),
       spot_risk_status:'OFFICIAL_NO_WARNING_NOW'});
   }
@@ -426,17 +425,15 @@ async function scanAiSpot(nowMs,state){
 function selectAiFutures(snap,nowMs){
   const latestWatch=new Map((snap.watchlist||[]).filter(x=>x?.symbol).map(x=>[x.symbol,x]));
   const out=[];
-  for(const x of snap.early_pool||[]){
+  for(const x of [...(snap.early_pool||[]),...(snap.watchlist||[])]){
     if(x?.venue!=='bitget'||x.asset_identity!=='VERIFIED_CRYPTO'||!validSymbol(x.symbol,'bitget')||
        x.baseCoin!==x.symbol.slice(0,-4))continue;
     const bars=x.windows||{},w5=bars['5m']||{},w15=bars['15m']||{},w60=bars['60m']||{};
     const p5=nf(w5.price_change_pct),p60=nf(w60.price_change_pct),q5=nf(w5.quote_turnover),
        rel5=nf(w5.adjacent_ratio),rel15=nf(w15.adjacent_ratio),wick5=nf(w5.upper_wick_ratio);
-    if([p5,p60,q5,wick5].some(v=>v===null)||q5<20000||Math.abs(p5)<.12||Math.abs(p5)>4.5||
-       Math.abs(p60)>10||Math.max(rel5||0,rel15||0)<1.8||wick5>.7||
-       nf(w5.coverage)!==1||nf(w15.coverage)!==1)continue;
+    if(p5===null||q5===null||nf(w5.close)===null||w5.close<=0||nf(w5.coverage)!==1)continue; // Real price required; no movement size gate.
     const oi=x.oi||{},delta=nf(oi.change_pct_from_previous_run),duration=nf(oi.elapsed_min_since_previous_snapshot);
-    if(oi.status!=='OK'||delta===null||duration===null||duration<2||duration>30)continue;
+    // OI absent or decreasing is context, not reason to hide a crypto future from AI.
     const trades=latestWatch.get(x.symbol)?.recent_trades_sample;
     const sample=trades?{
       counted_trades:trades.trades_in_last_hour??null,net_taker_quote_usdt:nf(trades.net_taker_quote),
@@ -444,12 +441,12 @@ function selectAiFutures(snap,nowMs){
       latest_trade_ms:nf(trades.newest_trade_timestamp_ms),
       sample_fresh:nf(trades.newest_trade_timestamp_ms)!==null && nowMs-nf(trades.newest_trade_timestamp_ms)<4*60000,
       sampled_futures_only:true}:null;
-    const score=(nf(x.early_volume_rank)||0)*Math.log10(1+q5/5000);
+    const score=Math.abs(p5)*Math.log1p(q5/5000)+Math.log1p(Math.max(0,rel5||0));
     out.push({venue:'bitget',symbol:x.symbol,market:x.symbol,baseCoin:x.baseCoin,
-      direction_hint:p5>0?'UP':'DOWN',price_usdt:nf(w5.close),
+      direction_hint:p5>0?'UP':p5<0?'DOWN':'WAIT',price_usdt:nf(w5.close),
       pct1m:nf(bars['1m']?.price_change_pct),pct5m:p5,pct15m:nf(w15.price_change_pct),pct60m:p60,
       turnover5_usdt:Math.round(q5),relative_volume5:rel5,relative_volume15:rel15,
-      upper_wick_ratio:wick5,oi_delta_pct:+delta.toFixed(3),oi_elapsed_min:+duration.toFixed(2),
+      upper_wick_ratio:wick5,oi_delta_pct:delta===null?null:+delta.toFixed(3),oi_elapsed_min:duration===null?null:+duration.toFixed(2),
       funding_rate:nf(x.funding_rate),recent_futures_taker_sample:sample,
       symbol_type:'VERIFIED_CRYPTO_USDT_PERPETUAL',spot_venue_identity:'UNVERIFIED',
       score:+score.toFixed(3)});
@@ -1299,7 +1296,8 @@ async function updateFuturesOutcomes(env,state,now){
 // ===== END V13 =====
 
 function shouldRunExpensiveAi(status,source,confirmed){
-  return status==='PASS'&&!!source&&Array.isArray(confirmed)&&confirmed.length>0;
+  // AI must investigate live candidates before the strict directional contract.
+  return status==='PASS'&&!!source;
 }
 async function scheduledCore(env,now=Date.now(),preDispatch=null){
   if(!env.IRYS_KV)throw Error('IRYS_KV_MISSING');
