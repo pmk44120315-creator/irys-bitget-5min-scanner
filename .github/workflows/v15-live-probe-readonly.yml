@@ -1,0 +1,21 @@
+name: IRYS V15 live Bithumb taker-book diagnostic READ ONLY
+on:
+  push:
+    branches: [fix/irys-v15-flow-causal-proof-20261029]
+    paths:
+      - 'audits/v15_live_taker_book_probe.py'
+      - '.github/workflows/v15-live-probe-readonly.yml'
+permissions:
+  contents: read
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Read-only official public Bithumb per-symbol execution and order-book
+        run: |
+          python -m py_compile audits/v15_live_taker_book_probe.py
+          python -m audits.v15_live_taker_book_probe
