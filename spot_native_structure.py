@@ -66,7 +66,8 @@ def native_market_structure(recent_one, native, asof_ms):
     latest_price=number(newest_one[1][3]) if newest_one else None
     last3=[native.get(anchor-i*FIVE_MINUTES) for i in (3,2,1)]
     present=[bar for bar in last3 if bar is not None]
-    prior=[native.get(anchor-i*FIVE_MINUTES) for i in (6,5,4,3,2)]
+    # Actual three native 5m buckets preceding the latest completed bucket.
+    prior=[native.get(anchor-i*FIVE_MINUTES) for i in (4,3,2)]
     prior=[bar for bar in prior if bar is not None]
     observed_last20=sum(end-i*ONE_MINUTE in recent_one for i in range(1,21))
     base={
