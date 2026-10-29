@@ -4,6 +4,7 @@ import {extractWorkerSource} from './parse-cloudflare-script.mjs';
 const token=process.env.IRYS_V7_CF_API_TOKEN||'',account=process.env.IRYS_REALTIME_CF_ACCOUNT_ID||'';
 const expected='e05ad48dfbc155719fd475eac01cd452a4c33075f7cb1d24da014ef72820efe3';
 const deployedAfterMs=Date.parse('2026-10-29T13:23:18Z');
+const improvedScannerFirstFinish=Date.parse('2026-10-29T13:28:38.101Z');
 if(!/^[a-f0-9]{32}$/.test(account)||token.length<20)throw Error('MISSING_SCOPED_CREDENTIAL');
 const root='https://api.cloudflare.com/client/v4/accounts/'+account+'/workers/scripts/irys-surge-monitor';
 async function get(url,headers={}){
@@ -34,6 +35,8 @@ const result={
   runtime_v14_seen:last.codeVersion==='IRYS-V14-NATIVE-MARKET-EVIDENCE-20261029',
   last_run_status:last.status||null,last_run_kst:last.time||null,
   github_dispatch:last.githubDispatchStatus||null,
+  source_finished_utc:last.githubBitgetFinishedUtc||null,
+  improved_scanner_ingested:Date.parse(last.githubBitgetFinishedUtc||'')>=improvedScannerFirstFinish,
   futures_direction:last.futuresDirection||null,
   early_market_watch:last.earlyMarketWatch||null,
   spot_directional:last.spotDirectional||null,
@@ -54,6 +57,7 @@ if(!result.source_exact_match||cron.length!==1||cron[0]!=='*/5 * * * *'||missing
    !status.kvConfigured||!status.telegramSecretConfigured||!status.githubDispatchConfigured||
    !status.workersAIConfigured)throw Error('V14_RUNTIME_INTEGRITY_BLOCKED');
 if(!result.runtime_v14_seen)throw Error('V14_FIRST_SCHEDULED_RUN_NOT_OBSERVED');
+if(!result.improved_scanner_ingested)throw Error('V14_FLOW_DIET_NEW_SCANNER_DATA_NOT_CONSUMED');
 const stamp=Date.parse(String(last.time||'').replace(' KST','+09:00').replace(' ','T'));
 if(!Number.isFinite(stamp)||stamp<=deployedAfterMs||Date.now()-stamp>20*60000||stamp>Date.now()+60000)
   throw Error('V14_FLOW_DIET_FIRST_NEW_CRON_MISSING_OR_STALE');
