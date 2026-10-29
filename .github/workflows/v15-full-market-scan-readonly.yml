@@ -1,0 +1,48 @@
+name: IRYS V15 full-market candidate evidence smoke READ ONLY NO DEPLOY
+on:
+  push:
+    branches: [fix/irys-v15-flow-causal-proof-20261029]
+    paths:
+      - '.github/workflows/v15-full-market-scan-readonly.yml'
+      - 'audits/v15_full_market_scan_readonly.marker'
+permissions:
+  contents: read
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Use original main snapshots as read-only input for valid five-minute baseline
+        run: |
+          git fetch --quiet origin main
+          git show origin/main:data/latest.json > data/latest.json
+          git show origin/main:data/state.json > data/state.json
+      - name: Run V15 complete live public market scanner locally without any push
+        run: |
+          python collector.py
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          j=json.loads(Path("data/latest.json").read_text())
+          s=j.get("spot_directional",{})
+          f=j.get("futures_flow",{})
+          print("IRYS_V15_FULL_LOCAL_MARKET",json.dumps({
+            "collector_kst":j.get("collector_kst"),
+            "collector_status":j.get("collector_status"),
+            "market_counts":j.get("stats"),
+            "spot_inspected":s.get("reviewed"),
+            "spot_queued":s.get("queued_for_next_scan"),
+            "spot_qualified":s.get("qualified"),
+            "spot_reasons":[{"market":x.get("market"),"reason":x.get("status"),
+              "taker_count":x.get("taker_count"),
+              "coverage_reasons":x.get("taker_coverage_reasons"),
+              "book_seen":x.get("orderbook_observed")}
+              for x in s.get("diagnostics",[])],
+            "futures_evaluated":f.get("markets_evaluated"),
+            "futures_two_books":sum(x.get("book_proof_v13",{}).get("status")==
+                "TWO_DISTINCT_BOOK_SNAPSHOTS" for x in f.get("observations",[])),
+          },ensure_ascii=False))
+          PY
