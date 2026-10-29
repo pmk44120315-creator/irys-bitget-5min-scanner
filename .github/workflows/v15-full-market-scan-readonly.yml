@@ -44,5 +44,12 @@ jobs:
             "futures_evaluated":f.get("markets_evaluated"),
             "futures_two_books":sum(x.get("book_proof_v13",{}).get("status")==
                 "TWO_DISTINCT_BOOK_SNAPSHOTS" for x in f.get("observations",[])),
+            "futures_price_time_alignment":j.get("futures_price_time_alignment"),
+            "futures_exact_anchor":[{"symbol":x.get("symbol"),
+                "flow_end_ms":(x.get("taker_flow_15m") or {}).get("end_ms"),
+                "price_end_ms":x.get("price_context_end_ms"),
+                "status":x.get("price_context_status")}
+                for x in f.get("observations",[])],
+            "verified_crypto_1m_price_labels":len(j.get("verified_crypto_futures_closed_prices") or {}),
           },ensure_ascii=False))
           PY
