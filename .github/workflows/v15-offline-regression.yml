@@ -1,0 +1,33 @@
+name: IRYS V15 spot-book preservation and real taker regression NO DEPLOY
+on:
+  push:
+    branches: [fix/irys-v15-flow-causal-proof-20261029]
+    paths:
+      - 'spot_flow.py'
+      - 'spot_direction.py'
+      - 'bitget_futures_cvd.py'
+      - 'tests/**'
+      - '.github/workflows/v15-offline-regression.yml'
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Compile exact market modules
+        run: |
+          python -m py_compile collector.py spot_flow.py spot_continuity.py spot_direction.py spot_native_structure.py bitget_futures_cvd.py
+          node --check deployment/IRYS_V14_NATIVE_MARKET_EVIDENCE_WORKER.mjs
+      - name: Run complete original and new Python regression
+        run: |
+          python -m unittest discover -s tests -p 'test_*.py' -v
+          python -m unittest discover -s ai_twin/tests -p 'test_*.py' -v
+      - name: Replay original and improved V14 Worker contracts (offline)
+        run: node --test tests/test_irys_v13_directional_outcomes.mjs tests/test_irys_v14_native_direction.mjs tests/test_irys_v14_flow_diet.mjs
