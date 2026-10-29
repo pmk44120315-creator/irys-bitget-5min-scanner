@@ -23,30 +23,53 @@ def early(**kwargs):
     return out
 
 
-def feed(positive=True, gap=None):
+def feed(positive=True, gap=None, no_native=False):
+    """Generate exchange-native true 5m aggregates from actual 1m fills.
+
+    Removing a minute means no trade in that minute, NOT a fabricated 0-volume
+    1m bar. The original native 5m OHLC remains a legitimate bucket summary.
+    """
+    end=NOW+5*M
+    bars=[]
+    for i in range(75,0,-1):
+        if gap==i:
+            continue
+        ts=end-i*M
+        level=(100+(75-i)*.08) if positive else (110-(75-i)*.08)
+        bars.append({
+            'candle_date_time_utc':dt.datetime.fromtimestamp(
+                ts/1000,dt.timezone.utc).strftime('%Y-%m-%dT%H:%M:%S'),
+            'opening_price':level,'high_price':level+.05,'low_price':level-.05,
+            'trade_price':level+.035 if positive else level-.035,
+            'candle_acc_trade_price':7_000_000})
+    native={}
+    for row in bars:
+        at=int(dt.datetime.fromisoformat(row['candle_date_time_utc']).replace(
+            tzinfo=dt.timezone.utc).timestamp()*1000)
+        slot=(at//(5*M))*5*M
+        native.setdefault(slot,[]).append((at,row))
+    native_rows=[]
+    for ts,raw in native.items():
+        raw=sorted(raw,key=lambda item:item[0])
+        one=[x[1] for x in raw]
+        native_rows.append({
+            'candle_date_time_utc':dt.datetime.fromtimestamp(
+                ts/1000,dt.timezone.utc).strftime('%Y-%m-%dT%H:%M:%S'),
+            'opening_price':one[0]['opening_price'],
+            'high_price':max(x['high_price'] for x in one),
+            'low_price':min(x['low_price'] for x in one),
+            'trade_price':one[-1]['trade_price'],
+            'candle_acc_trade_price':sum(x['candle_acc_trade_price'] for x in one)})
     def api(venue,path,opts=None):
         assert venue=='bithumb'
-        if path!='/v1/candles/minutes/1':
-            raise AssertionError('Unexpected API '+path)
-        end=NOW+5*M
-        if opts.get('count')!=80:
-            raise AssertionError('Not using bounded 80 closed 1m bars')
-        bars=[]
-        for i in range(75,0,-1):
-            if gap==i:
-                continue
-            ts=end-i*M
-            level=(100+(75-i)*.08) if positive else (110-(75-i)*.08)
-            bars.append({
-                'candle_date_time_utc':dt.datetime.fromtimestamp(ts/1000,dt.timezone.utc).strftime('%Y-%m-%dT%H:%M:%S'),
-                'opening_price':level,
-                'high_price':level+.05,
-                'low_price':level-.05,
-                'trade_price':level+.035 if positive else level-.035,
-                'candle_acc_trade_price':7_000_000})
-        return bars
+        if path=='/v1/candles/minutes/1':
+            assert opts['count']==80
+            return bars
+        if path=='/v1/candles/minutes/5':
+            assert opts['count']==24
+            return [] if no_native else native_rows
+        raise AssertionError('Unexpected public API: '+path)
     return api
-
 
 def flow(positive=True):
     return {'coverage':True,'count':80,
@@ -129,11 +152,50 @@ class TestDirectionalV13(unittest.TestCase):
             self.assertEqual(r['status'],'CVD_15M_NOT_VERIFIED_OR_CONTRADICTS_DIRECTION')
             self.assertFalse(r['validated_direction'])
 
-    def test_incomplete_closed_candles_cannot_be_direction(self):
-        with patch('spot_direction.trade_sample') as trades:
+    def test_sparse_one_minute_does_not_prevent_real_flow_and_book_collection(self):
+        with patch('spot_direction.trade_sample',return_value=flow()) as trades, \
+             patch('spot_direction.book_snapshot',return_value=book(NOW+5*M)):
             r=evaluate_market(early(),{},NOW+5*M,feed(gap=2))
-            self.assertEqual(r['status'],'CLOSED_20M_CANDLE_GAP')
-            trades.assert_not_called()
+            self.assertEqual(r['status'],'WAIT_SECOND_DISTINCT_FLOW_AND_BOOK',r)
+            self.assertEqual(r['structure']['source'],
+                             'BITHUMB_OFFICIAL_COMPLETED_NATIVE_5M_AND_TRADE_1M')
+            self.assertEqual(r['structure']['observed_1m_bars_of_last20'],19)
+            self.assertFalse(r['structure']['closed_20m_candles'])
+            self.assertEqual(r['structure']['native_15m_buckets_observed'],3)
+            self.assertIsNotNone(r['sample'])
+            trades.assert_called_once()
+
+    def test_missing_native_5m_still_samples_real_takers_but_never_confirms(self):
+        with patch('spot_direction.trade_sample',return_value=flow()) as trades, \
+             patch('spot_direction.book_snapshot',return_value=book(NOW+5*M)):
+            r=evaluate_market(early(),{},NOW+5*M,feed(no_native=True))
+            self.assertEqual(r['status'],'WAIT_NATIVE_5M_CONTEXT')
+            self.assertFalse(r['validated_direction'])
+            self.assertIsNotNone(r['sample'])
+            trades.assert_called_once()
+
+    def test_high_prior_gain_late_chase_is_counter_evidence_not_blind_drop(self):
+        with patch('spot_direction.trade_sample',return_value=flow()), \
+             patch('spot_direction.book_snapshot',return_value=book(NOW+5*M)):
+            r=evaluate_market(early(risk_class='LATE_CHASE_CAUTION'),{},
+                              NOW+5*M,feed())
+            self.assertTrue(r['late_chase_caution'])
+            self.assertEqual(r['status'],'WAIT_SECOND_DISTINCT_FLOW_AND_BOOK')
+            self.assertIsNotNone(r['sample'])
+
+    def test_cvd_must_be_reconciled_at_actual_completed_native_5m_boundary(self):
+        t=NOW+7*M  # 00:07, current 5m candle 00:05-00:10 is NOT completed.
+        prev={'sample':{'time_ms':t-5*M,'book':book(t-5*M),
+                        'buy_share':.72,'net_buy_krw':8_000_000}}
+        with patch('spot_direction.trade_sample',return_value=flow()), \
+             patch('spot_direction.book_snapshot',return_value=book(t)), \
+             patch('spot_direction.cvd_15m',return_value=cvd()) as v:
+            r=evaluate_market(early(),prev,t,feed())
+            if r['status']=='QUALIFIED_VENUE_LOCAL_MULTI_EVIDENCE':
+                self.assertEqual(v.call_args.args[1],NOW+5*M)
+                self.assertFalse(r['proof']['structure']['closed_15m_turnover_krw']<0)
+            else:
+                self.assertEqual(r['status'],'TWO_PERIOD_FLOW_BOOK_PRICE_DISAGREE',r)
 
     def test_official_warning_never_continues_tracked_candidate(self):
         state={}
