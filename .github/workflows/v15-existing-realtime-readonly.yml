@@ -1,0 +1,24 @@
+name: IRYS V15 inspect existing realtime-evidence source READ ONLY
+on:
+  push:
+    branches: [fix/irys-v15-flow-causal-proof-20261029]
+    paths:
+      - 'audits/v15_cloudflare_realtime_readonly.mjs'
+      - '.github/workflows/v15-existing-realtime-readonly.yml'
+permissions:
+  contents: read
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    env:
+      IRYS_V7_CF_API_TOKEN: ${{ secrets.IRYS_V7_CF_API_TOKEN }}
+      IRYS_REALTIME_CF_ACCOUNT_ID: ${{ secrets.IRYS_REALTIME_CF_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Read-only inventory existing independent Worker, never mutate
+        run: |
+          node --check audits/v15_cloudflare_realtime_readonly.mjs
+          node audits/v15_cloudflare_realtime_readonly.mjs
