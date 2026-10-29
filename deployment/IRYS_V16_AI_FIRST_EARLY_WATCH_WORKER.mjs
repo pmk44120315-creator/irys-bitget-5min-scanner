@@ -632,9 +632,8 @@ async function runMorningAi(env,source,state,nowMs){
   catch(e){out.spot_error=clean(e.message,120);spot={observations:[],preselected:0,warmed:false};}
   const fut=selectAiFutures(source.snap,nowMs);
   out.futures_preselected=fut.total;out.futures_evaluated=fut.selected.length;
-  const future=[];
-  for(const x of fut.selected){future.push({...x,binance_spot:env.AI?.run?
-    await binanceEvidence(x,nowMs):{status:'NOT_REQUESTED_AI_BINDING_MISSING'}});}
+  const future=await Promise.all(fut.selected.map(async x=>({...x,
+    binance_spot:await binanceEvidence(x,nowMs)})));
   const items=[...spot.observations,...future];
   if(!env.AI||typeof env.AI.run!=='function'){
     out.status='AI_BINDING_NOT_CONFIGURED';return out;
@@ -671,8 +670,13 @@ async function runMorningAi(env,source,state,nowMs){
   // Retain AI research/composite judgement, but DO NOT send UP/DOWN notifications
   // until they have a separately implemented, independent directional outcome gate.
   if(!AI_ALERT_TRANSPORT_ENABLED){
-    out.status='AI_REVIEW_ONLY_ALERTS_SUPPRESSED';
-    out.suppressed_directional_model_decisions=decisions.filter(d=>d.signal==='UP'||d.signal==='DOWN').length;
+    out.status='AI_SHADOW_REAL_MODEL_REPLIED_NO_TELEGRAM';
+    const byKey=new Map(items.map(x=>[x.venue+':'+x.symbol,x]));
+    const review=decisions.filter(d=>verifyModelAlert(d,byKey.get(d.venue+':'+d.symbol))!==null);
+    out.suppressed_directional_model_decisions=review.length;
+    out.directional_model_hypotheses=decisions.filter(d=>d.signal==='UP'||d.signal==='DOWN').length;
+    state.aiV16ShadowJudgments=review.slice(0,10).map(d=>({venue:d.venue,symbol:d.symbol,
+      direction:d.signal,strength:d.strength,at:kst(nowMs)}));
     return out;
   }
   const table=new Map(items.map(x=>[x.venue+':'+x.symbol,x]));
@@ -694,8 +698,15 @@ async function runMorningAi(env,source,state,nowMs){
         if(current===null)continue;
         c.current_price_krw=current;
       }
-      await telegram(env,morningMessage(d,c,pass,nowMs));
-      state.lastAlert[id]=nowMs;out.alerts_sent++;
+      const ack=await telegram(env,morningMessage(d,c,pass,nowMs));
+      state.lastAlert[id]=nowMs;
+      const receipt=recordReceipt(state,'AI_V16_EARLY_OBSERVATION',c.symbol,nowMs,ack);
+      receipt.kv_receipt_persisted=await persistReceiptEvent(env,receipt,nowMs);
+      out.alerts_sent++;
+      state.aiV16Outcomes=[...(state.aiV16Outcomes||[]),{
+        venue:c.venue,symbol:c.symbol,direction:d.signal,at_ms:nowMs,
+        price:c.venue==='bithumb'?c.current_price_krw:c.price_usdt,
+        telegram_message_id:ack.message_id,results:{},assessment:'PENDING'}].slice(-40);
     }catch(e){out.status='AI_ALERT_DELIVERY_FAILED';out.error=clean(e.message,120);break;}
   }
   return out;
@@ -1413,12 +1424,12 @@ async function scheduledCore(env,now=Date.now(),preDispatch=null){
   const outcomeRun=await updateSpotOutcomes(env,state,now);
   const futuresOutcomeRun=await updateFuturesOutcomes(env,state,now);
   // Legacy Workers AI direct directional Telegram transport remains disabled.
-  let aiRun={status:status==='PASS'?'SKIPPED_NO_SUSTAINED_SPOT_SIGNAL':'DATA_SOURCE_NOT_READY',
+  let aiRun={status:status==='PASS'?'AI_BINDING_NOT_CONFIGURED':'DATA_SOURCE_NOT_READY',
     configured:!!env.AI?.run,model:AI_MODEL,alerts_sent:0};
   // The previous V7 called a large model every 5 minutes for unverified preselection,
   // exhausting 10,000 free neurons and emitting directional alerts on 2m evidence.
   // Do not spend any AI quota or run an independent alert pipeline without sustained proof.
-  if(shouldRunExpensiveAi(status,source,confirmed)){
+  if(env.AI?.run&&shouldRunExpensiveAi(status,source,confirmed)){
     try{aiRun=await runMorningAi(env,source,state,Date.now());}
     catch(e){aiRun={status:'AI_PIPELINE_ERROR',configured:!!env.AI?.run,model:AI_MODEL,
       alerts_sent:0,error:clean(e.message,130)};}
@@ -1437,7 +1448,7 @@ async function scheduledCore(env,now=Date.now(),preDispatch=null){
     spotEarlyAlerts:source?.spot.signals?.length||0,blockedByRisk:candidates.length-confirmed.length,
     sent,skippedDuplicates,telegramConfigured:!!(env.TELEGRAM_BOT_TOKEN&&env.TELEGRAM_CHAT_ID),
     telegramSendVerified:state.telegramConnectionVerified,sendError,
-    telegramApiAckedThisRun:sent+futuresSent+directionalRun.sent+
+    telegramApiAckedThisRun:sent+futuresSent+directionalRun.sent+aiRun.alerts_sent+
       outcomeRun.followups_sent+futuresOutcomeRun.followups_sent,
     telegramApiAcknowledgementsTotal:state.telegramAcknowledgementsTotal||0,
     telegramLastApiReceipt:(state.deliveryReceiptsV12||[]).at(-1)||null,
