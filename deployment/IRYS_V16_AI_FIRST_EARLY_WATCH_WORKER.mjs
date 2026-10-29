@@ -1500,4 +1500,5 @@ export {validateSignal,officialRiskCheck,readGithub,dispatchGithub,scheduledCore
   validDirectionalProof,directionalMessage,sendSpotDirectional,
   evaluateOutcomeAtHorizon,parseOutcomeCandles,updateSpotOutcomes,
   parseBitgetOutcomeCandles,evaluateFuturesOutcome,updateFuturesOutcomes,
-  validFuturesBookProof,officialDirectionalRiskCheck,telegramTransportProofOnce};
+  validFuturesBookProof,officialDirectionalRiskCheck,telegramTransportProofOnce,
+  shouldRunExpensiveAi,officialAiSpotRiskCheck};
