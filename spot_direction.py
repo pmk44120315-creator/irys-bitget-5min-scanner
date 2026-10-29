@@ -10,7 +10,8 @@ from __future__ import annotations
 import datetime as dt
 import math
 
-from spot_flow import candles, window, trade_sample
+from spot_flow import candles, trade_sample
+from spot_native_structure import native_market_structure, parse_native_five
 from spot_continuity import book_snapshot, cvd_15m
 
 MINUTE = 60_000
@@ -27,41 +28,9 @@ def finite(value):
         return None
 
 
-def market_structure(rows, now_ms):
-    """Only closed, consecutive candles; no future prices or fabricated gap fills."""
-    end = now_ms // MINUTE * MINUTE
-    required = [rows.get(end - i * MINUTE) for i in range(1, 21)]
-    if any(b is None for b in required):
-        return {'status': 'CLOSED_20M_CANDLE_GAP'}
-    w5 = window(rows, now_ms, 5)
-    w15 = window(rows, now_ms, 15)
-    if w5 is None or w15 is None:
-        return {'status': 'CLOSED_15M_CANDLE_GAP'}
-    previous = required[5:20]
-    previous_high = max(x[1] for x in previous)
-    previous_low = min(x[2] for x in previous)
-    close = w5['close']
-    p5 = w5['price_change_pct']
-    p15 = w15['price_change_pct']
-    if close <= 0 or previous_high <= 0 or previous_low <= 0:
-        return {'status': 'INVALID_CLOSED_PRICE'}
-    upper = w5['upper_wick_ratio']
-    lower = max(0, min(w5['open'], close) - w5['low']) / (w5['high'] - w5['low']) if w5['high'] > w5['low'] else 0
-    up = (.15 <= p5 <= 3.8 and .25 <= p15 <= 6.5
-          and close >= previous_high * .996 and upper <= .42)
-    down = (-3.8 <= p5 <= -.15 and -6.5 <= p15 <= -.25
-            and close <= previous_low * 1.004 and lower <= .42)
-    return {
-        'status': 'PASS', 'close': close, 'price_5m_pct': round(p5, 4),
-        'price_15m_pct': round(p15, 4),
-        'previous_15m_high': previous_high, 'previous_15m_low': previous_low,
-        'upper_wick_5m_ratio': round(upper, 4),
-        'lower_wick_5m_ratio': round(lower, 4),
-        'up_structure': up, 'down_structure': down,
-        'closed_20m_candles': True, 'closed_15m_turnover_krw': w15['quote_krw'],
-        'structure_limit': 'Near prior 15m high/low is NOT proven BOS or guaranteed breakout',
-    }
-
+def market_structure(rows, now_ms, native=None):
+    """Use real completed exchange-native 5m, not an invented run of 20 one-minute bars."""
+    return native_market_structure(rows, native if isinstance(native,dict) else {}, now_ms)
 
 def verified_local_cvd(e, direction):
     """Read the independently reconciled public Bithumb 15-minute taker flow."""
@@ -99,25 +68,23 @@ def evaluate_market(seed, previous, now_ms, api, permit_cvd=True):
     if not isinstance(market, str) or not market.startswith('KRW-'):
         result['status'] = 'INVALID_MARKET'
         return result
-    if seed.get('risk_class') == 'LATE_CHASE_CAUTION':
-        result['status'] = 'LATE_CHASE_NOT_DIRECTIONAL'
-        return result
+    # A large prior move is counter-evidence, not grounds to skip looking at
+    # live trades, real books or CVD and assume the future direction.
+    result['late_chase_caution'] = seed.get('risk_class') == 'LATE_CHASE_CAUTION'
     try:
         raw = api('bithumb', '/v1/candles/minutes/1', {'market': market, 'count': 80})
+        native_raw = api('bithumb', '/v1/candles/minutes/5',
+                         {'market': market, 'count': 24})
         bars = candles(raw, now_ms)
-        structure = market_structure(bars, now_ms)
+        native = parse_native_five(native_raw, now_ms)
+        structure = market_structure(bars, now_ms, native)
         result['structure'] = structure
         # Keep early proof independent of turnover multiplier from tiny EMA bases.
         baseline = max(5_000_000, finite(seed.get('five_minute_prior_ema_krw')) or 0)
         quote = finite(seed.get('five_minute_equivalent_turnover_krw')) or 0
         result['normalized_early_turnover_ratio_floor5m'] = round(quote / baseline, 3)
-        if structure['status'] != 'PASS':
-            result['status'] = structure['status']
-            return result
-        spot_price = finite(seed.get('price_krw'))
-        if spot_price is not None and spot_price > 0 and abs(structure['close'] / spot_price - 1) > .04:
-            result['status'] = 'TICKER_AND_CLOSED_CANDLE_DIVERGED'
-            return result
+        # Preserve independent taker/book samples even with sparse price history;
+        # no blanket abort before checking actual execution evidence.
         flow = trade_sample(market, now_ms, api)
         book = book_snapshot(market, now_ms, api)
         if not flow.get('coverage') or book is None:
@@ -136,6 +103,16 @@ def evaluate_market(seed, previous, now_ms, api, permit_cvd=True):
             'net_buy_krw': round(flow.get('net_buy_krw') or 0),
             'recent_net_buy_krw': round(flow.get('recent_net_buy_krw') or 0),
             'partial_sample_not_full_cvd': True}
+        if structure['status'] != 'PASS':
+            result['status'] = structure['status']
+            return result
+        spot_price = finite(seed.get('price_krw'))
+        if spot_price is not None and spot_price > 0:
+            result['ticker_vs_closed_candle_pct'] = round(
+                100 * (structure['close'] / spot_price - 1), 4)
+            # Historical ticker and a later true completed candle can differ.
+            # Record that divergence rather than treating it as market-data
+            # corruption and discarding independently verified flow.
         if not isinstance(previous, dict) or not isinstance(previous.get('sample'), dict):
             result['status'] = 'WAIT_SECOND_DISTINCT_FLOW_AND_BOOK'
             return result
@@ -175,8 +152,13 @@ def evaluate_market(seed, previous, now_ms, api, permit_cvd=True):
         if not permit_cvd:
             result['status'] = 'CVD_API_BUDGET_RESERVED'
             return result
-        cvd = cvd_15m(market, now_ms, structure['closed_15m_turnover_krw'], api)
+        # The exact 15m quote total comes from three completed native 5m
+        # buckets ending at anchor_end_ms. It MUST match paginated real trades.
+        cvd = cvd_15m(market, structure['anchor_end_ms'],
+                      structure['closed_15m_turnover_krw'], api)
         result['cvd_status'] = 'PASS' if cvd.get('verified') is True else cvd.get('reason', 'UNVERIFIED')
+        if cvd.get('verified') is True:
+            structure['closed_15m_turnover_verified_by_taker'] = True
         if not verified_local_cvd(cvd, direction):
             result['status'] = 'CVD_15M_NOT_VERIFIED_OR_CONTRADICTS_DIRECTION'
             return result
@@ -187,6 +169,7 @@ def evaluate_market(seed, previous, now_ms, api, permit_cvd=True):
             'proof': {'venue': 'bithumb', 'market': market,
                       'direction': direction, 'observed_ms': now_ms,
                       'price_krw': structure['close'],
+                      'late_chase_caution':result['late_chase_caution'],
                       'structure': structure, 'taker_flow_15m': cvd,
                       'flow_snapshots': [old, sample],
                       'orderbook_absorption_verified': False,
@@ -251,7 +234,11 @@ def collect_spot_directional(spot, state, now_ms, api):
             'direction': res.get('direction'),
             'normalized_turnover_ratio_floor5m': res.get('normalized_early_turnover_ratio_floor5m'),
             'cvd_status': res.get('cvd_status'),
-            'closed_20m_candles': res.get('structure', {}).get('closed_20m_candles', False)})
+            'closed_20m_candles': res.get('structure', {}).get('closed_20m_candles', False),
+            'price_source':res.get('structure', {}).get('source'),
+            'native_5m_buckets':res.get('structure', {}).get('native_15m_buckets_observed'),
+            'real_taker_sample_saved':res.get('sample') is not None,
+            'late_chase_caution':res.get('late_chase_caution', False)})
         if res.get('sample') is not None:
             old['sample'] = res['sample']
             old['seed'] = seed
