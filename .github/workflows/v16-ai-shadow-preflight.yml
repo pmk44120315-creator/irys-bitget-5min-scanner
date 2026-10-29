@@ -1,0 +1,30 @@
+name: IRYS V16 AI-first Cloudflare live preflight NO DEPLOY
+on:
+  push:
+    branches: [fix/irys-v16-ai-first-early-watch-20261030]
+    paths:
+      - '.github/workflows/v16-ai-shadow-preflight.yml'
+      - 'deployment/release-v16-ai-shadow-safe.mjs'
+permissions:
+  contents: read
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    env:
+      IRYS_V7_CF_API_TOKEN: ${{ secrets.IRYS_V7_CF_API_TOKEN }}
+      IRYS_REALTIME_CF_ACCOUNT_ID: ${{ secrets.IRYS_REALTIME_CF_ACCOUNT_ID }}
+      IRYS_V14_RELEASE_ONCE: AUTHORIZED_FROM_REVIEWED_MARKER
+      IRYS_V14_RELEASE_DRY_RUN: '1'
+      IRYS_V14_EXPECTED_SHA256: '94b0c3936df5835cfa8a05fcdafe8647b4d9681a4fe8019c5cc9405b537e4535'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check exact V16 immutable source and safe rollback script
+        run: |
+          node --check deployment/IRYS_V16_AI_FIRST_EARLY_WATCH_WORKER.mjs
+          node --check deployment/release-v16-ai-shadow-safe.mjs
+          test "$(sha256sum deployment/IRYS_V16_AI_FIRST_EARLY_WATCH_WORKER.mjs | cut -d' ' -f1)" = "$IRYS_V14_EXPECTED_SHA256"
+      - name: Read-only verify live V15 deployed SHA, untouched Telegram, AI/KV, Cron, backup
+        run: node deployment/release-v16-ai-shadow-safe.mjs
