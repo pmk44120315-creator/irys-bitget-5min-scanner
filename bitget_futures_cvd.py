@@ -267,6 +267,38 @@ def collect_futures_flow_observations(latest, now_ms, api, limit=6, state=None):
         if evidence.get("verified"):out["verified_count"]+=1
         else:out["rejected_count"]+=1
         out["classifications"][flow]=out["classifications"].get(flow,0)+1
+        # Measure actual RECENT 5m pressure and its change from the prior 10m.
+        # This is a read-only numerical feature, NOT another hard condition,
+        # orderbook absorption proof or an independently validated LONG/SHORT.
+        pressure=None
+        if evidence.get("verified") and len(evidence.get("blocks") or [])==3:
+            blocks=evidence["blocks"]
+            recent=blocks[2]
+            prior_buy=sum(finite(b.get("buy_usdt")) or 0 for b in blocks[:2])
+            prior_sell=sum(finite(b.get("sell_usdt")) or 0 for b in blocks[:2])
+            previous_total=prior_buy+prior_sell
+            recent_buy=finite(recent.get("buy_usdt")) or 0
+            recent_sell=finite(recent.get("sell_usdt")) or 0
+            current_total=recent_buy+recent_sell
+            if previous_total>0 and current_total>0:
+                previous_share=prior_buy/previous_total
+                current_share=recent_buy/current_total
+                recent_net=recent_buy-recent_sell
+                prior_net=prior_buy-prior_sell
+                p5=finite((meta.get("windows") or {}).get("5m",{}).get("price_change_pct"))
+                pressure={
+                    "status":"REAL_15M_RECONCILED_RECENT5_VS_PRIOR10",
+                    "recent_5m_buy_share":round(current_share,6),
+                    "prior_10m_buy_share":round(previous_share,6),
+                    "buy_share_delta":round(current_share-previous_share,6),
+                    "recent_5m_net_taker_usdt":round(recent_net,4),
+                    "prior_10m_net_taker_usdt":round(prior_net,4),
+                    "recent_5m_trades":recent.get("trades"),
+                    "recent_5m_price_change_pct":p5,
+                    "recent_flow_price_same_sign":(
+                        (recent_net>0 and p5>0) or (recent_net<0 and p5<0))
+                        if p5 is not None else None,
+                    "direction_signal":False,"observation_only":True}
         # Raw verification data remain explicit; no claim about long/short positions.
         out["observations"].append({
             "symbol":sym,"observed_ms":(now_ms//ONE_MIN)*ONE_MIN,
@@ -275,6 +307,7 @@ def collect_futures_flow_observations(latest, now_ms, api, limit=6, state=None):
             "oi_change_pct":(meta.get("oi") or {}).get("change_pct_from_previous_run"),
             "funding_rate":meta.get("funding_rate"),
             "flow_class":flow,
+            "recent5_pressure_shift_research":pressure,
             "taker_flow_15m":evidence,
             "book_proof_v13":book,
             "observation_only":True,"send_allowed":False,
