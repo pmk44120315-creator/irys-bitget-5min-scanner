@@ -1,0 +1,43 @@
+name: IRYS V14 native real 5m verified direction guarded code-only rollout
+on:
+  push:
+    branches: [fix/irys-v14-native-market-evidence-20261029]
+    paths:
+      - 'deployment/IRYS_V14_RELEASE_APPROVED_20261029.txt'
+permissions:
+  contents: read
+concurrency:
+  group: irys-surge-monitor-v14-release-once
+  cancel-in-progress: false
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      IRYS_V7_CF_API_TOKEN: ${{ secrets.IRYS_V7_CF_API_TOKEN }}
+      IRYS_REALTIME_CF_ACCOUNT_ID: ${{ secrets.IRYS_REALTIME_CF_ACCOUNT_ID }}
+      IRYS_V14_RELEASE_ONCE: AUTHORIZED_FROM_REVIEWED_MARKER
+      IRYS_V14_RELEASE_DRY_RUN: '0'
+      IRYS_V14_EXPECTED_SHA256: '5a468168b277b24b9918a7e03ca324f0e25bd2376d49dfd565b158bd1f311b80'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Require exact human-reviewed immutable V14 release marker
+        run: |
+          grep -Fxq 'IRYS_V14_RELEASE_MARKER=REAL_NATIVE_5M_TAKER_CVD_BOOK_VERIFIED_20261029' deployment/IRYS_V14_RELEASE_APPROVED_20261029.txt
+          grep -Fxq 'V14_SHA256=5a468168b277b24b9918a7e03ca324f0e25bd2376d49dfd565b158bd1f311b80' deployment/IRYS_V14_RELEASE_APPROVED_20261029.txt
+          test "$(sha256sum deployment/IRYS_V14_NATIVE_MARKET_EVIDENCE_WORKER.mjs | cut -d' ' -f1)" = "$IRYS_V14_EXPECTED_SHA256"
+      - name: Full existing and V14 native directional regression before production deployment
+        run: |
+          python -m unittest discover -s tests -p 'test_*.py' -v
+          python -m unittest discover -s ai_twin/tests -p 'test_*.py' -v
+          node --check deployment/IRYS_V14_NATIVE_MARKET_EVIDENCE_WORKER.mjs
+          node --check deployment/release-v14-safe.mjs
+          node --test tests/test_irys_v13_directional_outcomes.mjs tests/test_irys_v14_native_direction.mjs
+      - name: Replace ONLY existing irys-surge-monitor source after live V13 source lease and rollback proof
+        run: node deployment/release-v14-safe.mjs
