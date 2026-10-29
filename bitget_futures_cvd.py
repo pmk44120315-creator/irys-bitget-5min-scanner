@@ -238,11 +238,26 @@ def collect_futures_flow_observations(latest, now_ms, api, limit=6, state=None):
         seen.add(sym)
         items.append((q15,sym,o))
     items.sort(key=lambda x:(-x[0],x[1]))
-    selected=items[:limit] if isinstance(limit,int) and 1<=limit<=10 else items[:6]
+    cap=limit if isinstance(limit,int) and 1<=limit<=10 else 6
+    # A prior real book needs one more independent snapshot. Rank it ahead
+    # of a fresh volume spike IF it is still valid in today's price/flow
+    # preselection. Otherwise rotating top-volume lists never complete proof.
+    # No extra entry threshold, API budget, alert, or synthetic data added.
+    pending=[];new=[]
+    for item in items:
+        saved=book_memory.get(item[1])
+        gap=(now_ms-int(saved.get('timestamp_ms',0))) if isinstance(saved,dict) else None
+        if gap is not None and 3*ONE_MIN<=gap<=9*ONE_MIN:
+            pending.append(item)
+        else:
+            new.append(item)
+    selected=(pending+new)[:cap]
     out={"status":"NO_CANDIDATES" if not selected else "EVALUATED",
          "observation_only":True,"alert_eligible":False,
          "source":"Bitget official public futures historical fills pages + exact 15 closed 1m candles",
          "markets_evaluated":len(selected),"markets_eligible_for_proof":len(items),
+         "pending_second_book_count":len(pending),
+         "pending_second_book_selected":min(len(pending),len(selected)),
          "verified_count":0,"rejected_count":0,"classifications":{},
          "observations":[]}
     for _rank,sym,meta in selected:

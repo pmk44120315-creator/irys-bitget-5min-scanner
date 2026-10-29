@@ -208,11 +208,23 @@ def collect_spot_directional(spot, state, now_ms, api):
     # evaluating its already-observed first impulse for 15 minutes, causally.
     now_ms = int(now_ms)
     candidates = {}
-    for raw in spot['early_watch_observations'][:MAX_CHECKED]:
-        if isinstance(raw, dict) and isinstance(raw.get('market'), str):
-            candidates[raw['market']] = raw
-            if raw['market'] not in memory:
-                memory[raw['market']] = {'first_ms': now_ms, 'seed': raw}
+    # The initial turnover prescreen and its daily-price caps are NOT a
+    # prerequisite for actual Bithumb flow review. Merge the existing early
+    # watch with ranked ticker observations; keep official risk blocked.
+    ranked = spot.get('direction_review_seeds', [])
+    if not isinstance(ranked, list):
+        ranked = []
+    watch = list(spot['early_watch_observations'][:MAX_CHECKED]) + ranked[:8]
+    for raw in watch:
+        if not isinstance(raw, dict) or not isinstance(raw.get('market'), str):
+            continue
+        market = raw['market']
+        if market in candidates:
+            continue
+        # Ranking only authorizes independent evidence collection, never a BUY.
+        candidates[market] = raw
+        if market not in memory:
+            memory[market] = {'first_ms': now_ms, 'seed': raw}
     for market, old in list(memory.items()):
         if not isinstance(old, dict) or not 0 <= now_ms - old.get('first_ms', 0) <= 15 * MINUTE:
             memory.pop(market, None)
@@ -221,11 +233,21 @@ def collect_spot_directional(spot, state, now_ms, api):
             candidates[market] = old.get('seed', {})
     warning_now = {x.get('market') for x in spot.get('rally_watch_only', [])
                    if x.get('reason') == 'OFFICIAL_WARNING'}
-    # Matured watches get their second independent check before new pulses
-    # can crowd them out. All 489 markets are still prescreened upstream.
-    ordered = sorted(candidates.items(), key=lambda item: (
-        0 if state['spot_direction_tracking_v13'].get(item[0], {}).get('first_ms', now_ms) < now_ms else 1,
-        item[0]))
+    # API scheduling is NOT an entry condition. Complete real second samples
+    # first, then the original early watch, then ranked price-only research.
+    # The latter was mostly mean-reverting in saved 5m replay; do not let it
+    # starve evidence-backed candidates or treat it as a directional signal.
+    def review_priority(item):
+        market, seed = item
+        old = memory.get(market, {})
+        if isinstance(old, dict) and isinstance(old.get('sample'), dict):
+            return (0, old.get('first_ms', now_ms), market)
+        if seed.get('source_channel') != 'RANKED_PRICE_TURNOVER_REVIEW_ONLY':
+            return (1, old.get('first_ms', now_ms), market)
+        score = finite(seed.get('review_priority_score')) or 0
+        return (3 if seed.get('risk_class') == 'LATE_CHASE_CAUTION' else 2,
+                -score, market)
+    ordered = sorted(candidates.items(), key=review_priority)
     out['queued_for_next_scan'] = max(0, len(ordered) - MAX_CHECKED)
     cvd_consumed = 0
     for market, seed in ordered[:MAX_CHECKED]:
@@ -241,6 +263,7 @@ def collect_spot_directional(spot, state, now_ms, api):
             cvd_consumed += 1
         out['diagnostics'].append({
             'market': market, 'status': res['status'],
+            'candidate_source': seed.get('source_channel', 'EARLY_MOMENTUM_WATCH'),
             'direction': res.get('direction'),
             'normalized_turnover_ratio_floor5m': res.get('normalized_early_turnover_ratio_floor5m'),
             'cvd_status': res.get('cvd_status'),

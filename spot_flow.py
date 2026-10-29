@@ -199,7 +199,7 @@ def collect_spot_flow(now,state,api):
     # Accept 2..8 minute intervals with honest elapsed-time-normalized quote turnover.
     comparison=minutes is not None and 2<=minutes<=8 and previous.get('kst_day')==today
     very_short=minutes is not None and 0<minutes<2 and previous.get('kst_day')==today
-    fresh={};short=[];rally_watch=[];early_watch=[];prescreen_drops={}
+    fresh={};short=[];rally_watch=[];early_watch=[];prescreen_drops={};review_pool=[]
     def record_drop(reason):
         prescreen_drops[reason]=prescreen_drops.get(reason,0)+1
     for listing in markets:
@@ -223,6 +223,26 @@ def collect_spot_flow(now,state,api):
         suspended=t.get('is_trading_suspended') is True or bool(t.get('delisting_date')) or t.get('market_state') not in (None,'ACTIVE')
         prior_price=n(old[0]) if isinstance(old,list) and len(old)>=4 else None
         change=100*(price/prior_price-1) if prior_price and prior_price>0 else None
+        # READ-ONLY REVIEW PRIORITY, not an alert or an additional trade condition.
+        # Prior daily-move / price-chase / volume-ratio ceilings must not hide
+        # candidates from actual taker, orderbook, and native 5m inspection.
+        # Only signed movement, real positive quote turnover and official risk
+        # are used to decide which API calls to budget; they do NOT prove BUY.
+        if (comparison and not warning and not suspended and change is not None
+                and change > 0 and five is not None and five > 0):
+            review_pool.append((
+                change * math.log1p(five / 10_000_000), sym,
+                {'market': sym, 'price_krw': price,
+                 'five_minute_equivalent_turnover_krw': round(five),
+                 'five_minute_prior_ema_krw': past_ema,
+                 'observed_5m_price_change_pct': round(change, 5),
+                 'review_priority_score': round(change * math.log1p(five / 10_000_000), 6),
+                 'risk_class': 'LATE_CHASE_CAUTION'
+                    if change > 3.5 or (daily_pct is not None and daily_pct > .09)
+                    else 'EARLY_MOMENTUM_WATCH',
+                 'source_channel': 'RANKED_PRICE_TURNOVER_REVIEW_ONLY',
+                 'observation_only': True, 'is_buy_signal': False,
+                 'order_allowed': False}))
         # Independent observability only. This must never be put into spot_flow.signals.
         # Explicitly track fast movers that the strict alert preselector rejects.
         if five is not None and five>=25000000 and change is not None and change>=.8:
@@ -289,6 +309,9 @@ def collect_spot_flow(now,state,api):
             record_drop('TURNOVER_OR_RATIO');continue
         short.append((min(five/past_ema,80)*math.log10(1+five/10000000),sym,t))
     short.sort(key=lambda z:(-z[0],z[1]))
+    # In replay, late-chase-only observations reversed more often; priority
+    # is for API review only, NEVER a hard disqualification or BUY proof.
+    review_pool.sort(key=lambda z:(z[2]['risk_class']=='LATE_CHASE_CAUTION',-z[0],z[1]))
     rally_watch.sort(key=lambda x:(-x['observed_5m_price_change_pct'],-x['estimated_5m_turnover_krw'],x['market']))
     # Prefer the first meaningful impulse; cap candidates and preserve full caution.
     early_watch.sort(key=lambda x:(
@@ -330,6 +353,9 @@ def collect_spot_flow(now,state,api):
                 for x in rally_watch) for reason in {x['early_notification_reason'] for x in rally_watch}},
             'early_watch_observations':early_watch[:8],
             'early_watch_total':len(early_watch),
+            'direction_review_seeds':[item for _score,_sym,item in review_pool[:8]],
+            'direction_review_pool_count':len(review_pool),
+            'direction_review_is_signal':False,
             'early_watch_is_buy_signal':False,
             'limitations':{'marketwide_full_CVD':False,'continuous_orderbook_absorption':False,
                  'exchange_inout_whale_tracking':False,'project_lockup':False,
