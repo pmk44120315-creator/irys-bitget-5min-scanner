@@ -1,0 +1,28 @@
+name: IRYS V14 native completed 5m sparse-data causal regression NO DEPLOY
+on:
+  push:
+    branches: [fix/irys-v14-native-market-evidence-20261029]
+    paths:
+      - 'spot_native_structure.py'
+      - 'spot_direction.py'
+      - 'collector.py'
+      - 'tests/**'
+      - '.github/workflows/v14-native-structure-offline.yml'
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Compile source and run all original and new Python tests
+        run: |
+          python -m py_compile spot_native_structure.py spot_direction.py spot_flow.py spot_continuity.py collector.py bitget_futures_cvd.py
+          python -m unittest discover -s tests -p 'test_*.py' -v
+          python -m unittest discover -s ai_twin/tests -p 'test_*.py' -v
+      - name: Confirm GitHub real public Bithumb ticker, book and execution schemas
+        run: python smoke_spot_public_api.py
