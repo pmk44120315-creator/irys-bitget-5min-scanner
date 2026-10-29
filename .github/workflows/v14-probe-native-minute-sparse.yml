@@ -1,0 +1,20 @@
+name: IRYS V14 official sparse 1m versus native completed 5m probe NO DEPLOY
+on:
+  push:
+    branches: [fix/irys-v14-native-market-evidence-20261029]
+    paths:
+      - 'audits/v14_live_sparse_candle_probe.py'
+      - '.github/workflows/v14-probe-native-minute-sparse.yml'
+permissions:
+  contents: read
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Inspect official live 1m and independently completed 5m candlesticks
+        run: python -m audits.v14_live_sparse_candle_probe
