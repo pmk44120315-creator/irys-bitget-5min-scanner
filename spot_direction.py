@@ -208,11 +208,23 @@ def collect_spot_directional(spot, state, now_ms, api):
     # evaluating its already-observed first impulse for 15 minutes, causally.
     now_ms = int(now_ms)
     candidates = {}
-    for raw in spot['early_watch_observations'][:MAX_CHECKED]:
-        if isinstance(raw, dict) and isinstance(raw.get('market'), str):
-            candidates[raw['market']] = raw
-            if raw['market'] not in memory:
-                memory[raw['market']] = {'first_ms': now_ms, 'seed': raw}
+    # The initial turnover prescreen and its daily-price caps are NOT a
+    # prerequisite for actual Bithumb flow review. Merge the existing early
+    # watch with ranked ticker observations; keep official risk blocked.
+    ranked = spot.get('direction_review_seeds', [])
+    if not isinstance(ranked, list):
+        ranked = []
+    watch = list(spot['early_watch_observations'][:MAX_CHECKED]) + ranked[:8]
+    for raw in watch:
+        if not isinstance(raw, dict) or not isinstance(raw.get('market'), str):
+            continue
+        market = raw['market']
+        if market in candidates:
+            continue
+        # Ranking only authorizes independent evidence collection, never a BUY.
+        candidates[market] = raw
+        if market not in memory:
+            memory[market] = {'first_ms': now_ms, 'seed': raw}
     for market, old in list(memory.items()):
         if not isinstance(old, dict) or not 0 <= now_ms - old.get('first_ms', 0) <= 15 * MINUTE:
             memory.pop(market, None)
@@ -241,6 +253,7 @@ def collect_spot_directional(spot, state, now_ms, api):
             cvd_consumed += 1
         out['diagnostics'].append({
             'market': market, 'status': res['status'],
+            'candidate_source': seed.get('source_channel', 'EARLY_MOMENTUM_WATCH'),
             'direction': res.get('direction'),
             'normalized_turnover_ratio_floor5m': res.get('normalized_early_turnover_ratio_floor5m'),
             'cvd_status': res.get('cvd_status'),
