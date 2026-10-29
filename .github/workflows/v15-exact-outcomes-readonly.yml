@@ -1,0 +1,23 @@
+name: IRYS V15 official exact 1m post-signal outcomes READ ONLY NO DEPLOY
+on:
+  push:
+    branches: [fix/irys-v15-flow-causal-proof-20261029]
+    paths:
+      - 'audits/v15_exact_futures_outcome.py'
+      - '.github/workflows/v15-exact-outcomes-readonly.yml'
+permissions:
+  contents: read
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Audit official Bitget 1m post-candidate returns and excursion evidence
+        run: |
+          python -m py_compile audits/v15_exact_futures_outcome.py
+          python -m audits.v15_exact_futures_outcome
