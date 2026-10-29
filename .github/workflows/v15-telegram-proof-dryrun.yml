@@ -15,7 +15,7 @@ jobs:
       IRYS_REALTIME_CF_ACCOUNT_ID: ${{ secrets.IRYS_REALTIME_CF_ACCOUNT_ID }}
       IRYS_V14_RELEASE_ONCE: AUTHORIZED_FROM_REVIEWED_MARKER
       IRYS_V14_RELEASE_DRY_RUN: '1'
-      IRYS_V14_EXPECTED_SHA256: '48caae284be09d13004340a1c3167754acdfdf33d2d6a8a9c05a93b4c4143e2a'
+      IRYS_V14_EXPECTED_SHA256: 'ee166d49a0107d78fc747ca1f1b564e6af28b729ae3a0a5e716a89c9a2e2c52a'
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
