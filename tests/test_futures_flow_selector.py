@@ -1,6 +1,7 @@
 import datetime as dt
 import unittest
 from copy import deepcopy
+from unittest.mock import patch
 from bitget_futures_cvd import collect_futures_flow_observations
 
 MIN=60000
@@ -41,6 +42,33 @@ class FuturesSelector(unittest.TestCase):
         self.assertFalse(result["observations"][0]["send_allowed"])
         self.assertFalse(result["alert_eligible"])
         self.assertFalse(result["observations"][0]["position_direction_verified"])
+
+    def test_unfinished_real_book_gets_priority_for_second_read_without_extra_api(self):
+        # A late-arriving higher-volume symbol must not permanently displace
+        # an already sampled instrument waiting for its real second book.
+        small=market("BANKUSDT")
+        small["windows"]["15m"]["quote_turnover"]=25_000
+        large=market("HIGHUSDT")
+        large["windows"]["15m"]["quote_turnover"]=250_000
+        state={"futures_book_snapshots_v13":{"BANKUSDT":{
+            "timestamp_ms":NOW-5*MIN, "bid_ask_top5_ratio":1.1,
+            "spread_pct":.1,"continuous_absorption_verified":False}}}
+        with patch("bitget_futures_cvd.verify_taker_flow",
+                   return_value={"verified":False,"reason":"NO_REAL_FILLS"}) as fills, \
+             patch("bitget_futures_cvd.paired_futures_books",
+                   return_value={"status":"WAIT_SECOND_BOOK","snapshots":[],
+                                 "continuous_absorption_verified":False}) as books:
+            out=collect_futures_flow_observations(
+                {"collector_status":"PASS","watchlist":[large,small],"early_pool":[]},
+                NOW,lambda *a:None,limit=1,state=state)
+        self.assertEqual(out["markets_eligible_for_proof"],2)
+        self.assertEqual(out["markets_evaluated"],1)
+        self.assertEqual(out["pending_second_book_count"],1)
+        self.assertEqual(out["pending_second_book_selected"],1)
+        self.assertEqual(out["observations"][0]["symbol"],"BANKUSDT")
+        self.assertFalse(out["alert_eligible"])
+        fills.assert_called_once()
+        books.assert_called_once()
 
     def test_rwa_stocks_and_unverified_market_never_selected(self):
         for change in [
