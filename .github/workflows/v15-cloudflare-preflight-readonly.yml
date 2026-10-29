@@ -1,0 +1,31 @@
+name: IRYS V15 exact-time causal Cloudflare source-lease READ ONLY
+on:
+  push:
+    branches: [fix/irys-v15-flow-causal-proof-20261029]
+    paths:
+      - '.github/workflows/v15-cloudflare-preflight-readonly.yml'
+      - 'deployment/release-v15-safe.mjs'
+permissions:
+  contents: read
+jobs:
+  read-only:
+    runs-on: ubuntu-latest
+    env:
+      IRYS_V7_CF_API_TOKEN: ${{ secrets.IRYS_V7_CF_API_TOKEN }}
+      IRYS_REALTIME_CF_ACCOUNT_ID: ${{ secrets.IRYS_REALTIME_CF_ACCOUNT_ID }}
+      IRYS_V14_RELEASE_ONCE: AUTHORIZED_FROM_REVIEWED_MARKER
+      IRYS_V14_RELEASE_DRY_RUN: '1'
+      IRYS_V14_EXPECTED_SHA256: 'fd354584917b332c2091ca5c026fd348a1ba852bf1ed42064b02a58bc5d83e9f'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify hash, source parser and release-script syntax
+        run: |
+          node --check deployment/IRYS_V14_NATIVE_MARKET_EVIDENCE_WORKER.mjs
+          node --check deployment/release-v15-safe.mjs
+          node --check deployment/parse-cloudflare-script.mjs
+          test "$(sha256sum deployment/IRYS_V14_NATIVE_MARKET_EVIDENCE_WORKER.mjs | cut -d' ' -f1)" = "$IRYS_V14_EXPECTED_SHA256"
+      - name: Get current V14 source, preserved KV/AI/Telegram/GitHub, Cron and dry-run lease
+        run: node deployment/release-v15-safe.mjs
