@@ -72,9 +72,19 @@ def evaluate_market(seed, previous, now_ms, api, permit_cvd=True):
     # live trades, real books or CVD and assume the future direction.
     result['late_chase_caution'] = seed.get('risk_class') == 'LATE_CHASE_CAUTION'
     try:
-        raw = api('bithumb', '/v1/candles/minutes/1', {'market': market, 'count': 80})
-        native_raw = api('bithumb', '/v1/candles/minutes/5',
-                         {'market': market, 'count': 24})
+        # Independent public data streams must not falsely turn a 5m outage
+        # into an unavailable taker or book. Missing price remains WAIT.
+        try:
+            raw = api('bithumb', '/v1/candles/minutes/1', {'market': market, 'count': 80})
+        except Exception as exc:
+            raw = []
+            result['one_minute_api_error'] = type(exc).__name__
+        try:
+            native_raw = api('bithumb', '/v1/candles/minutes/5',
+                             {'market': market, 'count': 24})
+        except Exception as exc:
+            native_raw = []
+            result['native_five_minute_api_error'] = type(exc).__name__
         bars = candles(raw, now_ms)
         native = parse_native_five(native_raw, now_ms)
         structure = market_structure(bars, now_ms, native)
