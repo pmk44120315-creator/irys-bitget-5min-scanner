@@ -47,6 +47,10 @@ class FuturesSelector(unittest.TestCase):
         self.assertIs(shift["observation_only"],True)
         self.assertLess(shift["recent_5m_net_taker_usdt"],0)
         self.assertEqual(shift["recent_5m_trades"],20)
+        self.assertAlmostEqual(shift["signed_price_response_pct"],.6)
+        self.assertIsNone(shift["actual_5m_close_location_in_range"])
+        self.assertIs(shift["book_measurement_is_absorption_proof"],False)
+        self.assertIs(shift["direction_signal"],False)
 
     def test_rwa_stocks_and_unverified_market_never_selected(self):
         for change in [
