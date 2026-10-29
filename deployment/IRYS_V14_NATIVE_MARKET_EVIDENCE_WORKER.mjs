@@ -10,7 +10,7 @@
  * Env existing: IRYS_KV, GITHUB_DISPATCH_TOKEN, TELEGRAM_BOT_TOKEN,
  * TELEGRAM_CHAT_ID. Existing 5m Cron remains unchanged.
  */
-const VERSION='IRYS-V14-NATIVE-MARKET-EVIDENCE-20261029';
+const VERSION='IRYS-V15-CAUSAL-PRICE-FLOW-ALIGNMENT-20261030';
 // Safety: AI market interpretations can inform review, but cannot bypass verified sustained-spot proof.
 const AI_ALERT_TRANSPORT_ENABLED=false;
 const ROOT='https://raw.githubusercontent.com/pmk44120315-creator/irys-bitget-5min-scanner/main/data/latest.json';
@@ -634,6 +634,12 @@ function futuresSnapshotProof(snapshot,o,now){
      contract.contract_status!=='normal'||contract.symbolType!=='perpetual'||
      contract.quoteCoin!=='USDT')return null;
   const e=o.taker_flow_15m,flow=o.flow_class;
+  // The first all-market candle pass and the selected-fill pass occur
+  // several minutes apart. A directional signal requires fresh re-read
+  // completed candles aligned to the EXACT same taker window.
+  if(o.price_context_status!=='ALIGNED_REAL_OFFICIAL_1M_CONTEXT'||!e||
+     o.price_context_end_ms!==e.end_ms||
+     contract.windows?.end_utc_ms!==e.end_ms)return null;
   if(!e||e.verified!==true||e.observation_only!==true||
      e.full_exchange_local_public_taker_flow_verified!==true||
      e.marketwide_all_exchanges_cvd_verified!==false||
@@ -711,7 +717,9 @@ function evaluateFutures(state,snap,now){
     results.inspected++;
     const proof=futuresSnapshotProof(snap,obs,now);
     if(!proof){
-      if(obs?.book_proof_v13?.status!=='TWO_DISTINCT_BOOK_SNAPSHOTS')
+      if(obs?.price_context_status!=='ALIGNED_REAL_OFFICIAL_1M_CONTEXT')
+        reject('PRICE_FILL_INTERVAL_NOT_ALIGNED');
+      else if(obs?.book_proof_v13?.status!=='TWO_DISTINCT_BOOK_SNAPSHOTS')
         reject('TWO_DISTINCT_FUTURES_BOOKS_UNAVAILABLE');
       else reject('CONTRACT_OR_DATA_OR_DIRECTION_NOT_VERIFIED');
       continue;
@@ -1340,8 +1348,8 @@ async function scheduledCore(env,now=Date.now(),preDispatch=null){
       qualified:futuresRun.qualified,confirmed:futuresRun.confirmed,
       sent:futuresSent,skipped_duplicates:futuresSkipped,send_error:futuresSendError,
       reasons:futuresRun.reasons,proof_type:'15m public futures fills, two snapshots; not long/short position owners'},
-    alertContract:'V14_NATIVE_COMPLETED_5M_2_BOOK_TAKER_15M_RECONCILED_LOCAL_CVD',aiDirectTransportEnabled:AI_ALERT_TRANSPORT_ENABLED,
-    note:'V14 real native 5m context instead of 20 consecutive 1m; venue-local 15m taker CVD + distinct books. Bitget OI is contextual, not a forced direction sign. No 1m zero-fill, no all-exchange CVD, no future accuracy claim, no orders.'};
+    alertContract:'V15_EXACT_SAME_MINUTE_PRICE_TAKER_CONTEXT_2_BOOK_15M_REAL_CVD',aiDirectTransportEnabled:AI_ALERT_TRANSPORT_ENABLED,
+    note:'V15 causal alignment requires selected Bitget completed price candles and venue-local 15m fills to share exact end timestamp. Separate real books plus price/taker proof remain required. No zero-fill, no all-exchange CVD, no guaranteed future accuracy, no orders.'};
   await env.IRYS_KV.put(STATE,JSON.stringify(state));
   console.log(JSON.stringify(state.last));
   if(sendError||futuresSendError||directionalRun.send_error&&
