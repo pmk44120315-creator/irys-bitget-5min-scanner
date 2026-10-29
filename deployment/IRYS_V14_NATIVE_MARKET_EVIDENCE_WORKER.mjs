@@ -881,13 +881,13 @@ function validDirectionalProof(p,now){
      val(s.closed_15m_turnover_krw)>0;
   // Old 20-consecutive-1m requirement is intentionally NOT a native-data gate.
   if(price===null||price<=0||!s||s.status!=='PASS'||
-     (native?!nativeProvenance:s.closed_20m_candles!==true)||
+     !nativeProvenance||
      val(s.close)===null||Math.abs(s.close/price-1)>.0001||
      !Array.isArray(f)||f.length!==2||!c||c.verified!==true||
      c.marketwide_cvd_verified!==false||!Number.isSafeInteger(c.start_ms)||
      !Number.isSafeInteger(c.end_ms)||c.start_ms%60000!==0||
      c.end_ms-c.start_ms!==15*60000||
-     c.end_ms!==(native?s.anchor_end_ms:Math.floor(p.observed_ms/60000)*60000)||
+     c.end_ms!==s.anchor_end_ms||
      val(c.candle_relative_error)===null||c.candle_relative_error<0||c.candle_relative_error>.005||
      !Array.isArray(c.blocks)||c.blocks.length!==3)return null;
   const up=p.direction==='UP';
@@ -895,9 +895,7 @@ function validDirectionalProof(p,now){
   const p5=val(s.price_5m_pct),p15=val(s.price_15m_pct),wick=val(up?s.upper_wick_5m_ratio:s.lower_wick_5m_ratio);
   if(p5===null||p15===null||wick===null||wick<0||wick>1)return null;
   // Use signed real price/trade alignment, not made-up % cutoffs.
-  if(native?(up?!(p5>0&&p15>0):!(p5<0&&p15<0)):
-     (up?!(p5>=.15&&p5<=3.8&&p15>=.25&&p15<=6.5):
-         !(p5<=-.15&&p5>=-3.8&&p15<=-.25&&p15>=-6.5)))return null;
+  if(up?!(p5>0&&p15>0):!(p5<0&&p15<0))return null;
   let prev=null;
   for(const snap of f){
     const book=snap?.book,ts=val(snap?.time_ms),bt=val(book?.timestamp_ms),
