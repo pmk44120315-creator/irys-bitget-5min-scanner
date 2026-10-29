@@ -85,7 +85,7 @@ test('official warning/suspended listing is hard, arbitrary daily gain or 1.5pct
     globalThis.fetch=fakeRisk({price:101,daily:.30});
     const checked=await officialDirectionalRiskCheck([p]);
     assert.equal(checked.length,1);
-    assert.equal(checked[0].post_evidence_price_change_pct,1);
+    assert.ok(Math.abs(checked[0].post_evidence_price_change_pct-1)<1e-10);
     globalThis.fetch=fakeRisk({warning:true,price:101});
     assert.equal((await officialDirectionalRiskCheck([p])).length,0);
     globalThis.fetch=fakeRisk({price:99});
