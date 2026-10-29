@@ -617,11 +617,11 @@ function validFuturesBookProof(o,side,now){
      now-t1>12*60000||s0<0||s1<0||s0>.8||s1>.8||
      old.continuous_absorption_verified!==false||
      cur.continuous_absorption_verified!==false)return null;
-  if(side==='LONG'?(r0<1||r1<1.05):(r0>1||r1>.95))return null;
+  if(side==='LONG'?(r0<1||r1<1):(r0>1||r1>1))return null;
   return {observations:2,latest_bid_ask_top5_ratio:r1,
     no_continuous_absorption_claim:true};
 }
-const FUT_MAX_AGE_MS=12*60000,FUT_CHECKS_MS=8*60000,FUT_COOLDOWN_MS=2*3600000;
+const FUT_MAX_AGE_MS=12*60000,FUT_COOLDOWN_MS=2*3600000;
 function futuresSnapshotProof(snapshot,o,now){
   if(!snapshot||snapshot.collector_status!=='PASS')return null;
   const sym=o?.symbol;
@@ -655,11 +655,11 @@ function futuresSnapshotProof(snapshot,o,now){
      f.baseline_coverage!==1||q.baseline_coverage!==1||
      !oi||oi.status!=='OK'||oiAt===null||oiDelta===null||oiElapsed===null||
      oiElapsed<3||oiElapsed>9||oiAt>now+60000||now-oiAt>FUT_MAX_AGE_MS||
-     oiDelta<-.05||oiDelta>12||fund===null||Math.abs(fund)>.001)return null;
+     false)return null; // OI delta and funding are observed context, NOT a forced LONG/SHORT sign.
   const blocks=e.blocks,total=val(e.taker_turnover_usdt),candle=val(e.candle_turnover_usdt);
   const relative=val(e.candle_relative_error),net=val(e.net_buy_usdt),share=val(e.buy_share);
   const q5=val(f.quote_turnover),q15=val(q.quote_turnover);
-  if(!Array.isArray(blocks)||blocks.length!==3||total===null||total<30000||
+  if(!Array.isArray(blocks)||blocks.length!==3||total===null||
      candle===null||candle<=0||relative===null||relative<0||relative>.005||
      Math.abs(total-candle)/candle>.005||q5===null||q15===null||net===null||share===null||
      q15<=0||Math.abs(q15-total)/total>.30||
@@ -667,23 +667,22 @@ function futuresSnapshotProof(snapshot,o,now){
        !Number.isInteger(b.trades)||b.trades<10||
        val(b.buy_share)===null||val(b.net_buy_usdt)===null))return null;
   const newest=blocks[2],lastQuote=val(newest.buy_usdt)+val(newest.sell_usdt);
-  if(lastQuote<5000)return null;
+  if(lastQuote===null||lastQuote<=0)return null; // Valid observed last block, no arbitrary notional floor.
   const pct5=val(f.price_change_pct),pct15=val(q.price_change_pct),pct60=val(hour.price_change_pct);
   const open5=val(f.open),close=val(f.close),high5=val(f.high),low5=val(f.low);
   const open15=val(q.open),close15=val(q.close),high15=val(q.high),low15=val(q.low);
   if([pct5,pct15,pct60,open5,close,high5,low5,open15,close15,high15,low15].some(x=>x===null)||
-     close<=0||high5<=low5||high15<=low15||Math.abs(pct60)>7||
-     pct15< -4||pct15>4)return null;
+     close<=0||high5<=low5||high15<=low15)return null;
   const topWick=(high5-Math.max(open5,close))/(high5-low5);
   const bottomWick=(Math.min(open5,close)-low5)/(high5-low5);
   const top15=(high15-Math.max(open15,close15))/(high15-low15);
   const bottom15=(Math.min(open15,close15)-low15)/(high15-low15);
   const longGood=flow==='SUSTAINED_FUTURES_TAKER_BUY_PRESSURE'&&
-    pct5>=.12&&pct5<=1.8&&pct15>=.25&&pct15<=3.5&&share>=.62&&net>4000&&
+    pct5>0&&pct15>0&&share>=.62&&net>4000&&
     blocks.every(b=>b.net_buy_usdt>0&&b.buy_share>=.58)&&
     newest.net_buy_usdt>=2500&&newest.buy_share>=.62&&topWick<=.38&&top15<=.43;
   const shortGood=flow==='SUSTAINED_FUTURES_TAKER_SELL_PRESSURE'&&
-    pct5<=-.12&&pct5>=-1.8&&pct15<=-.25&&pct15>=-3.5&&share<=.38&&net< -4000&&
+    pct5<0&&pct15<0&&share<=.38&&net< -4000&&
     blocks.every(b=>b.net_buy_usdt<0&&b.buy_share<=.42)&&
     newest.net_buy_usdt<=-2500&&newest.buy_share<=.38&&bottomWick<=.38&&bottom15<=.43;
   if(!longGood&&!shortGood)return null;
@@ -721,19 +720,17 @@ function evaluateFutures(state,snap,now){
     if(seen.has(proof.symbol)){reject('DUPLICATE_SYMBOL');continue;}
     seen.add(proof.symbol);results.qualified++;
     const p=prev[proof.symbol];
-    if(p?.asof_ms===proof.asof_ms)continue;
-    if(p&&p.direction===proof.direction&&
-       proof.asof_ms-p.asof_ms>=4*60000&&proof.asof_ms-p.asof_ms<=FUT_CHECKS_MS&&
-       proof.oi_delta_pct+p.oi_delta_pct>=.12&&
-       proof.oi_delta_pct>=.02&&p.oi_delta_pct>=.02&&
-       (proof.direction==='LONG'?
-           proof.price/p.price>=1.00035&&proof.price/p.price<=1.020:
-           proof.price/p.price<=.99965&&proof.price/p.price>=.980)){
-      results.signals.push({...proof,checks:2,distinct_recent_5m:true,
-        evidence_type:'VERIFIED_15M_FUTURES_TAKER_PRESSURE_2_SNAPSHOTS',
-        position_owners_verified:false,all_exchanges_verified:false,
-        direction_accuracy_verified:false});
+    if(p?.asof_ms===proof.asof_ms){
+      reject('DUPLICATE_SOURCE_SNAPSHOT');continue;
     }
+    // Two independently timed real books and 15 closed 1m candles reconciled
+    // with actual fills are already required by futuresSnapshotProof().
+    // A *third* confirmation cycle and positive OI gate delay early trends
+    // and do not identify whether positions are newly long or newly short.
+    results.signals.push({...proof,book_snapshots:2,distinct_recent_5m:true,
+      evidence_type:'VERIFIED_VENUE_15M_TAKER_AND_TWO_DISTINCT_BOOKS',
+      position_owners_verified:false,all_exchanges_verified:false,
+      direction_accuracy_verified:false});
     prev[proof.symbol]=proof;
   }
   for(const [key,p] of Object.entries(prev))
