@@ -195,9 +195,9 @@ async function telegramTransportProofOnce(env,now){
   }catch(_e){return {status:'KV_RESERVATION_FAILED_NO_SEND'};}
   try{
     const ack=await telegram(env,
-      '🔧 [아이리스형 급등 초기 감시 · Telegram 연결 시험]\\n'+
-      '5분 감시기의 텔레그램 발송 기능을 확인하는 일회성 시험입니다.\\n'+
-      '⚠️ 매수·롱·숏 신호 또는 진입 추천이 아닙니다.\\n'+
+      '🔧 [아이리스형 급등 초기 감시 · Telegram 연결 시험]\n'+
+      '5분 감시기의 텔레그램 발송 기능을 확인하는 일회성 시험입니다.\n'+
+      '⚠️ 매수·롱·숏 신호 또는 진입 추천이 아닙니다.\n'+
       '시험 시각: '+time);
     const proof={status:'TELEGRAM_API_ACK',at:time,message_id:ack.message_id};
     try{await env.IRYS_KV.put(TRANSPORT_PROOF_KEY,JSON.stringify(proof),
