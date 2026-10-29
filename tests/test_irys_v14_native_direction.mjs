@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import {spawnSync} from 'node:child_process';
 import {
   validDirectionalProof,directionalMessage,officialDirectionalRiskCheck,scheduledCore
 } from '../deployment/IRYS_V14_NATIVE_MARKET_EVIDENCE_WORKER.mjs';
@@ -132,4 +133,20 @@ test('native directional alert requires real evidence; price/turnover-only candi
     assert.equal(stateWrites.length,1);
     assert.equal(state.spotOutcomesV13.length,1);
   }finally{globalThis.fetch=saved;}
+});
+
+test('EXACT Python V14 sparse 1m/native 5m/15m taker proof is accepted by Node before any Telegram',()=>{
+  const call=spawnSync('python',['tests/v14_python_proof_fixture.py'],
+       {encoding:'utf8',timeout:15000,env:{...process.env,PYTHONPATH:process.cwd()}});
+  assert.equal(call.status,0,call.stderr);
+  const proof=JSON.parse(call.stdout);
+  assert.equal(proof.structure.closed_20m_candles,false);
+  assert.equal(proof.structure.source,'BITHUMB_OFFICIAL_COMPLETED_NATIVE_5M_AND_TRADE_1M');
+  assert.equal(proof.structure.closed_15m_turnover_verified_by_taker,true);
+  const valid=validDirectionalProof(proof,proof.observed_ms+M);
+  assert.ok(valid,'Cross-language proof must not be falsely blocked');
+  const bad=structuredClone(proof);
+  bad.taker_flow_15m.end_ms+=M;
+  assert.equal(validDirectionalProof(bad,proof.observed_ms+M),null,
+       'Never accept a CVD that is not the native 15m exact window');
 });
