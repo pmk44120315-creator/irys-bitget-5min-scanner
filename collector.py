@@ -400,6 +400,92 @@ def gather(now_utc=None,old_state=None,fetch_markets=get_markets,fetch_warnings=
     state['last_collector_utc']=now_utc.isoformat()
     return latest,state
 
+def align_futures_flow_price_context(latest, fetch_candles=get_candles):
+    """Re-read selected futures prices at the EXACT proven public fill end.
+
+    Full-universe candle snapshot starts 2-4m before this flow review. Mixing
+    those old 5m/15m prices with later 15m fills silently invalidates direction
+    and quote-turnover checks precisely at high-volatility transitions.
+
+    This adds only a handful of read-only official candle requests. Never
+    synthesize candles, overwrite missing prices as success, or assert trades.
+    """
+    flow=latest.get('futures_flow') or {}
+    obs=flow.get('observations')
+    if not isinstance(obs,list):
+        return {'status':'NO_FUTURES_OBSERVATIONS','checked':0,'aligned':0,'failed':0}
+    by_symbol={}
+    for contract in list(latest.get('watchlist') or [])+list(latest.get('early_pool') or []):
+        if contract.get('venue')=='bitget' and isinstance(contract.get('symbol'),str):
+            by_symbol.setdefault(contract['symbol'],[]).append(contract)
+    count=aligned=failed=0
+    for row in obs:
+        symbol=row.get('symbol')
+        items=by_symbol.get(symbol,[])
+        if not items:
+            row['price_context_status']='CONTRACT_NOT_IN_SOURCE_WATCHLIST'
+            failed+=1
+            continue
+        taker=row.get('taker_flow_15m') or {}
+        end=taker.get('end_ms') if taker.get('verified') is True else row.get('observed_ms')
+        count+=1
+        if not isinstance(end,int) or end%60000:
+            row['price_context_status']='INVALID_EXECUTION_ANCHOR'
+            failed+=1
+            continue
+        try:
+            new=fetch_candles(items[0],end)
+        except Exception as exc:
+            row['price_context_status']='OFFICIAL_PRICE_REFRESH_ERROR'
+            row['price_context_error_type']=type(exc).__name__
+            failed+=1
+            continue
+        minute=(new.get('1m') or {}) if isinstance(new,dict) else {}
+        five=(new.get('5m') or {}) if isinstance(new,dict) else {}
+        fifteen=(new.get('15m') or {}) if isinstance(new,dict) else {}
+        if (not isinstance(new,dict) or new.get('end_utc_ms')!=end or
+                minute.get('coverage')!=1 or five.get('coverage')!=1 or
+                fifteen.get('coverage')!=1):
+            row['price_context_status']='UNVERIFIED_OR_SPARSE_COMPLETED_1M_PRICE'
+            failed+=1
+            continue
+        # For completed identical intervals the independently published candle
+        # turnover and previously reconciled taker turnover must agree.
+        candle_value=number(fifteen.get('quote_turnover'))
+        taker_value=number(taker.get('taker_turnover_usdt'))
+        if taker.get('verified') is True and (not candle_value or not taker_value or
+                abs(candle_value-taker_value)/taker_value>.005):
+            row['price_context_status']='SAME_TIME_PRICE_TAKER_TURNOVER_MISMATCH'
+            row['price_context_relative_error']=(
+                round(abs(candle_value-taker_value)/taker_value,6)
+                if taker_value and candle_value is not None else None)
+            failed+=1
+            continue
+        for contract in items:
+            contract['windows']=new
+        row['price_context_status']='ALIGNED_REAL_OFFICIAL_1M_CONTEXT'
+        row['price_context_end_ms']=end
+        row['window_5m_price_pct']=five.get('price_change_pct')
+        row['window_15m_price_pct']=fifteen.get('price_change_pct')
+        recent=row.get('recent5_pressure_shift_research')
+        if isinstance(recent,dict):
+            signed=number(recent.get('recent_5m_net_taker_usdt'))
+            p5=number(five.get('price_change_pct'))
+            if signed is not None and p5 is not None:
+                recent['recent_5m_price_change_pct']=p5
+                recent['signed_price_response_pct']=round(p5 if signed>0 else -p5,6)
+                recent['recent_flow_price_same_sign']=(
+                    (signed>0 and p5>0) or (signed<0 and p5<0))
+            high,low,close=(number(five.get(k)) for k in ('high','low','close'))
+            if (None not in (high,low,close) and high>low and low<=close<=high):
+                recent['actual_5m_close_location_in_range']=round(
+                    (close-low)/(high-low),6)
+            recent['price_time_alignment_verified']=True
+        aligned+=1
+    return {'status':'EVALUATED','checked':count,'aligned':aligned,'failed':failed,
+            'source':'Bitget official actual completed 1m candles at exact execution window'}
+
+
 def reconcile_bithumb_spot_stats(latest):
     """Report separately collected Bithumb listings/tickers truthfully.
 
@@ -477,6 +563,16 @@ def main():
             latest['futures_flow']={'status':'FAILED','observations':[],
                 'alert_eligible':False,'observation_only':True,
                 'error':type(exc).__name__+': '+str(exc)[:150]}
+        # Price and taker proof MUST refer to identical completed minute windows.
+        # Underlying full-market scan runs 2-4m before selected taker verification.
+        try:
+            latest['futures_price_time_alignment']=align_futures_flow_price_context(latest)
+        except Exception as exc:
+            latest['futures_price_time_alignment']={
+                'status':'FAILED','error_type':type(exc).__name__,
+                'aligned':0,'failed':len((latest.get('futures_flow') or {}).get('observations') or [])}
+            for row in (latest.get('futures_flow') or {}).get('observations') or []:
+                row['price_context_status']='UNVERIFIED_ALIGNMENT_EXCEPTION'
         # Mark actual completion only after both futures and spot observation work.
         latest['finished_utc']=utc_now().isoformat()
         write_json_atomic(LATEST,latest)
