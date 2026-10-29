@@ -654,8 +654,7 @@ function futuresSnapshotProof(snapshot,o,now){
   if(!f||!q||!hour||f.coverage!==1||q.coverage!==1||hour.coverage!==1||
      f.baseline_coverage!==1||q.baseline_coverage!==1||
      !oi||oi.status!=='OK'||oiAt===null||oiDelta===null||oiElapsed===null||
-     oiElapsed<3||oiElapsed>9||oiAt>now+60000||now-oiAt>FUT_MAX_AGE_MS||
-     false)return null; // OI delta and funding are observed context, NOT a forced LONG/SHORT sign.
+     oiElapsed<3||oiElapsed>9||oiAt>now+60000||now-oiAt>FUT_MAX_AGE_MS)return null; // OI/funding direction is context, not a gate.
   const blocks=e.blocks,total=val(e.taker_turnover_usdt),candle=val(e.candle_turnover_usdt);
   const relative=val(e.candle_relative_error),net=val(e.net_buy_usdt),share=val(e.buy_share);
   const q5=val(f.quote_turnover),q15=val(q.quote_turnover);
