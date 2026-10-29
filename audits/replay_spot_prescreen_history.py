@@ -54,7 +54,15 @@ def load_history():
                 or len(prices)<100):
             invalid+=1
             continue
-        stamp=latest.get("collector_utc")
+        # The collector_utc field marks the START of a 2-3 minute run.
+        # spot_fast.time_ms is stamped near its END during spot_flow reads.
+        # Compare equal-stage clocks, otherwise almost every valid 5m run
+        # is falsely thrown away as a "stale" replay snapshot.
+        spot=latest.get("spot_flow",{})
+        if not isinstance(spot,dict) or spot.get("status")!="PASS":
+            invalid+=1
+            continue
+        stamp=spot.get("observed_utc")
         try:
             actual=int(dt.datetime.fromisoformat(stamp).timestamp()*1000)
         except (ValueError,TypeError,AttributeError):
