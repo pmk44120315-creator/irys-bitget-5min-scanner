@@ -102,14 +102,14 @@ test('offline simulated Telegram only receives verified LONG and preserves recei
   const env={IRYS_KV:{
     get:async()=>state?JSON.stringify(state):null,
     put:async(k,v)=>{if(k==='irys:fast:state:v1')state=JSON.parse(v);}
-  },TELEGRAM_BOT_TOKEN:'OFFLINE_FAKE_TOKEN',TELEGRAM_CHAT_ID:'123'};
+  },TELEGRAM_BOT_TOKEN:'OFFLINE_FAKE_TOKEN',TELEGRAM_CHAT_ID:'123456789'};
   globalThis.fetch=async(url,opts={})=>{
     const s=String(url);
     if(s.startsWith('https://raw.githubusercontent.com/'))
       return new Response(JSON.stringify(snap),{status:200});
     if(s.includes('/sendMessage')){
       sent.push(JSON.parse(opts.body).text);
-      return new Response(JSON.stringify({ok:true,result:{message_id:987,chat:{id:123}}}),{status:200});
+      return new Response(JSON.stringify({ok:true,result:{message_id:987,chat:{id:123456789}}}),{status:200});
     }
     throw Error('UNEXPECTED_API_CALL '+s);
   };
