@@ -1,0 +1,23 @@
+name: IRYS V14 first real 5m Cron native-direction production READ ONLY
+on:
+  push:
+    branches: [fix/irys-v14-native-market-evidence-20261029]
+    paths:
+      - 'deployment/check-v14-live.mjs'
+      - '.github/workflows/v14-live-health-readonly.yml'
+permissions:
+  contents: read
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      IRYS_V7_CF_API_TOKEN: ${{ secrets.IRYS_V7_CF_API_TOKEN }}
+      IRYS_REALTIME_CF_ACCOUNT_ID: ${{ secrets.IRYS_REALTIME_CF_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Confirm source SHA, 5m Cron, unchanged bindings and first actual V14 directional/outcome run
+        run: node deployment/check-v14-live.mjs
