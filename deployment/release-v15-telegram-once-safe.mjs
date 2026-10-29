@@ -73,7 +73,7 @@ async function main(){
   const source=candidate.toString('utf8');
   check(source.includes("const VERSION='IRYS-V15-TELEGRAM-TRANSPORT-PROOF-20261030'")&&
     source.includes('async function telegramTransportProofOnce(')&&
-    source.includes('TRANSPORT_PROOF_KEY')&&
+    source.includes('TRANSPORT_PROOF_CLAIM_KEY')&&source.includes('TRANSPORT_PROOF_RESULT_KEY')&&
     source.includes('/bot[REDACTED]/sendMessage'),'V15_TELEGRAM_DIAGNOSTIC_MARKER_MISSING');
   check(source.includes('const AI_ALERT_TRANSPORT_ENABLED=false;'),'AI_TELEGRAM_MUST_BE_DISABLED');
   check(source.includes('function futuresSnapshotProof(')&&source.includes('function evaluateFutures(')&&source.includes('ALIGNED_REAL_OFFICIAL_1M_CONTEXT')&&source.includes('PRICE_FILL_INTERVAL_NOT_ALIGNED'),
