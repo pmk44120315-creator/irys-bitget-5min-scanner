@@ -22,6 +22,7 @@ function setup(side='LONG'){
     oi:{status:'OK',timestamp_ms:END-M,elapsed_min_since_previous_snapshot:5,
       change_pct_from_previous_run:-.45},
     windows:{
+      end_utc_ms:END,
       '5m':{...five,coverage:1,baseline_coverage:1,quote_turnover:17_000},
       '15m':{...fifteen,coverage:1,baseline_coverage:1,quote_turnover:51_000},
       '60m':{coverage:1,price_change_pct:up?8:-8}
@@ -33,6 +34,8 @@ function setup(side='LONG'){
   }));
   const observation={
     symbol,observed_ms:END,observation_only:true,send_allowed:false,
+    price_context_status:'ALIGNED_REAL_OFFICIAL_1M_CONTEXT',
+    price_context_end_ms:END,
     position_direction_verified:false,
     flow_class:up?'SUSTAINED_FUTURES_TAKER_BUY_PRESSURE':'SUSTAINED_FUTURES_TAKER_SELL_PRESSURE',
     book_proof_v13:{status:'TWO_DISTINCT_BOOK_SNAPSHOTS',position_owner_verified:false,
@@ -86,6 +89,8 @@ test('price contrary, fake books, missing fills and noncrypto never become signa
     x=>x.futures_flow.observations[0].taker_flow_15m.candle_relative_error=.2,
     x=>x.futures_flow.observations[0].taker_flow_15m.verified=false,
     x=>x.watchlist[0].asset_identity='UNVERIFIED',
+    x=>x.futures_flow.observations[0].price_context_status='UNVERIFIED_OR_SPARSE_COMPLETED_1M_PRICE',
+    x=>x.watchlist[0].windows.end_utc_ms=END-3*M,
     x=>x.watchlist[0].windows['5m'].price_change_pct=-.3,
     x=>x.futures_flow.observations[0].taker_flow_15m.blocks[2].net_buy_usdt=-100
   ];
