@@ -1,0 +1,23 @@
+name: IRYS V14 flow-diet POST RELEASE live health READ ONLY
+on:
+  push:
+    branches: [fix/irys-v14-flow-diet-isolated-20261029]
+    paths:
+      - 'deployment/IRYS_V14_FLOW_DIET_HEALTH_CHECK_20261029.txt'
+permissions:
+  contents: read
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    env:
+      IRYS_V7_CF_API_TOKEN: ${{ secrets.IRYS_V7_CF_API_TOKEN }}
+      IRYS_REALTIME_CF_ACCOUNT_ID: ${{ secrets.IRYS_REALTIME_CF_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify immutable released Worker source, unchanged bindings and Cron, first new live execution
+        run: |
+          node --check deployment/check-v14-flow-diet-live.mjs
+          node deployment/check-v14-flow-diet-live.mjs
