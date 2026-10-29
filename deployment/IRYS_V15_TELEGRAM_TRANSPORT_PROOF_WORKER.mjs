@@ -18,7 +18,8 @@ const DISPATCH='https://api.github.com/repos/pmk44120315-creator/irys-bitget-5mi
 const BITHUMB='https://api.bithumb.com';
 const STATE='irys:fast:state:v1';
 const TEST_KEY='irys:fast:telegram-connection-test:v1:20261027';
-const TRANSPORT_PROOF_KEY='irys:fast:telegram-once:v15:20261030';
+const TRANSPORT_PROOF_CLAIM_KEY='irys:fast:telegram-once:v15:20261030:claim';
+const TRANSPORT_PROOF_RESULT_KEY='irys:fast:telegram-once:v15:20261030:result';
 const MAX_ALERTS=2;
 const MAX_AGE_MS=12*60000;
 const SIGNAL_AGE_MS=10*60000;
@@ -179,19 +180,26 @@ async function telegram(env,messageText){
  // and never turns missing evidence into a signal.
 async function telegramTransportProofOnce(env,now){
   if(!env.IRYS_KV)return {status:'KV_UNAVAILABLE'};
-  let prior;
-  try{prior=await env.IRYS_KV.get(TRANSPORT_PROOF_KEY);}
-  catch(_e){return {status:'KV_READ_FAILED_NO_SEND'};}
-  if(prior){
-    try{const saved=JSON.parse(prior);
-      return {status:saved.status==='TELEGRAM_API_ACK'?'ALREADY_ACKED':saved.status||'PREVIOUS_ATTEMPT_UNVERIFIED',
-        message_id:saved.message_id||null,at:saved.at||null};}
-    catch(_e){return {status:'UNPARSABLE_PREVIOUS_ATTEMPT_NO_SEND'};}
+  let result,claim;
+  try{
+    result=await env.IRYS_KV.get(TRANSPORT_PROOF_RESULT_KEY);
+    claim=await env.IRYS_KV.get(TRANSPORT_PROOF_CLAIM_KEY);
+  }catch(_e){return {status:'KV_READ_FAILED_NO_SEND'};}
+  if(result||claim){
+    try{
+      const saved=JSON.parse(result||claim);
+      return {status:saved.status==='TELEGRAM_API_ACK'?'ALREADY_ACKED':
+        saved.status||'PREVIOUS_ATTEMPT_UNVERIFIED',
+        message_id:saved.message_id||null,at:saved.at||null};
+    }catch(_e){return {status:'UNPARSABLE_PREVIOUS_ATTEMPT_NO_SEND'};}
   }
   const time=kst(now);
   try{
-    await env.IRYS_KV.put(TRANSPORT_PROOF_KEY,JSON.stringify({
-      status:'CLAIMED_UNVERIFIED',at:time}),{expirationTtl:7*86400});
+    // Cloudflare KV limits writes to ONE operation per second PER KEY.
+    // Claim and result deliberately use distinct keys; no second write
+    // to either key in this scheduled invocation.
+    await env.IRYS_KV.put(TRANSPORT_PROOF_CLAIM_KEY,
+      JSON.stringify({status:'CLAIMED_UNVERIFIED',at:time}),{expirationTtl:7*86400});
   }catch(_e){return {status:'KV_RESERVATION_FAILED_NO_SEND'};}
   try{
     const ack=await telegram(env,
@@ -200,17 +208,22 @@ async function telegramTransportProofOnce(env,now){
       '⚠️ 매수·롱·숏 신호 또는 진입 추천이 아닙니다.\n'+
       '시험 시각: '+time);
     const proof={status:'TELEGRAM_API_ACK',at:time,message_id:ack.message_id};
-    try{await env.IRYS_KV.put(TRANSPORT_PROOF_KEY,JSON.stringify(proof),
-          {expirationTtl:7*86400});}
-    catch(_e){return {status:'API_ACK_BUT_KV_CONFIRMATION_UNVERIFIED',
-                      at:time,message_id:ack.message_id};}
+    try{
+      await env.IRYS_KV.put(TRANSPORT_PROOF_RESULT_KEY,JSON.stringify(proof),
+        {expirationTtl:7*86400});
+    }catch(_e){
+      return {status:'API_ACK_BUT_KV_CONFIRMATION_UNVERIFIED',
+              at:time,message_id:ack.message_id};
+    }
     return proof;
   }catch(e){
     const detail=String(e?.message||'UNKNOWN').replace(/bot[^/\s]+\/sendMessage/g,
       'bot[REDACTED]/sendMessage').slice(0,120);
-    try{await env.IRYS_KV.put(TRANSPORT_PROOF_KEY,
-      JSON.stringify({status:'SEND_FAILED',at:time,error:detail}),{expirationTtl:7*86400});}
-    catch(_e){}
+    try{
+      await env.IRYS_KV.put(TRANSPORT_PROOF_RESULT_KEY,
+        JSON.stringify({status:'SEND_FAILED',at:time,error:detail}),
+        {expirationTtl:7*86400});
+    }catch(_e){}
     return {status:'SEND_FAILED',at:time,error:detail};
   }
 }
@@ -1409,7 +1422,8 @@ export default {
     let last=null,test={status:'NOT_RUN'},transportProof={status:'NOT_RUN'};
     try{const a=await readState(env);last=a.last||null;}catch(e){last={status:'STATE_READ_ERROR'};}
     try{const x=await env.IRYS_KV.get(TEST_KEY);if(x){const o=JSON.parse(x);test={status:o.status||'UNKNOWN',at:o.at||null};}}catch(e){}
-    try{const x=await env.IRYS_KV.get(TRANSPORT_PROOF_KEY);if(x){const o=JSON.parse(x);
+    try{const x=(await env.IRYS_KV.get(TRANSPORT_PROOF_RESULT_KEY))||
+      (await env.IRYS_KV.get(TRANSPORT_PROOF_CLAIM_KEY));if(x){const o=JSON.parse(x);
       transportProof={status:o.status||'UNKNOWN',at:o.at||null,message_id:o.message_id||null,error:o.error||null};}}catch(e){}
     return new Response(JSON.stringify({service:'IRYS morning-style 5-minute spot observer',
       mode:'CLOCK_SCHEDULED_ONLY',kvConfigured:!!env.IRYS_KV,
