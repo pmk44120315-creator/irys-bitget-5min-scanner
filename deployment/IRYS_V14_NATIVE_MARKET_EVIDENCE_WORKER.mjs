@@ -654,7 +654,7 @@ function futuresSnapshotProof(snapshot,o,now){
   if(!f||!q||!hour||f.coverage!==1||q.coverage!==1||hour.coverage!==1||
      f.baseline_coverage!==1||q.baseline_coverage!==1||
      !oi||oi.status!=='OK'||oiAt===null||oiDelta===null||oiElapsed===null||
-     oiElapsed<3||oiElapsed>9||oiAt>now+60000||now-oiAt>FUT_MAX_AGE_MS)return null; // OI/funding direction is context, not a gate.
+     oiElapsed<3||oiElapsed>9||oiAt>now+60000||now-oiAt>FUT_MAX_AGE_MS)return null; // OI freshness only.
   const blocks=e.blocks,total=val(e.taker_turnover_usdt),candle=val(e.candle_turnover_usdt);
   const relative=val(e.candle_relative_error),net=val(e.net_buy_usdt),share=val(e.buy_share);
   const q5=val(f.quote_turnover),q15=val(q.quote_turnover);
@@ -1343,7 +1343,7 @@ async function scheduledCore(env,now=Date.now(),preDispatch=null){
       sent:futuresSent,skipped_duplicates:futuresSkipped,send_error:futuresSendError,
       reasons:futuresRun.reasons,proof_type:'15m public futures fills, two snapshots; not long/short position owners'},
     alertContract:'V14_NATIVE_COMPLETED_5M_2_BOOK_TAKER_15M_RECONCILED_LOCAL_CVD',aiDirectTransportEnabled:AI_ALERT_TRANSPORT_ENABLED,
-    note:'V14 real native 5m context instead of 20 consecutive 1m; venue-local 15m taker CVD + distinct books. Bitget preserves OI gates. No 1m zero-fill, no all-exchange CVD, no future accuracy claim, no orders.'};
+    note:'V14 real native 5m context instead of 20 consecutive 1m; venue-local 15m taker CVD + distinct books. Bitget OI is contextual, not a forced direction sign. No 1m zero-fill, no all-exchange CVD, no future accuracy claim, no orders.'};
   await env.IRYS_KV.put(STATE,JSON.stringify(state));
   console.log(JSON.stringify(state.last));
   if(sendError||futuresSendError||directionalRun.send_error&&
