@@ -286,6 +286,17 @@ def collect_futures_flow_observations(latest, now_ms, api, limit=6, state=None):
                 recent_net=recent_buy-recent_sell
                 prior_net=prior_buy-prior_sell
                 p5=finite((meta.get("windows") or {}).get("5m",{}).get("price_change_pct"))
+                five=(meta.get("windows") or {}).get("5m") or {}
+                high,low,close=(finite(five.get(k)) for k in ("high","low","close"))
+                range_pos=(close-low)/(high-low) if (None not in (high,low,close)
+                                                  and high>low and low<=close<=high) else None
+                book_reads=(book.get("snapshots") or []) if isinstance(book,dict) else []
+                book_delta=None
+                if len(book_reads)==2:
+                    r0=finite(book_reads[0].get("bid_ask_top5_ratio"))
+                    r1=finite(book_reads[1].get("bid_ask_top5_ratio"))
+                    if r0 is not None and r1 is not None:
+                        book_delta=round(r1-r0,6)
                 pressure={
                     "status":"REAL_15M_RECONCILED_RECENT5_VS_PRIOR10",
                     "recent_5m_buy_share":round(current_share,6),
@@ -298,6 +309,12 @@ def collect_futures_flow_observations(latest, now_ms, api, limit=6, state=None):
                     "recent_flow_price_same_sign":(
                         (recent_net>0 and p5>0) or (recent_net<0 and p5<0))
                         if p5 is not None else None,
+                    "signed_price_response_pct":round(
+                        p5 if recent_net>0 else -p5,6) if p5 is not None else None,
+                    "actual_5m_close_location_in_range":(
+                        round(range_pos,6) if range_pos is not None else None),
+                    "two_book_top5_ratio_change":book_delta,
+                    "book_measurement_is_absorption_proof":False,
                     "direction_signal":False,"observation_only":True}
         # Raw verification data remain explicit; no claim about long/short positions.
         out["observations"].append({
