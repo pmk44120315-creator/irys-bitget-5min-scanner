@@ -16,7 +16,7 @@ from spot_continuity import book_snapshot, cvd_15m
 
 MINUTE = 60_000
 MAX_TRACKED = 24
-MAX_CHECKED = 4
+MAX_CHECKED = MAX_TRACKED  # An existing watch no longer waits behind a four-symbol API queue.
 MAX_CVD_PER_RUN = 1
 
 
@@ -97,8 +97,23 @@ def evaluate_market(seed, previous, now_ms, api, permit_cvd=True):
         # no blanket abort before checking actual execution evidence.
         flow = trade_sample(market, now_ms, api)
         book = book_snapshot(market, now_ms, api)
-        if not flow.get('coverage') or book is None:
-            result['status'] = 'RECENT_TAKER_OR_BOOK_INCOMPLETE'
+        result['taker_diagnostics'] = {
+            'count':flow.get('count'),
+            'coverage':flow.get('coverage') is True,
+            'reasons':flow.get('coverage_reasons', []),
+            'early_minute_trade_count':flow.get('early_minute_trade_count'),
+            'recent_minute_trade_count':flow.get('recent_minute_trade_count'),
+            'pages_read':flow.get('pages_read')}
+        if book is not None:
+            result['book_observation'] = book
+        if book is None and not flow.get('coverage'):
+            result['status'] = 'BOOK_AND_RECENT_TAKER_UNAVAILABLE'
+            return result
+        if book is None:
+            result['status'] = 'BOOK_UNAVAILABLE'
+            return result
+        if not flow.get('coverage'):
+            result['status'] = 'RECENT_TAKER_INCOMPLETE'
             return result
         sample = {'time_ms': now_ms, 'book': book,
                   'buy_share': flow.get('buy_share'),
@@ -261,6 +276,17 @@ def collect_spot_directional(spot, state, now_ms, api):
         if res['status'] in ('CVD_15M_NOT_VERIFIED_OR_CONTRADICTS_DIRECTION',
                              'QUALIFIED_VENUE_LOCAL_MULTI_EVIDENCE'):
             cvd_consumed += 1
+        # Even a real book sampled with sparse trades is persisted for
+        # next-scan continuity diagnostics, but NEVER qualifies a direction.
+        if isinstance(res.get('book_observation'), dict):
+            observations=[x for x in old.get('book_history_v15', [])
+                          if isinstance(x, dict) and
+                          0 <= now_ms-int(x.get('timestamp_ms') or 0) <= 15*MINUTE]
+            book=res['book_observation']
+            if not any(x.get('timestamp_ms')==book.get('timestamp_ms') for x in observations):
+                observations.append(book)
+            old['book_history_v15']=observations[-3:]
+            memory[market]=old
         out['diagnostics'].append({
             'market': market, 'status': res['status'],
             'candidate_source': seed.get('source_channel', 'EARLY_MOMENTUM_WATCH'),
@@ -271,6 +297,10 @@ def collect_spot_directional(spot, state, now_ms, api):
             'price_source':res.get('structure', {}).get('source'),
             'native_5m_buckets':res.get('structure', {}).get('native_15m_buckets_observed'),
             'real_taker_sample_saved':res.get('sample') is not None,
+            'taker_count':(res.get('taker_diagnostics') or {}).get('count'),
+            'taker_coverage_reasons':(res.get('taker_diagnostics') or {}).get('reasons', []),
+            'orderbook_observed':res.get('book_observation') is not None,
+            'historical_real_book_reads':len(old.get('book_history_v15', [])),
             'late_chase_caution':res.get('late_chase_caution', False)})
         if res.get('sample') is not None:
             old['sample'] = res['sample']

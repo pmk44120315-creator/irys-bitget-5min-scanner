@@ -51,13 +51,14 @@ def past_context(rows,now):
     return calm,base,len(amounts)
 
 def trade_sample(symbol,now,api):
-    trades=[];cursor=None;ids=set()
+    trades=[];cursor=None;ids=set();page_count=0
     for _ in range(2):
         opts={'market':symbol,'count':500}
         if cursor is not None:opts['cursor']=cursor
         batch=api('bithumb','/v1/trades/ticks',opts)
         if not isinstance(batch,list):raise ValueError('invalid Bithumb trades')
         trades.extend(batch)
+        page_count += 1
         stamps=[n(t.get('trade_timestamp',t.get('timestamp'))) for t in batch]
         stamps=[x for x in stamps if x is not None]
         if len(batch)<500 or (stamps and min(stamps)<=now-120000):break
@@ -79,7 +80,22 @@ def trade_sample(symbol,now,api):
         count+=1;oldest=min(oldest,when);newest=max(newest,when)
     bought=sum(z['buy'] for z in sides);sold=sum(z['sell'] for z in sides)
     portions=[z['buy']/(z['buy']+z['sell']) if z['buy']+z['sell'] else None for z in sides]
-    return {'coverage':count>=18 and min(z['count'] for z in sides)>=5 and oldest<=now-100000 and newest>=now-60000,
+    # Preserve WHY a public 2m sample is incomplete; never turn a sparse
+    # sample into a full venue-local CVD or an affirmative BUY signal.
+    enough_trades=count>=18
+    both_halves=min(z['count'] for z in sides)>=5
+    age_covered=oldest<=now-100000 and newest>=now-60000
+    return {'coverage':enough_trades and both_halves and age_covered,
+            'coverage_reasons':([]
+                if enough_trades and both_halves and age_covered else
+                (['INSUFFICIENT_TRADE_COUNT'] if not enough_trades else [])+
+                (['MISSING_ONE_MINUTE_SIDE'] if not both_halves else [])+
+                (['INSUFFICIENT_TIME_SPAN'] if not age_covered else [])),
+            'pages_read':page_count,
+            'oldest_age_ms':int(now-oldest) if count else None,
+            'newest_age_ms':int(now-newest) if count else None,
+            'early_minute_trade_count':sides[0]['count'],
+            'recent_minute_trade_count':sides[1]['count'],
             'count':count,'buy_krw':bought,'sell_krw':sold,'net_buy_krw':bought-sold,
             'buy_share':bought/(bought+sold) if bought+sold else None,
             'early_buy_share':portions[0],'recent_buy_share':portions[1],
