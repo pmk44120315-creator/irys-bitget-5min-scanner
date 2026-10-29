@@ -15,6 +15,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # history audit needs real committed snapshots
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
@@ -23,6 +25,7 @@ jobs:
           node-version: '22'
       - name: Compile source and run all original and new Python tests
         run: |
+          python -m py_compile audits/replay_spot_prescreen_history.py
           python -m py_compile spot_native_structure.py spot_direction.py spot_flow.py spot_continuity.py collector.py bitget_futures_cvd.py
           python -m unittest discover -s tests -p 'test_*.py' -v
           python -m unittest discover -s ai_twin/tests -p 'test_*.py' -v
@@ -31,5 +34,7 @@ jobs:
           node --check deployment/IRYS_V14_NATIVE_MARKET_EVIDENCE_WORKER.mjs
           node --test tests/test_irys_v13_directional_outcomes.mjs tests/test_irys_v14_native_direction.mjs tests/test_irys_v14_flow_diet.mjs
           echo 'V14_CANDIDATE_SHA256' && sha256sum deployment/IRYS_V14_NATIVE_MARKET_EVIDENCE_WORKER.mjs
+      - name: Replay entire available ticker history (read-only; no signal claims)
+        run: python audits/replay_spot_prescreen_history.py
       - name: Confirm GitHub real public Bithumb ticker, book and execution schemas
         run: python smoke_spot_public_api.py
