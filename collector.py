@@ -431,8 +431,10 @@ def main():
         # Evidence-backed direction is a separate nonblocking stream.
         # No BUY/SHORT assertion or order follows from ticker/turnover alone.
         try:
-            observed_at=dt.datetime.fromisoformat(latest['spot_flow']['observed_utc'].replace('Z','+00:00'))
-            stamp=int(observed_at.timestamp()*1000)
+            # The Bithumb all-market ticker read happened earlier in this scan.
+            # A separate real taker/book read must use its own current as-of time,
+            # not the earlier spot prescreen timestamp (avoids discarding live ticks).
+            stamp=int(utc_now().timestamp()*1000)
             latest['spot_directional']=collect_spot_directional(
                 latest['spot_flow'],state,stamp,http_json)
         except Exception as exc:
