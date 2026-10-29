@@ -274,6 +274,30 @@ def weekly_slot_baseline(state,item,now_utc):
         series.append({'date':today,'volume':out})
         series[:]=series[-8:]
 
+def verified_crypto_closed_price_coverage(result):
+    """Reuse already fetched exact Bitget closed 1m candles for unbiased future replay.
+
+    No extra API request, no invented candle, and no crypto classification from
+    just a ticker symbol. This is NOT a directional alert or price prediction.
+    """
+    prices={}
+    for entry in result:
+        if (entry.get('venue')!='bitget' or
+                entry.get('asset_identity')!='VERIFIED_CRYPTO'):
+            continue
+        win=entry.get('windows') or {}
+        minute=win.get('1m') or {}
+        close=number(minute.get('close'))
+        end=win.get('end_utc_ms')
+        if (minute.get('coverage')!=1 or close is None or close<=0 or
+                not isinstance(end,int) or end%60000):
+            continue
+        symbol=entry.get('symbol')
+        if isinstance(symbol,str) and symbol.endswith('USDT'):
+            prices[symbol]={'close_usdt':close,'closed_end_ms':end}
+    return prices
+
+
 def gather(now_utc=None,old_state=None,fetch_markets=get_markets,fetch_warnings=get_warnings,
            fetch_funding=get_funding,fetch_candles=get_candles,fetch_oi=get_oi,fetch_trades=get_trade_sample):
     now_utc=now_utc or utc_now();now_ms=int(now_utc.timestamp()*1000)
@@ -342,7 +366,9 @@ def gather(now_utc=None,old_state=None,fetch_markets=get_markets,fetch_warnings=
     for it in result:
         if (it['symbol'],it['venue']) in flow_cache:it['recent_trades_sample']=flow_cache[it['symbol'],it['venue']]
     num_ok=len(result)
+    full_crypto_prices=verified_crypto_closed_price_coverage(result)
     stats={'bithumb_listed_krw':len(spots),'bitget_active_usdt_perpetual':len(futures),
+           'verified_crypto_1m_prices_recorded':len(full_crypto_prices),
            'candle_symbols_success':num_ok,'candle_symbols_failed':len(markets)-num_ok,
            'oi_symbols_success':len(oi_cache),'oi_symbols_failed':len(futures)-len(oi_cache),
            'instrument_verified_crypto':sum(m.get('asset_identity')=='VERIFIED_CRYPTO' for m in futures),
@@ -368,7 +394,9 @@ def gather(now_utc=None,old_state=None,fetch_markets=get_markets,fetch_warnings=
             'early_pool':build_early_pool(result,limit=80),
             'comparison_symbols':[x for x in result if x['symbol'].split('-')[-1].removesuffix('USDT') in
                                   {'BORA','XEC','POLYX','BOUNTY','GAME2','MED','IRYS','IRIS'}][:40],
-            'covered_symbols':[x['symbol'] for x in result]}
+            'covered_symbols':[x['symbol'] for x in result],
+            'verified_crypto_futures_closed_prices':full_crypto_prices,
+            'price_coverage_note':'OFFICIAL_BITGET_ACTUAL_COMPLETED_1M_CLOSE_ONLY_NOT_TRADE_EXECUTION_OR_SIGNAL'}
     state['last_collector_utc']=now_utc.isoformat()
     return latest,state
 
