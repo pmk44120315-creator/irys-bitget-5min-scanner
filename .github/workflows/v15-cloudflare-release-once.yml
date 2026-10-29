@@ -1,0 +1,50 @@
+name: IRYS V15 causal price/fill aligned guarded Worker rollout ONCE
+on:
+  push:
+    branches: [fix/irys-v15-flow-causal-proof-20261029]
+    paths:
+      - 'deployment/IRYS_V15_RELEASE_APPROVED_20261030.txt'
+permissions:
+  contents: read
+concurrency:
+  group: irys-surge-monitor-v14-release-once
+  cancel-in-progress: false
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      IRYS_V7_CF_API_TOKEN: ${{ secrets.IRYS_V7_CF_API_TOKEN }}
+      IRYS_REALTIME_CF_ACCOUNT_ID: ${{ secrets.IRYS_REALTIME_CF_ACCOUNT_ID }}
+      IRYS_V14_RELEASE_ONCE: AUTHORIZED_FROM_REVIEWED_MARKER
+      IRYS_V14_RELEASE_DRY_RUN: '0'
+      IRYS_V14_EXPECTED_SHA256: 'fd354584917b332c2091ca5c026fd348a1ba852bf1ed42064b02a58bc5d83e9f'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Require explicit matching one-time user-approved marker and immutable source hash
+        run: |
+          grep -Fxq 'IRYS_V15_RELEASE_MARKER=USER_REQUESTED_COMPLETE_CLOUD_DEPLOY_20261029' deployment/IRYS_V15_RELEASE_APPROVED_20261030.txt
+          grep -Fxq 'V15_WORKER_SHA256=fd354584917b332c2091ca5c026fd348a1ba852bf1ed42064b02a58bc5d83e9f' deployment/IRYS_V15_RELEASE_APPROVED_20261030.txt
+          test "$(sha256sum deployment/IRYS_V14_NATIVE_MARKET_EVIDENCE_WORKER.mjs | cut -d' ' -f1)" = "$IRYS_V14_EXPECTED_SHA256"
+      - name: Check main collector now uses exactly tested V15 Bitget price-taker source
+        run: |
+          git fetch --quiet origin main
+          for file in collector.py spot_flow.py spot_direction.py bitget_futures_cvd.py; do
+            test "$(sha256sum "$file" | cut -d' ' -f1)" = "$(git show "origin/main:$file" | sha256sum | cut -d' ' -f1)" || { echo "::error::MAIN_COLLECTOR_SOURCE_CHANGED:$file"; exit 1; }
+          done
+          echo 'V15_MAIN_ALL_MARKET_SOURCE_MATCH_PASS'
+      - name: Full old and improved Python and Worker regression
+        run: |
+          python -m py_compile collector.py spot_flow.py spot_direction.py bitget_futures_cvd.py spot_continuity.py spot_native_structure.py
+          python -m unittest discover -s tests -p 'test_*.py' -v
+          python -m unittest discover -s ai_twin/tests -p 'test_*.py' -v
+          node --check deployment/IRYS_V14_NATIVE_MARKET_EVIDENCE_WORKER.mjs
+          node --check deployment/release-v15-safe.mjs
+          node --test tests/test_irys_v13_directional_outcomes.mjs tests/test_irys_v14_native_direction.mjs tests/test_irys_v14_flow_diet.mjs
+      - name: Pre-deploy live source SHA lease, preserved cron/bindings, replace only irys-surge-monitor code, verify or rollback
+        run: node deployment/release-v15-safe.mjs
