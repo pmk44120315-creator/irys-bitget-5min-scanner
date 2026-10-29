@@ -1,0 +1,29 @@
+name: IRYS V16 AI-first early-market without confirmation regression NO DEPLOY
+on:
+  push:
+    branches: [fix/irys-v16-ai-first-early-watch-20261030]
+    paths:
+      - 'deployment/IRYS_V16_AI_FIRST_EARLY_WATCH_WORKER.mjs'
+      - 'tests/test_irys_v16_ai_first.mjs'
+      - '.github/workflows/v16-ai-first-offline.yml'
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Check real AI-first Worker and mock AI without legacy confirmation or real Telegram
+        run: |
+          node --check deployment/IRYS_V16_AI_FIRST_EARLY_WATCH_WORKER.mjs
+          node --test tests/test_irys_v16_ai_first.mjs tests/test_irys_v15_telegram_proof.mjs
+          python -m unittest discover -s tests -p 'test_*.py' -v
+          python -m unittest discover -s ai_twin/tests -p 'test_*.py' -v
+          echo 'IRYS_V16_AI_SHADOW_SOURCE_SHA256'
+          sha256sum deployment/IRYS_V16_AI_FIRST_EARLY_WATCH_WORKER.mjs
