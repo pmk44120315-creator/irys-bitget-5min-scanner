@@ -1,0 +1,24 @@
+name: IRYS V15 post-release live SHA, Cron, Telegram & new collector GET-ONLY check
+on:
+  push:
+    branches: [fix/irys-v15-flow-causal-proof-20261029]
+    paths:
+      - '.github/workflows/v15-post-release-health-readonly.yml'
+      - 'deployment/V15_POST_RELEASE_HEALTH_20261030.marker'
+permissions:
+  contents: read
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    env:
+      IRYS_V7_CF_API_TOKEN: ${{ secrets.IRYS_V7_CF_API_TOKEN }}
+      IRYS_REALTIME_CF_ACCOUNT_ID: ${{ secrets.IRYS_REALTIME_CF_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check latest deployed exact SHA and actual 5m Cron/Telegram evidence, never send
+        run: |
+          node --check deployment/check-v15-live.mjs
+          node deployment/check-v15-live.mjs
