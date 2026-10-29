@@ -17,4 +17,4 @@ jobs:
         with:
           python-version: '3.12'
       - name: Inspect official live 1m and independently completed 5m candlesticks
-        run: python audits/v14_live_sparse_candle_probe.py
+        run: python -m audits.v14_live_sparse_candle_probe
