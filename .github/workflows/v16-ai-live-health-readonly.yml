@@ -1,0 +1,19 @@
+name: IRYS V16 model invoked before strict BUY? live GET-only health
+on:
+  push:
+    branches: [fix/irys-v16-ai-first-early-watch-20261030]
+    paths:
+      - '.github/workflows/v16-ai-live-health-readonly.yml'
+      - 'audits/v16_ai_health_once.marker'
+permissions:
+  contents: read
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Read live Workers AI judgment, Cron status and zero premature Telegram sends
+        run: node deployment/read-v16-ai-shadow-health.mjs
