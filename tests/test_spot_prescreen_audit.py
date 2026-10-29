@@ -81,6 +81,33 @@ class TestPrescreenAudit(unittest.TestCase):
         self.assertTrue(out["early_watch_observations"][0]["observation_only"])
         self.assertEqual(out["signals"],[])
 
+    def test_legacy_rejected_movers_are_review_seeds_not_signals(self):
+        # Previously excluded by +3.5% intraperiod or +9% daily caps:
+        # these must be allowed to request REAL taker/book evidence,
+        # never promoted to BUY just because turnover is high.
+        output,_=scenario({
+            "KRW-XAN":{"price":120,"five":90_000_000,"past_ema":10_000_000},
+            "KRW-QUID":{"price":102,"five":35_000_000,
+                        "past_ema":12_000_000,"daily_rate":.30},
+            "KRW-D":{"price":110,"five":99_000_000,"warning":"CAUTION"}
+        })
+        seeds={x["market"]:x for x in output["direction_review_seeds"]}
+        self.assertIn("KRW-XAN", seeds)
+        self.assertIn("KRW-QUID", seeds)
+        self.assertNotIn("KRW-D", seeds)
+        self.assertTrue(all(x["observation_only"] for x in seeds.values()))
+        self.assertTrue(all(x["is_buy_signal"] is False for x in seeds.values()))
+        self.assertTrue(all(x["order_allowed"] is False for x in seeds.values()))
+        self.assertEqual(output["signals"], [])
+        self.assertEqual(output["direction_review_is_signal"], False)
+
+    def test_review_ranking_never_invents_quote_or_chase_filter(self):
+        output,_=scenario({"KRW-AAA":{"price":100,"five":0},
+                           "KRW-BBB":{"price":101,"five":100_000_000}})
+        symbols=[x["market"] for x in output["direction_review_seeds"]]
+        self.assertEqual(symbols,["KRW-BBB"])
+        self.assertEqual(output["signals"], [])
+
     def test_watchlist_is_bounded_and_explicitly_non_alerting(self):
         markets={("KRW-X%02d"%i):{"price":105+i/100,"five":90_000_000}
                 for i in range(35)}
