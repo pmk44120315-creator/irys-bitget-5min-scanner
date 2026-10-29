@@ -1,0 +1,32 @@
+name: IRYS V14 guarded native market evidence production READ ONLY DRY RUN
+on:
+  push:
+    branches: [fix/irys-v14-native-market-evidence-20261029]
+    paths:
+      - 'deployment/release-v14-safe.mjs'
+      - 'deployment/parse-cloudflare-script.mjs'
+      - '.github/workflows/v14-cloudflare-readonly-preflight.yml'
+permissions:
+  contents: read
+jobs:
+  read-only:
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    env:
+      IRYS_V7_CF_API_TOKEN: ${{ secrets.IRYS_V7_CF_API_TOKEN }}
+      IRYS_REALTIME_CF_ACCOUNT_ID: ${{ secrets.IRYS_REALTIME_CF_ACCOUNT_ID }}
+      IRYS_V14_RELEASE_ONCE: AUTHORIZED_FROM_REVIEWED_MARKER
+      IRYS_V14_RELEASE_DRY_RUN: '1'
+      IRYS_V14_EXPECTED_SHA256: '5a468168b277b24b9918a7e03ca324f0e25bd2376d49dfd565b158bd1f311b80'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Validate tested immutable V14 bytes and safe source parser
+        run: |
+          node --check deployment/IRYS_V14_NATIVE_MARKET_EVIDENCE_WORKER.mjs
+          node --check deployment/release-v14-safe.mjs
+          test "$(sha256sum deployment/IRYS_V14_NATIVE_MARKET_EVIDENCE_WORKER.mjs | cut -d' ' -f1)" = "$IRYS_V14_EXPECTED_SHA256"
+      - name: Confirm deployed V13 SHA / 5m cron / bindings / health and verify ONLY dry-run source lease
+        run: node deployment/release-v14-safe.mjs
