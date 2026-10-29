@@ -233,11 +233,21 @@ def collect_spot_directional(spot, state, now_ms, api):
             candidates[market] = old.get('seed', {})
     warning_now = {x.get('market') for x in spot.get('rally_watch_only', [])
                    if x.get('reason') == 'OFFICIAL_WARNING'}
-    # Matured watches get their second independent check before new pulses
-    # can crowd them out. All 489 markets are still prescreened upstream.
-    ordered = sorted(candidates.items(), key=lambda item: (
-        0 if state['spot_direction_tracking_v13'].get(item[0], {}).get('first_ms', now_ms) < now_ms else 1,
-        item[0]))
+    # API scheduling is NOT an entry condition. Complete real second samples
+    # first, then the original early watch, then ranked price-only research.
+    # The latter was mostly mean-reverting in saved 5m replay; do not let it
+    # starve evidence-backed candidates or treat it as a directional signal.
+    def review_priority(item):
+        market, seed = item
+        old = memory.get(market, {})
+        if isinstance(old, dict) and isinstance(old.get('sample'), dict):
+            return (0, old.get('first_ms', now_ms), market)
+        if seed.get('source_channel') != 'RANKED_PRICE_TURNOVER_REVIEW_ONLY':
+            return (1, old.get('first_ms', now_ms), market)
+        score = finite(seed.get('review_priority_score')) or 0
+        return (3 if seed.get('risk_class') == 'LATE_CHASE_CAUTION' else 2,
+                -score, market)
+    ordered = sorted(candidates.items(), key=review_priority)
     out['queued_for_next_scan'] = max(0, len(ordered) - MAX_CHECKED)
     cvd_consumed = 0
     for market, seed in ordered[:MAX_CHECKED]:
