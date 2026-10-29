@@ -236,6 +236,7 @@ def collect_spot_flow(now,state,api):
                  'five_minute_equivalent_turnover_krw': round(five),
                  'five_minute_prior_ema_krw': past_ema,
                  'observed_5m_price_change_pct': round(change, 5),
+                 'review_priority_score': round(change * math.log1p(five / 10_000_000), 6),
                  'risk_class': 'LATE_CHASE_CAUTION'
                     if change > 3.5 or (daily_pct is not None and daily_pct > .09)
                     else 'EARLY_MOMENTUM_WATCH',
@@ -308,7 +309,9 @@ def collect_spot_flow(now,state,api):
             record_drop('TURNOVER_OR_RATIO');continue
         short.append((min(five/past_ema,80)*math.log10(1+five/10000000),sym,t))
     short.sort(key=lambda z:(-z[0],z[1]))
-    review_pool.sort(key=lambda z:(-z[0],z[1]))
+    # In replay, late-chase-only observations reversed more often; priority
+    # is for API review only, NEVER a hard disqualification or BUY proof.
+    review_pool.sort(key=lambda z:(z[2]['risk_class']=='LATE_CHASE_CAUTION',-z[0],z[1]))
     rally_watch.sort(key=lambda x:(-x['observed_5m_price_change_pct'],-x['estimated_5m_turnover_krw'],x['market']))
     # Prefer the first meaningful impulse; cap candidates and preserve full caution.
     early_watch.sort(key=lambda x:(
