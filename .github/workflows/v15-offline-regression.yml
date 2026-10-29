@@ -25,6 +25,8 @@ jobs:
         run: |
           python -m py_compile collector.py spot_flow.py spot_continuity.py spot_direction.py spot_native_structure.py bitget_futures_cvd.py
           node --check deployment/IRYS_V14_NATIVE_MARKET_EVIDENCE_WORKER.mjs
+          echo 'V15_CAUSAL_WORKER_SHA256'
+          sha256sum deployment/IRYS_V14_NATIVE_MARKET_EVIDENCE_WORKER.mjs
       - name: Run complete original and new Python regression
         run: |
           python -m unittest discover -s tests -p 'test_*.py' -v
