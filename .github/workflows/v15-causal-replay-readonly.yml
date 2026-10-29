@@ -1,0 +1,23 @@
+name: IRYS V15 causal price-vs-execution shadow replay READ ONLY NO DEPLOY
+on:
+  push:
+    branches: [fix/irys-v15-flow-causal-proof-20261029]
+    paths:
+      - 'audits/v15_replay_verified_flow.py'
+      - '.github/workflows/v15-causal-replay-readonly.yml'
+permissions:
+  contents: read
+jobs:
+  replay:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Syntax-check audit with no market/Telegram side effects
+        run: python -m py_compile audits/v15_replay_verified_flow.py
+      - name: Replay all saved GitHub Bitget market observations and later prices
+        run: python audits/v15_replay_verified_flow.py
