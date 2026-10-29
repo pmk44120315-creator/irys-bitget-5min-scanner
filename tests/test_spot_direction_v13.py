@@ -249,6 +249,28 @@ class TestDirectionalV13(unittest.TestCase):
             r=evaluate_market(early(),prev,t,feed())
             self.assertEqual(r['status'],'NONINDEPENDENT_OR_STALE_SAMPLE')
 
+    def test_broader_ranked_candidate_does_not_bypass_flow_proof(self):
+        # The old day-price/turnover prefilter can no longer hide a mover,
+        # but a ticker-only source never produces a directional signal.
+        seed={'market':'KRW-XAN', 'price_krw':120,
+              'five_minute_equivalent_turnover_krw':90_000_000,
+              'five_minute_prior_ema_krw':10_000_000,
+              'observation_only':True,'is_buy_signal':False,
+              'source_channel':'RANKED_PRICE_TURNOVER_REVIEW_ONLY',
+              'risk_class':'LATE_CHASE_CAUTION'}
+        spot={'status':'PASS','early_watch_observations':[],
+              'direction_review_seeds':[seed],'rally_watch_only':[]}
+        fake={'market':'KRW-XAN','status':'RECENT_TAKER_OR_BOOK_INCOMPLETE',
+              'direction':'WAIT','sample':None,'validated_direction':False}
+        with patch('spot_direction.evaluate_market',return_value=fake) as inspected:
+            result=collect_spot_directional(spot,{},NOW,lambda *a: None)
+        inspected.assert_called_once()
+        self.assertEqual(result['reviewed'],1)
+        self.assertEqual(result['qualified'],0)
+        self.assertEqual(result['signals'],[])
+        self.assertEqual(result['diagnostics'][0]['candidate_source'],
+                         'RANKED_PRICE_TURNOVER_REVIEW_ONLY')
+
     def test_buy_side_only_is_not_direction_without_three_cvd_blocks(self):
         bad=cvd()
         bad['blocks'][1]['net_buy_krw']=-1
