@@ -9,7 +9,7 @@ const ACCOUNT=process.env.IRYS_REALTIME_CF_ACCOUNT_ID||'';
 const TOKEN=process.env.IRYS_V7_CF_API_TOKEN||'';
 const NAME='irys-surge-monitor';
 const ROOT='https://api.cloudflare.com/client/v4/accounts/'+ACCOUNT+'/workers/scripts/'+NAME;
-const URL='https://irys-surge-monitor.vhehwpfl.workers.dev/';
+const PUBLIC_URL='https://irys-surge-monitor.vhehwpfl.workers.dev/';
 const HEADERS={authorization:'Bearer '+TOKEN,accept:'application/json'};
 const EXISTING='b2a98c8c988157866e28ea8d8c8418454c443c1c0ffd32ff6a1ee6b8c0012423';
 const WAS='IRYS-V17-CAUSAL-DIRECTION-VS-WATCH-20261030';
@@ -27,7 +27,7 @@ async function get(url,auth=true){
 }
 async function readScript(){return extractWorkerSource(await get(ROOT));}
 async function readJson(path){return (await get(ROOT+path)).json();}
-async function health(){return (await get(URL,false)).json();}
+async function health(){return (await get(PUBLIC_URL,false)).json();}
 function bindings(doc){
  return (doc.result?.bindings||[]).map(x=>[x.name,x.type,
    x.type==='kv_namespace'?x.namespace_id:null,
