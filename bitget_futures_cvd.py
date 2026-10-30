@@ -212,7 +212,7 @@ def paired_futures_books(sym,now_ms,api,memory):
             'position_owner_verified':False}
 
 
-def collect_futures_flow_observations(latest, now_ms, api, limit=6, state=None):
+def collect_futures_flow_observations(latest, now_ms, api, limit=6, state=None, v18_select=False):
     """Supplemental verified public-futures evidence. Never creates Telegram or BUY/SHORT signals."""
     if not isinstance(latest,dict) or latest.get("collector_status")!="PASS":
         return {"status":"SKIPPED_SOURCE_NOT_PASS","observations":[],
@@ -260,6 +260,68 @@ def collect_futures_flow_observations(latest, now_ms, api, limit=6, state=None):
          "pending_second_book_selected":min(len(pending),len(selected)),
          "verified_count":0,"rejected_count":0,"classifications":{},
          "observations":[]}
+    if v18_select:
+        # V18 is OFF by default: this opt-in changes EVIDENCE TARGET DISCOVERY
+        # only. Verified fills, price alignment, real book persistence, and
+        # no-order/no-Telegram output contract are unchanged.
+        from research.v18_flow_selector import select_v18_evidence_targets
+        choice=select_v18_evidence_targets(latest,now_ms,state=state,limit=limit)
+        # Keep part of the established volume-based targets while opening
+        # the other half of the existing six-request budget to reversals.
+        # Finish pending second-book observations first. No additional API budget.
+        old_selected=list(selected)
+        new_selected=[(float(len(choice.get('selected') or [])-i),x['symbol'],x)
+                      for i,x in enumerate(choice.get('selected') or [])]
+        old_quota=max(1,cap//2)
+        new_quota=max(1,cap-old_quota)
+        joined=[];chosen=set()
+        def append_unique(candidates,quota):
+            added=0
+            for candidate in candidates:
+                if len(joined)>=cap or added>=quota:break
+                if candidate[1] in chosen:continue
+                joined.append(candidate);chosen.add(candidate[1]);added+=1
+        # Both previous-candidate and new-candidate book continuity preserved.
+        def has_pending(candidate):
+            old=book_memory.get(candidate[1])
+            if not isinstance(old,dict):return False
+            t=old.get('timestamp_ms')
+            return isinstance(t,int) and 3*ONE_MIN<=now_ms-t<=9*ONE_MIN
+        for candidate in old_selected+new_selected:
+            if has_pending(candidate) and candidate[1] not in chosen and len(joined)<cap:
+                joined.append(candidate);chosen.add(candidate[1])
+        append_unique(new_selected,new_quota)
+        append_unique(old_selected,old_quota)
+        append_unique(new_selected,cap)
+        append_unique(old_selected,cap)
+        selected=joined[:cap]
+        actual_new={x[1] for x in new_selected}
+        selected_reversals=sum(
+           ((finite((x[2].get('windows') or {}).get('5m',{}).get('price_change_pct')) or 0)*
+            (finite((x[2].get('windows') or {}).get('15m',{}).get('price_change_pct')) or 0)<0)
+           for x in selected)
+        out.update({
+            'status':'EVALUATED' if selected else 'NO_CANDIDATES',
+            'selector_version':'V18_BLENDED_BASELINE_PLUS_REVERSAL_REAL_FLOW',
+            'markets_evaluated':len(selected),
+            'markets_eligible_for_proof':choice.get('eligible',0),
+            'pending_second_book_count':choice.get('pending_book_selected',0),
+            'pending_second_book_selected':sum(has_pending(x) for x in selected),
+            'candidate_reversals_visible':choice.get('reversal_eligible',0),
+            'selected_reversal_evidence_targets':selected_reversals,
+            'selected_old_evidence_targets':sum(x[1] in {y[1] for y in old_selected} for x in selected),
+            'selected_new_evidence_targets':sum(x[1] in actual_new for x in selected),
+            'old_v17_selector_preserved_in_blend':True,
+            'observation_only':True,'alert_eligible':False,
+        })
+        if isinstance(state,dict):
+            checked=state.setdefault('v18_evidence_last_checked_ms',{})
+            if not isinstance(checked,dict):
+                checked={};state['v18_evidence_last_checked_ms']=checked
+            for _rank,sym,_meta in selected:checked[sym]=now_ms
+            state['v18_evidence_last_checked_ms']={
+               k:v for k,v in checked.items() if isinstance(v,int) and
+               0<=now_ms-v<=24*3600000}
     for _rank,sym,meta in selected:
         evidence=verify_taker_flow(sym,now_ms,api,max_pages=10)
         flow=classify_flow(evidence)
