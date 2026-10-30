@@ -1,0 +1,24 @@
+name: IRYS V16 operational AI-first early alerts and Telegram ACK read-only health
+on:
+  push:
+    branches: [fix/irys-v16-ai-first-early-watch-20261030]
+    paths:
+      - '.github/workflows/v16-ai-early-health-readonly.yml'
+      - 'audits/IRYS_V16_EARLY_AI_HEALTH_20261030.marker'
+permissions:
+  contents: read
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    env:
+      IRYS_V7_CF_API_TOKEN: ${{ secrets.IRYS_V7_CF_API_TOKEN }}
+      IRYS_REALTIME_CF_ACCOUNT_ID: ${{ secrets.IRYS_REALTIME_CF_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: GET-only Worker exact SHA, Cron, AI inference status and actual Telegram API receipt
+        run: |
+          node --check deployment/check-v16-ai-early-live.mjs
+          node deployment/check-v16-ai-early-live.mjs
