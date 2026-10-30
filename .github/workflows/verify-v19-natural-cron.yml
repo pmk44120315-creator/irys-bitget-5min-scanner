@@ -1,0 +1,22 @@
+name: IRYS V19 passive production Telegram proof
+on:
+  push:
+    branches:
+      - fix/irys-v19-alert-delivery-early-flow-20261030
+    paths:
+      - '.github/workflows/verify-v19-natural-cron.yml'
+      - 'deployment/verify-v19-natural-health.mjs'
+permissions:
+  contents: read
+jobs:
+  passive-real-runtime-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check passive verifier source
+        run: node --check deployment/verify-v19-natural-health.mjs
+      - name: Observe the normal Cloudflare scheduled tick and reported Telegram API ACK (no sends)
+        env:
+          IRYS_REALTIME_CF_ACCOUNT_ID: ${{ secrets.IRYS_REALTIME_CF_ACCOUNT_ID }}
+          IRYS_V7_CF_API_TOKEN: ${{ secrets.IRYS_V7_CF_API_TOKEN }}
+        run: node deployment/verify-v19-natural-health.mjs
