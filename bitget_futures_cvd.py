@@ -212,7 +212,7 @@ def paired_futures_books(sym,now_ms,api,memory):
             'position_owner_verified':False}
 
 
-def collect_futures_flow_observations(latest, now_ms, api, limit=6, state=None):
+def collect_futures_flow_observations(latest, now_ms, api, limit=6, state=None, v18_select=False):
     """Supplemental verified public-futures evidence. Never creates Telegram or BUY/SHORT signals."""
     if not isinstance(latest,dict) or latest.get("collector_status")!="PASS":
         return {"status":"SKIPPED_SOURCE_NOT_PASS","observations":[],
@@ -260,6 +260,33 @@ def collect_futures_flow_observations(latest, now_ms, api, limit=6, state=None):
          "pending_second_book_selected":min(len(pending),len(selected)),
          "verified_count":0,"rejected_count":0,"classifications":{},
          "observations":[]}
+    if v18_select:
+        # V18 is OFF by default: this opt-in changes EVIDENCE TARGET DISCOVERY
+        # only. Verified fills, price alignment, real book persistence, and
+        # no-order/no-Telegram output contract are unchanged.
+        from research.v18_flow_selector import select_v18_evidence_targets
+        choice=select_v18_evidence_targets(latest,now_ms,state=state,limit=limit)
+        selected=[(i,x['symbol'],x) for i,x in enumerate(choice.get('selected') or [])]
+        out.update({
+            'status':'EVALUATED' if selected else 'NO_CANDIDATES',
+            'selector_version':'V18_REVERSAL_AND_EVIDENCE_COVERAGE_RESEARCH',
+            'markets_evaluated':len(selected),
+            'markets_eligible_for_proof':choice.get('eligible',0),
+            'pending_second_book_count':choice.get('pending_book_selected',0),
+            'pending_second_book_selected':choice.get('pending_book_selected',0),
+            'candidate_reversals_visible':choice.get('reversal_eligible',0),
+            'selected_reversal_evidence_targets':choice.get('reversal_selected',0),
+            'old_v17_selector_was_not_used_for_api_target':True,
+            'observation_only':True,'alert_eligible':False,
+        })
+        if isinstance(state,dict):
+            checked=state.setdefault('v18_evidence_last_checked_ms',{})
+            if not isinstance(checked,dict):
+                checked={};state['v18_evidence_last_checked_ms']=checked
+            for _rank,sym,_meta in selected:checked[sym]=now_ms
+            state['v18_evidence_last_checked_ms']={
+               k:v for k,v in checked.items() if isinstance(v,int) and
+               0<=now_ms-v<=24*3600000}
     for _rank,sym,meta in selected:
         evidence=verify_taker_flow(sym,now_ms,api,max_pages=10)
         flow=classify_flow(evidence)
