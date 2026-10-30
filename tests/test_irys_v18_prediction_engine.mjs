@@ -69,3 +69,26 @@ test('Bithumb spot model uses separate stable feature schema and no futures weig
  assert.equal(spotScoreV18(m,z.vector).score_buy,.5);
  assert.throws(()=>spotScoreV18({...m,schema:'IRYS_V18_CAUSAL_LOGISTIC_V1'},z.vector));
 });
+
+test('continuation-vs-reversal learns both directions and removes global SHORT-only bias',()=>{
+ const f=marketFeaturesV18(src,flow,finish).vector;
+ const base={schema:'IRYS_V18_CAUSAL_LOGISTIC_V1',feature_order:FEATURE_ORDER_V18,
+  weights:FEATURE_ORDER_V18.map(()=>0),intercept:Math.log(4),
+  horizon_min:15,target_mode:'CONTINUATION_VS_REVERSAL'};
+ const up=forecastV18(base,f);
+ assert.ok(up.score_up>.5);
+ const negative=f.slice();negative[FEATURE_ORDER_V18.indexOf('ret5m')]=-1;
+ const down=forecastV18(base,negative);
+ assert.ok(down.score_down>.5);
+ assert.equal(up.verified_accuracy,null);
+});
+test('spot continuation-prediction direction flips when historical momentum is downward',()=>{
+ const seed={market:'KRW-ALT',price_krw:120,observed_5m_price_change_pct:-1.2,
+  five_minute_equivalent_turnover_krw:45000000,
+  five_minute_prior_ema_krw:14000000};
+ const x=spotFeaturesV18(seed).vector;
+ const m={schema:'IRYS_V18_SPOT_LOGISTIC_V1',feature_order:SPOT_FEATURES_V18,
+  weights:SPOT_FEATURES_V18.map(()=>0),intercept:Math.log(4),
+  target_mode:'CONTINUATION_VS_REVERSAL',horizon_min:15};
+ assert.ok(spotScoreV18(m,x).score_buy<.5);
+});
