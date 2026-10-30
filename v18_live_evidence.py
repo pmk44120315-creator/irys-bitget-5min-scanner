@@ -63,7 +63,10 @@ def run(source,state,now,api=collector.http_json,align=None):
     observations=evidence.get('observations') or []
     verified=sum(row.get('taker_flow_15m',{}).get('verified') is True for row in observations)
     aligned=sum(row.get('price_context_status')=='ALIGNED_REAL_OFFICIAL_1M_CONTEXT'
-                 for row in observations)
+                and (row.get('taker_flow_15m') or {}).get('verified') is True
+                for row in observations)
+    price_only_aligned=sum(row.get('price_context_status')=='ALIGNED_REAL_OFFICIAL_1M_CONTEXT'
+                           for row in observations)
     nowutc=dt.datetime.fromtimestamp(now/1000,UTC).isoformat()
     out={'version':'V18_EVIDENCE_LIVE_V1',
        'status':'PASS' if evidence.get('status') in ('EVALUATED','NO_CANDIDATES') else 'PARTIAL',
@@ -76,6 +79,7 @@ def run(source,state,now,api=collector.http_json,align=None):
        'reversal_selected':evidence.get('selected_reversal_evidence_targets',0),
        'historical_selector_preserved':evidence.get('old_v17_selector_preserved_in_blend') is True,
        'verified_real_taker_15m':verified,'time_aligned_real_taker':aligned,
+       'price_context_aligned_including_unverified_taker':price_only_aligned,
        'price_alignment':reconcile,'flow_status':evidence.get('status'),
        'observations':observations,
        'limits':{'exchange_local_taker_only':True,'all_exchange_cvd':False,
