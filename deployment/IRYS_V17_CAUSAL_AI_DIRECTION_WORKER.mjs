@@ -650,12 +650,12 @@ function aiNeutralWatchMessage(decision,c,proof,nowMs){
   const price=c.venue==='bithumb'?
     ko(nf(c.current_price_krw)??c.price_krw,8)+'원':
     ko(c.price_usdt,7)+' USDT (완료봉 가격, 실시간 체결가 아님)';
-  return '🔎 [5분 AI 조기 포착 · 방향 미확정 · 진입 신호 아님]\\n'+
-    venue+' '+c.symbol+' · '+kst(nowMs)+'\\n'+
-    '관측 가격: '+price+'\\n'+
-    '최근 체결과 가격 반응이 같은 방향임을 검증하지 못했습니다.\\n'+
-    'BUY/LONG/SHORT 판단 유보 · 중립 WATCH 전용\\n'+
-    '데이터 상태: '+clean(proof.basis,90)+'\\n'+
+  return '🔎 [5분 AI 조기 포착 · 방향 미확정 · 진입 신호 아님]\n'+
+    venue+' '+c.symbol+' · '+kst(nowMs)+'\n'+
+    '관측 가격: '+price+'\n'+
+    '최근 체결과 가격 반응이 같은 방향임을 검증하지 못했습니다.\n'+
+    'BUY/LONG/SHORT 판단 유보 · 중립 WATCH 전용\n'+
+    '데이터 상태: '+clean(proof.basis,90)+'\n'+
     '호가·OI는 보조 근거입니다. 방향 성공률 미검증 · 주문 없음';
 }
 function compactAiCandidate(c){
@@ -713,10 +713,16 @@ async function runMorningAi(env,source,state,nowMs,capacity=AI_MAX_ALERTS){
     out.status='MODEL_REPLIED';
   }catch(e){
     out.error=clean(e.message,120);
-    const quota=/4006|10,000\s*neurons|daily\s*free\s*allocation/i.test(String(e.message||''));
-    if(quota){
-      state.aiQuotaBackoffUntil=Math.ceil((nowMs+1)/86400000)*86400000+60000; // UTC quota reset margin
+    const message=String(e.message||'');
+    const daily=/10,000\\s*neurons|daily\\s*free\\s*allocation|daily quota exceeded/i.test(message);
+    const capacity=/4006|temporarily at capacity|capacity unavailable/i.test(message);
+    if(daily){
+      state.aiQuotaBackoffUntil=(Math.floor(nowMs/86400000)+1)*86400000+60000;
       out.status='AI_DAILY_QUOTA_EXHAUSTED_BACKOFF';
+    }else if(capacity){
+      // Cloudflare 4006 can mean temporary capacity, not the daily free quota.
+      state.aiQuotaBackoffUntil=nowMs+15*60000;
+      out.status='AI_MODEL_TEMPORARILY_AT_CAPACITY';
     }else out.status='AI_INFERENCE_FAILED';
     return out;
   }
