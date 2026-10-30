@@ -10,8 +10,10 @@ function v19Sign(x){return x>0?1:x<0?-1:0}
 function v19MarketLink(p,snap,venue){
   if(venue==='bitget')return [...(snap?.watchlist||[]),...(snap?.early_pool||[])]
     .find(x=>x?.symbol===p&&x?.venue==='bitget'&&x?.asset_identity==='VERIFIED_CRYPTO'&&
-      x?.baseCoin===p.slice(0,-4)&&x?.quoteCoin==='USDT'&&
-      x?.contract_status==='normal'&&x?.symbolType==='perpetual')||null;
+      x?.baseCoin===p.slice(0,-4)&&
+      (x?.quoteCoin===undefined||x?.quoteCoin==='USDT')&&
+      (x?.contract_status===undefined||x?.contract_status==='normal')&&
+      (x?.symbolType===undefined||x?.symbolType==='perpetual'))||null;
   return null;
 }
 function v19FuturesCandidates(source,doc,now){
