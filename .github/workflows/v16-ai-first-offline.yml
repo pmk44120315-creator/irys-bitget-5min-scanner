@@ -4,7 +4,9 @@ on:
     branches: [fix/irys-v16-ai-first-early-watch-20261030]
     paths:
       - 'deployment/IRYS_V16_AI_FIRST_EARLY_WATCH_WORKER.mjs'
+      - 'deployment/IRYS_V16_AI_FIRST_LIVE_WORKER.mjs'
       - 'tests/test_irys_v16_ai_first.mjs'
+      - 'tests/test_irys_v16_ai_live_logic.mjs'
       - '.github/workflows/v16-ai-first-offline.yml'
 permissions:
   contents: read
@@ -22,8 +24,11 @@ jobs:
       - name: Check real AI-first Worker and mock AI without legacy confirmation or real Telegram
         run: |
           node --check deployment/IRYS_V16_AI_FIRST_EARLY_WATCH_WORKER.mjs
-          node --test tests/test_irys_v16_ai_first.mjs tests/test_irys_v15_telegram_proof.mjs
+          node --check deployment/IRYS_V16_AI_FIRST_LIVE_WORKER.mjs
+          node --test tests/test_irys_v16_ai_first.mjs tests/test_irys_v16_ai_live_logic.mjs tests/test_irys_v15_telegram_proof.mjs
           python -m unittest discover -s tests -p 'test_*.py' -v
           python -m unittest discover -s ai_twin/tests -p 'test_*.py' -v
           echo 'IRYS_V16_AI_SHADOW_SOURCE_SHA256'
           sha256sum deployment/IRYS_V16_AI_FIRST_EARLY_WATCH_WORKER.mjs
+          echo 'IRYS_V16_AI_LIVE_CANDIDATE_SHA256'
+          sha256sum deployment/IRYS_V16_AI_FIRST_LIVE_WORKER.mjs
