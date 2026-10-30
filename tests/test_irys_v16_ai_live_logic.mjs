@@ -53,4 +53,6 @@ test('UP and DOWN messages MUST use model direction, not the evidence grade',()=
   assert.doesNotMatch(down,/상승 가설/);
   assert.match(up,/펀딩 미확인/);
   assert.match(up,/매매 신호 아님/);
+  assert.match(up,/비트겟 15분 검증 순매수\/순매도: 미확인/);
+  assert.match(up,/비트겟 두 시점 호가: 미확인/);
 });
