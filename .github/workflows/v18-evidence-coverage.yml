@@ -8,6 +8,8 @@ on:
       - research/v18_flow_selector.py
       - research/v18_selector_replay.py
       - tests/test_irys_v18_flow_selector.py
+      - tests/test_irys_v18_flow_collector_optin.py
+      - bitget_futures_cvd.py
   workflow_dispatch:
 permissions:
   contents: read
@@ -22,5 +24,8 @@ jobs:
         run: |
           python -m py_compile research/v18_flow_selector.py research/v18_selector_replay.py
           python -m unittest discover -s tests -p test_irys_v18_flow_selector.py -v
+          python -m unittest discover -s tests -p test_irys_v18_flow_collector_optin.py -v
+          python -m unittest discover -s tests -p test_futures_flow_selector.py -v
+          python -m unittest discover -s tests -p test_bitget_futures_cvd.py -v
       - name: Compare actual Git snapshot coverage, no market calls or sends
         run: python -u research/v18_selector_replay.py
