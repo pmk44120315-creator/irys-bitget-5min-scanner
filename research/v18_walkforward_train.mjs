@@ -6,12 +6,13 @@
  * Labels only from later exchange timestamps. No look-ahead, no random split.
  */
 import {execFileSync} from 'node:child_process';
+import {writeFileSync} from 'node:fs';
 import {marketFeaturesV18,forecastV18,FEATURE_ORDER_V18} from './v18_prediction_engine.mjs';
 import {spotFeaturesV18,spotScoreV18,SPOT_FEATURES_V18} from './v18_spot_prediction_engine.mjs';
 
 const MIN=60000;
 const HORIZONS=[5,15,30,60];
-const hist=new Map(),spots=new Map(),futuresEvents=[],spotEvents=[],counters={};
+const hist=new Map(),spots=new Map(),priceKnownAt=new Map(),spotKnownAt=new Map(),futuresEvents=[],spotEvents=[],counters={};
 const inc=(key)=>counters[key]=(counters[key]||0)+1;
 const git=(...a)=>execFileSync('git',a,{encoding:'utf8',maxBuffer:3000000});
 const finite=x=>x===null||x===undefined||x===''?null:Number.isFinite(Number(x))?Number(x):null;
@@ -36,6 +37,7 @@ for(let j=0;j<unique.length;j++){
    if(!Number.isSafeInteger(time)||price===null||price<=0)continue;
    if(!hist.has(time))hist.set(time,new Map());
    hist.get(time).set(symbol,price);
+   if(!priceKnownAt.has(time)||published<priceKnownAt.get(time))priceKnownAt.set(time,published);
  }
  const relevant=new Map();
  for(const x of snap.early_pool||[])if(x?.asset_identity==='VERIFIED_CRYPTO')relevant.set(x.symbol,x);
@@ -59,7 +61,8 @@ for(let j=0;j<unique.length;j++){
      const price=Array.isArray(row)?finite(row[0]):null;
      if(price!==null&&price>0&&symbol.startsWith('KRW-'))entry.set(symbol,price);
    }
-   if(entry.size>=100)spots.set(when,entry);
+   if(entry.size>=100){spots.set(when,entry);
+    if(!spotKnownAt.has(when)||published<spotKnownAt.get(when))spotKnownAt.set(when,published);}
  }
  const seeds=new Map((snap.spot_flow?.direction_review_seeds||[])
    .filter(x=>x?.market).map(x=>[x.market,x]));
@@ -73,7 +76,7 @@ for(let j=0;j<unique.length;j++){
 }
 const histTimes=[...hist.keys()].sort((a,b)=>a-b);
 const spotTimes=[...spots.keys()].sort((a,b)=>a-b);
-function attachOutcomes(events,times,prices,market){
+function attachOutcomes(events,times,prices,market,knownAt){
  const labeled=[];const misses={};
  const miss=x=>misses[x]=(misses[x]||0)+1;
  for(const e of events){
@@ -83,20 +86,23 @@ function attachOutcomes(events,times,prices,market){
   if(lag<=0||lag>7*MIN){miss('entry_delayed_more_than_7m');continue}
   const price=prices.get(entryAt)?.get(e.symbol);
   if(!price||price<=0){miss('entry_price_not_covered');continue}
-  const outcome={};
+  const outcome={},outcomeKnownAt={};
   for(const h of HORIZONS){
    const desired=entryAt+h*MIN;
    const timestamp=market==='bitget'?desired:nearestAt(times,desired,150000);
    const future=timestamp===null||timestamp===undefined?null:prices.get(timestamp)?.get(e.symbol);
-   if(future&&future>0)outcome[h]=100*(future/price-1);
+   if(future&&future>0){
+    outcome[h]=100*(future/price-1);
+    outcomeKnownAt[h]=knownAt.get(timestamp)||null;
+   }
   }
   if(outcome[15]===undefined){miss('no_15m_future_price');continue}
-  labeled.push({...e,outcome,entryAt,entryLagMin:lag/MIN});
+  labeled.push({...e,outcome,outcomeKnownAt,entryAt,entryLagMin:lag/MIN});
  }
  return {labeled,misses};
 }
-const fut=attachOutcomes(futuresEvents,histTimes,hist,'bitget');
-const spot=attachOutcomes(spotEvents,spotTimes,spots,'bithumb');
+const fut=attachOutcomes(futuresEvents,histTimes,hist,'bitget',priceKnownAt);
+const spot=attachOutcomes(spotEvents,spotTimes,spots,'bithumb',spotKnownAt);
 function split(events){
  const times=[...new Set(events.map(x=>x.published))].sort((a,b)=>a-b);
  const first=times[Math.floor(times.length*.57)],second=times[Math.floor(times.length*.80)];
@@ -255,4 +261,14 @@ const output={
  no_external_AI_api:true,no_cloudflare_mutation:true,no_telegram_delivery:true,no_orders:true,
  market_forecast_improvement_not_assumed:true
 };
+if(process.env.V18_EXPORT_EXAMPLES_JSON){
+  writeFileSync(process.env.V18_EXPORT_EXAMPLES_JSON,JSON.stringify({
+   schema:'V18_CAUSAL_TRAIN_RESEARCH_EXAMPLES',futures:fut.labeled,bithumb:spot.labeled,
+   feature_order_futures:FEATURE_ORDER_V18,feature_order_bithumb:SPOT_FEATURES_V18,
+   first_seen_price_times_are_source_published_times:true,
+   immutable_market_archive_count:unique.length,
+   no_execution_or_delivery:true
+  }));
+  console.log('V18_TEMPORARY_RESEARCH_SAMPLES_EXPORTED',fut.labeled.length,spot.labeled.length);
+}
 console.log('IRYS_V18_WALKFORWARD_RESEARCH',JSON.stringify(output));
