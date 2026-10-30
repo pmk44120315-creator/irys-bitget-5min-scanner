@@ -1,0 +1,25 @@
+name: IRYS V16 inspect existing Cloudflare KV using isolated local dev only
+on:
+  push:
+    branches: [fix/irys-v16-ai-first-early-watch-20261030]
+    paths:
+      - '.github/workflows/v16-remote-kv-readonly-probe.yml'
+      - 'audits/v16_wrangler_remote_kv_probe.mjs'
+permissions:
+  contents: read
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    env:
+      IRYS_V7_CF_API_TOKEN: ${{ secrets.IRYS_V7_CF_API_TOKEN }}
+      IRYS_REALTIME_CF_ACCOUNT_ID: ${{ secrets.IRYS_REALTIME_CF_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Probe only production KV remote read through local Wrangler, no Worker deploy
+        run: |
+          node --check audits/v16_wrangler_remote_kv_probe.mjs
+          node --check audits/v16_read_kv_local_worker.mjs
+          node audits/v16_wrangler_remote_kv_probe.mjs
