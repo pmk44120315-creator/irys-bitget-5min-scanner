@@ -612,7 +612,9 @@ async function officialAiSpotRiskCheck(c){
   return nowPrice;
 }
 function morningMessage(decision,c,checked,nowMs){
-  const long=checked.signal==='UP',dir=long?'상승':'하락',emo=long?'🟢':'🔴';
+  // The independent evidence grade contains no trade side. The model's
+  // validated decision is the only source for the UP/DOWN hypothesis label.
+  const long=decision.signal==='UP',dir=long?'상승':'하락',emo=long?'🟢':'🔴';
   const level=checked.stage==='REAL_EXECUTION_SUPPORT_OBSERVED'?
     '실제 체결과 가격 반응 동행 · 방향 적중 미검증':
     checked.stage==='AI_WATCH_CONTRARY_TAKER_EVIDENCE'?
