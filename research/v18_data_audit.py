@@ -34,7 +34,7 @@ def git(*args):
     return r.stdout
 
 def main():
-    hashes=git("log","main","--format=%H","--","data/latest.json").decode().splitlines()
+    hashes=git("log","refs/remotes/origin/main","--format=%H","--","data/latest.json").decode().splitlines()
     coverage=collections.Counter()
     price_by_time=collections.defaultdict(dict)
     evidence=[]
