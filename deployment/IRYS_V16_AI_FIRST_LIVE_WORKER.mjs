@@ -636,7 +636,8 @@ function morningMessage(decision,c,checked,nowMs){
       `비트겟 15분 검증 순매수/순매도: ${c.real_futures_taker?.source==='BITGET_REAL_15M_RECONCILED_TAKER'?ko(c.real_futures_taker.net_buy_usdt,0)+' USDT':'미확인'}\n`+
       `비트겟 두 시점 호가: ${c.real_orderbook_two_snapshots?.length===2?'관측됨 (체결 흡수는 미검증)':'미확인'}\n`;
   }
-  return `${emo} [5분 AI 조기 탐색 · 매매 신호 아님] ${dir} 가설 | ${level} (확정 아님)\n`+
+  const productLabel=c.venue==='bithumb'?'빗썸 현물 BUY 관찰':(long?'비트겟 선물 LONG 관찰':'비트겟 선물 SHORT 관찰');
+  return `${emo} [5분 AI 조기 탐색 · ${productLabel} · 매매 신호 아님] ${dir} 가설 | ${level} (확정 아님)\n`+
     `${c.venue==='bithumb'?'빗썸 현물':'비트겟 선물'} ${c.symbol} · ${kst(nowMs)}\n`+
     facts+
     `AI 근거: ${clean(decision.reason_ko,190)||'구체 근거 미제공'}\n`+
