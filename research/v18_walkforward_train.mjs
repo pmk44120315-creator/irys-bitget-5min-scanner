@@ -50,7 +50,7 @@ for(let j=0;j<unique.length;j++){
      flow_verified:f.evidence.verified_recent5_taker});
  }
  let state;
- try{state=JSON.parse(git('show',sha+':data/state.json')))}
+ try{state=JSON.parse(git('show',sha+':data/state.json'))}
  catch(_e){inc('state_blob_missing');continue}
  const tape=state.spot_fast||{},when=tape.time_ms;
  if(Number.isSafeInteger(when)&&when>0){
