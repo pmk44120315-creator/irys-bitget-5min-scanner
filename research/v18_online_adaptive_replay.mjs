@@ -112,7 +112,13 @@ function evaluate(rows,venue){
    model:'V18_CAUSAL_DELAYED_FEEDBACK_ONLINE_EXPERTS',
    full_score:metrics(outputs),
    higher_consensus_only:metrics(evidence),
-   by_day:Object.fromEntries(Object.entries(periods).map(([day,r])=>[day,metrics(r)])),
+   // Bithumb cannot execute a short. Report executable research side separately.
+   bithumb_buy_only:venue==='bithumb'?metrics(evidence.filter(x=>x.direction===1)):null,
+   bithumb_bearish_watch_only:venue==='bithumb'?metrics(evidence.filter(x=>x.direction===-1)):null,
+   by_day:Object.fromEntries(Object.entries(periods).map(([day,r])=>[day,{
+     all_directions:metrics(r),
+     ...(venue==='bithumb'?{spot_buy_only:metrics(r.filter(x=>x.direction===1))}:{})
+   }])),
    abstains,final_expert_weights:table,
    safety:'Never uses an event before its future-price publication time',
    operating_mode:'RESEARCH_ONLY_NOT_LIVE'};
