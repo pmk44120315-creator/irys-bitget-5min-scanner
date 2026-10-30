@@ -1,0 +1,31 @@
+name: IRYS V16 AI-first Telegram observational preflight NO DEPLOY
+on:
+  push:
+    branches: [fix/irys-v16-ai-first-early-watch-20261030]
+    paths:
+      - '.github/workflows/v16-ai-early-preflight.yml'
+      - 'deployment/release-v16-ai-early-safe.mjs'
+permissions:
+  contents: read
+jobs:
+  preflight:
+    runs-on: ubuntu-latest
+    env:
+      IRYS_V7_CF_API_TOKEN: ${{ secrets.IRYS_V7_CF_API_TOKEN }}
+      IRYS_REALTIME_CF_ACCOUNT_ID: ${{ secrets.IRYS_REALTIME_CF_ACCOUNT_ID }}
+      IRYS_V14_RELEASE_ONCE: AUTHORIZED_FROM_REVIEWED_MARKER
+      IRYS_V14_RELEASE_DRY_RUN: '1'
+      IRYS_V14_EXPECTED_SHA256: '8668138db2c213c7b675e1a10f6b8bb9c5824b757a1648a9feeae073094c9f73'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check immutable early AI source and release parser syntax
+        run: |
+          node --check deployment/IRYS_V16_AI_FIRST_LIVE_WORKER.mjs
+          node --check deployment/release-v16-ai-early-safe.mjs
+          node --check deployment/parse-cloudflare-script.mjs
+          test "$(sha256sum deployment/IRYS_V16_AI_FIRST_LIVE_WORKER.mjs | cut -d' ' -f1)" = "$IRYS_V14_EXPECTED_SHA256"
+      - name: Read-only verify Cloudflare existing Worker SHA, schedule, Telegram and KV bindings
+        run: node deployment/release-v16-ai-early-safe.mjs
