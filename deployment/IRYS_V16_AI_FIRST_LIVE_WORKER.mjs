@@ -623,15 +623,18 @@ function morningMessage(decision,c,checked,nowMs){
   let facts='';
   if(c.venue==='bithumb'){
     const t=c.taker_2m||{};
-    facts=`현재가 ${ko(c.price_krw,8)}원 | 최근 약 5분 ${dir==='상승'?'+':''}${ko(c.price_change_snapshot_pct)}%\n`+
+    facts=`알림 직전 현재가 ${ko(nf(c.current_price_krw)??c.price_krw,8)}원 | 관측 가격 ${ko(c.price_krw,8)}원\n`+
+      `최근 관측 가격 변화 ${ko(c.price_change_snapshot_pct)}% (완성 5분봉과 구분)\n`+
       `5분 거래대금 추정 ${ko(c.turnover5_est_krw,0)}원 / 직전 EMA ${ko(c.relative_turnover,1)}배\n`+
       `최근 2분 공격매수 ${ko(nf(t.buy_share)===null?null:t.buy_share*100,1)}% / 표본 순매수 ${ko(t.net_taker_krw,0)}원 (${t.count}건)\n`;
   }else{
     const b=c.binance_spot||{};
-    facts=`현재가 ${ko(c.price_usdt,7)} USDT / 5분 ${ko(c.pct5m)}%\n`+
+    facts=`최근 검증 가격 ${ko(c.price_usdt,7)} USDT / 완료 5분 ${ko(c.pct5m)}%\n`+
       `5분 거래대금 ${ko(c.turnover5_usdt,0)} USDT / 직전 동구간 ${ko(c.relative_volume5,1)}배\n`+
       `OI 변화 ${ko(c.oi_delta_pct)}% (${ko(c.oi_elapsed_min,1)}분) / 펀딩 ${ko(nf(c.funding_rate)===null?null:c.funding_rate*100,4)}%\n`+
-      `바이낸스 현물 최근 2분 공격매수 비중: ${b.status==='PASS'?ko(b.taker_buy_share_2m*100,1)+'%':'미확인'}\n`;
+      `바이낸스 현물 최근 2분 공격매수 비중: ${b.status==='PASS'?ko(b.taker_buy_share_2m*100,1)+'%':'미확인'}\n`+
+      `비트겟 15분 검증 순매수/순매도: ${c.real_futures_taker?.source==='BITGET_REAL_15M_RECONCILED_TAKER'?ko(c.real_futures_taker.net_buy_usdt,0)+' USDT':'미확인'}\n`+
+      `비트겟 두 시점 호가: ${c.real_orderbook_two_snapshots?.length===2?'관측됨 (체결 흡수는 미검증)':'미확인'}\n`;
   }
   return `${emo} [5분 AI 조기 탐색 · 매매 신호 아님] ${dir} 가설 | ${level} (확정 아님)\n`+
     `${c.venue==='bithumb'?'빗썸 현물':'비트겟 선물'} ${c.symbol} · ${kst(nowMs)}\n`+
@@ -1588,9 +1591,9 @@ async function scheduledCore(env,now=Date.now(),preDispatch=null){
     note:'V15 causal alignment requires selected Bitget completed price candles and venue-local 15m fills to share exact end timestamp. Separate real books plus price/taker proof remain required. No zero-fill, no all-exchange CVD, no guaranteed future accuracy, no orders.'};
   await env.IRYS_KV.put(STATE,JSON.stringify(state));
   console.log(JSON.stringify(state.last));
-  if(sendError||futuresSendError||directionalRun.send_error&&
-     directionalRun.status==='DIRECTION_TELEGRAM_ERROR')
-    throw Error('TELEGRAM_DELIVERY_NOT_CONFIRMED '+(sendError||futuresSendError||directionalRun.send_error));
+  if(sendError||futuresSendError||aiRun.status==='AI_ALERT_DELIVERY_FAILED'||
+     (directionalRun.send_error&&directionalRun.status==='DIRECTION_TELEGRAM_ERROR'))
+    throw Error('TELEGRAM_DELIVERY_NOT_CONFIRMED '+(sendError||futuresSendError||directionalRun.send_error||aiRun.error));
   if(dispatch.status!=='ACCEPTED')throw Error('GITHUB_DISPATCH_NOT_ACCEPTED '+dispatch.error);
   return {last:state.last};
 }
