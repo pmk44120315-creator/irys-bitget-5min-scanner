@@ -1,0 +1,25 @@
+name: IRYS V19 first-flow delivery offline regression
+on:
+  push:
+    branches:
+      - fix/irys-v19-alert-delivery-early-flow-20261030
+    paths:
+      - .github/workflows/verify-irys-v19-fast.yml
+      - deployment/IRYS_V19_EARLY_FLOW_WORKER.mjs
+      - deployment/v19_fast_evidence.mjs
+      - deployment/v19_fast_delivery.mjs
+      - tests/test_irys_v19_fast_evidence.mjs
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Parse all deployed and standalone modules
+        run: |
+          node --check deployment/IRYS_V19_EARLY_FLOW_WORKER.mjs
+          node --check deployment/v19_fast_evidence.mjs
+          node --check deployment/v19_fast_delivery.mjs
+      - name: Mock-only no-order/no-secret regression
+        run: node --test tests/test_irys_v19_fast_evidence.mjs
