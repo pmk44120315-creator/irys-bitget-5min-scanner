@@ -75,7 +75,7 @@ def main():
             windows=item.get("windows") or {}
             w5=windows.get("5m") or {}
             close=finite(w5.get("close"))
-            close_time=w5.get("end_utc_ms")
+            close_time=windows.get("end_utc_ms")
             if not (close and close>0 and isinstance(close_time,int)):
                 coverage["bad_candidate_clock"]+=1
                 continue
