@@ -1,0 +1,21 @@
+name: IRYS V17 causal-alert offline regression
+on:
+  push:
+    branches:
+      - fix/irys-v17-causal-direction-vs-watch-20261030
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  v17-offline:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout test branch
+        uses: actions/checkout@v4
+      - name: Report runtime
+        run: node --version
+      - name: Check V17 source syntax
+        run: node --check deployment/IRYS_V17_CAUSAL_AI_DIRECTION_WORKER.mjs
+      - name: Adversarial V17 regression (local mocks only; no actual Telegram or Cloudflare)
+        run: node --test tests/test_irys_v17_causal_alert.mjs
