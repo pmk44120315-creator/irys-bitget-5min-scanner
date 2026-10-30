@@ -56,6 +56,8 @@ try{
    diagnostic_error:last?.message||null,
    dev_error_type:last?'NONE':(stderr.includes('Authentication')?'WRANGLER_AUTH_FAILED':
      stderr.includes('error')?'LOCAL_DEV_FAILURE':'UNKNOWN'),
+   dev_exit_code:processRef?.exitCode??null,
+   dev_failure_excerpt:last?null:stderr.replaceAll(token,'[REDACTED]').slice(-1400),
    no_production_worker_deploy:true,no_kv_writes:true
  }));
 }finally{
