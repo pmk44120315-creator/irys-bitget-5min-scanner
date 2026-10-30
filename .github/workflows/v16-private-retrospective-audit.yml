@@ -1,0 +1,29 @@
+name: IRYS private full Telegram retrospective audit exact-code rollback
+on:
+  push:
+    branches: [fix/irys-v16-ai-first-early-watch-20261030]
+    paths:
+      - '.github/workflows/v16-private-retrospective-audit.yml'
+      - 'audits/v16_private_alert_outcome_audit.mjs'
+permissions:
+  contents: read
+concurrency:
+  group: irys-surge-monitor-v14-release-once
+  cancel-in-progress: false
+jobs:
+  compare:
+    runs-on: ubuntu-latest
+    env:
+      IRYS_V7_CF_API_TOKEN: ${{ secrets.IRYS_V7_CF_API_TOKEN }}
+      IRYS_REALTIME_CF_ACCOUNT_ID: ${{ secrets.IRYS_REALTIME_CF_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify audit script syntax before any Cloudflare request
+        run: |
+          node --check audits/v16_private_alert_outcome_audit.mjs
+          node --check deployment/parse-cloudflare-script.mjs
+      - name: Authenticated one-time KV READ, exact Worker rollback, then independent official prices
+        run: node audits/v16_private_alert_outcome_audit.mjs
