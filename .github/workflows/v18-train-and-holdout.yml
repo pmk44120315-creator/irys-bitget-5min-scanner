@@ -1,0 +1,30 @@
+name: IRYS V18 causal ML walk-forward holdout and schema test
+on:
+  push:
+    branches:
+      - research/irys-v18-walkforward-forecast-20261030
+    paths:
+      - .github/workflows/v18-train-and-holdout.yml
+      - research/v18_walkforward_train.mjs
+      - research/v18_prediction_engine.mjs
+      - research/v18_spot_prediction_engine.mjs
+      - tests/test_irys_v18_prediction_engine.mjs
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verify-features-and-holdout:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout historical snapshot commits, no writes
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Static parse and unit regression tests
+        run: |
+          node --check research/v18_walkforward_train.mjs
+          node --check research/v18_prediction_engine.mjs
+          node --check research/v18_spot_prediction_engine.mjs
+          node --test tests/test_irys_v18_prediction_engine.mjs
+      - name: Genuine chronological out-of-sample prediction
+        run: node research/v18_walkforward_train.mjs
