@@ -48,6 +48,8 @@ test('UP and DOWN messages MUST use model direction, not the evidence grade',()=
   const up=morningMessage({...base,signal:'UP'},c,grade,Date.parse('2026-10-30T00:00:00Z'));
   const down=morningMessage({...base,signal:'DOWN'},c,grade,Date.parse('2026-10-30T00:00:00Z'));
   assert.match(up,/상승 가설/);
+  assert.match(up,/비트겟 선물 LONG 관찰/);
+  assert.match(down,/비트겟 선물 SHORT 관찰/);
   assert.doesNotMatch(up,/하락 가설/);
   assert.match(down,/하락 가설/);
   assert.doesNotMatch(down,/상승 가설/);
