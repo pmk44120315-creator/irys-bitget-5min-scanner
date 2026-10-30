@@ -27,9 +27,45 @@ if(!response.ok||json.success===false){
  process.exit(0);
 }
 const records=json.result?.events?.events||json.result?.events||[];
-const visible=[];
+function nestedObject(raw,key){
+ const p=raw.indexOf('"'+key+'":');
+ if(p<0)return null;
+ const start=raw.indexOf('{',p+key.length+3);
+ if(start<0||start-p>65)return null;
+ let depth=0,str=false,escape=false;
+ for(let i=start;i<raw.length;i++){
+  const c=raw[i];
+  if(str){
+    if(escape)escape=false;
+    else if(c==='\\')escape=true;
+    else if(c==='"')str=false;
+  }else if(c==='"')str=true;
+  else if(c==='{')depth++;
+  else if(c==='}'){
+   depth--;if(depth===0){try{return JSON.parse(raw.slice(start,i+1))}catch(e){return null}}
+  }
+ }
+ return null;
+}
+const visible=[],outcomes=[],statuses=[];
 for(const e of Array.isArray(records)?records:[]){
  const raw=typeof e.source==='string'?e.source:JSON.stringify(e.source||'');
+ const audit=nestedObject(raw,'aiOutcomeAudit');
+ const last=nestedObject(raw,'aiJudgment');
+ if(audit){
+   for(const item of (audit.last_completed||[])){
+     if(item?.symbol && item?.horizon_min) outcomes.push({
+       at_event_utc:e.timestamp?new Date(e.timestamp).toISOString():null,
+       venue:item.venue||null,symbol:item.symbol,
+       direction:item.direction,horizon:item.horizon_min,
+       return_pct:item.return_pct,direction_right:item.direction_right
+     });
+   }
+ }
+ if(last?.status)statuses.push({
+   at_utc:e.timestamp?new Date(e.timestamp).toISOString():null,status:last.status,
+   ai_sent:last.alerts_sent||0
+ });
  const msg=raw.match(/\"telegramLastApiReceipt\"\s*:\s*(\{[^}]{0,800}\})/);
  if(!msg)continue;
  try{
@@ -42,6 +78,8 @@ for(const e of Array.isArray(records)?records:[]){
 }
 const unique=[...new Map(visible.map(x=>[x.channel+':'+x.message_id,x])).values()];
 console.log('IRYS_CLOUDFLARE_OBSERVABILITY_READONLY',JSON.stringify({
+ outcome_events_count:outcomes.length,outcome_events:outcomes.slice(0,250),
+ recent_ai_states:statuses.slice(0,4),
  count:Array.isArray(records)?records.length:0,
  distinct_receipts:unique.length,
  receipt_summary:unique.slice(0,80),
