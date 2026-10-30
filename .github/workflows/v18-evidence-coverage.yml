@@ -1,0 +1,26 @@
+name: IRYS V18 reversal evidence candidate selection regression
+on:
+  push:
+    branches:
+      - research/irys-v18-walkforward-forecast-20261030
+    paths:
+      - .github/workflows/v18-evidence-coverage.yml
+      - research/v18_flow_selector.py
+      - research/v18_selector_replay.py
+      - tests/test_irys_v18_flow_selector.py
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  pure-source-and-historical-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Source syntax and selector safety regression
+        run: |
+          python -m py_compile research/v18_flow_selector.py research/v18_selector_replay.py
+          python -m unittest discover -s tests -p test_irys_v18_flow_selector.py -v
+      - name: Compare actual Git snapshot coverage, no market calls or sends
+        run: python -u research/v18_selector_replay.py
