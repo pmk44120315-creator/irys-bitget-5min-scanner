@@ -1398,8 +1398,8 @@ function evaluateAiV16Outcome(rec,h,now,rows){
     if(!v)return null;
     return {...v,source:'BITHUMB_OFFICIAL_COMPLETED_1M',
       basis:'OFFICIAL_TICKER_NEAR_TELEGRAM_ACK_NOT_TRADE_EXECUTION',
-      favourable_excursion_pct:v.excursion_full_coverage?v.favourable_excursion_pct:null,
-      adverse_excursion_pct:v.excursion_full_coverage?v.adverse_excursion_pct:null};
+      favourable_excursion_pct:v.excursion_full_coverage?Math.max(0,v.favourable_excursion_pct):null,
+      adverse_excursion_pct:v.excursion_full_coverage?Math.max(0,v.adverse_excursion_pct):null};
   }
   if(rec.venue==='bitget'){
     if(nf(rec.first_postalert_close_usdt)===null||
@@ -1411,8 +1411,8 @@ function evaluateAiV16Outcome(rec,h,now,rows){
     if(!v)return null;
     return {...v,source:'BITGET_OFFICIAL_COMPLETED_1M',
       basis:'FIRST_COMPLETED_1M_AFTER_TELEGRAM_ACK_NOT_EXECUTION',
-      favourable_excursion_pct:v.excursion_full_coverage?v.favourable_excursion_pct:null,
-      adverse_excursion_pct:v.excursion_full_coverage?v.adverse_excursion_pct:null};
+      favourable_excursion_pct:v.excursion_full_coverage?Math.max(0,v.favourable_excursion_pct):null,
+      adverse_excursion_pct:v.excursion_full_coverage?Math.max(0,v.adverse_excursion_pct):null};
   }
   return null;
 }
