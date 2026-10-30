@@ -147,3 +147,49 @@ test('rapid Bithumb warning survives separate Futures feed outage',async()=>{
  assert.equal(x.spot_sent,1);
  assert.equal(x.source_status,'STALE_OR_UNMATCHED');
 });
+
+test('V19 actual runMorningAi still sends early WATCH with AI quota backoff (end-to-end mocks)',async()=>{
+ const saved=globalThis.fetch;
+ const count={model:0,telegram:0};
+ const official=Array.from({length:105},(_,i)=>({
+  market:'KRW-'+(i===0?'ALT':'Z'+(i+100)),market_warning:'NONE'}));
+ const tickers=official.map((x,i)=>({
+  market:x.market,trade_price:i===0?101:100,
+  acc_trade_price:i===0?150000000:100000000,
+  acc_trade_price_24h:500000000,
+  signed_change_rate:i===0?.01:0,
+  market_state:'ACTIVE'}));
+ globalThis.fetch=async(url,opt={})=>{
+  const s=String(url);
+  if(s.includes('/v1/market/all'))return Response.json(official);
+  if(s.includes('/v1/market/virtual_asset_warning'))return Response.json([]);
+  if(s.includes('/v1/ticker'))return Response.json(tickers);
+  if(s.includes('/v1/candles/minutes/')||s.includes('/v1/trades/ticks')||
+    s.includes('/v1/orderbook'))return Response.json([]);
+  if(s.includes('/data/v18_evidence_latest.json'))return Response.json({status:'UNAVAILABLE'});
+  if(s.includes('api.telegram.org/')&&s.includes('/sendMessage')){
+   count.telegram++;
+   return Response.json({ok:true,result:{message_id:731,chat:{id:123456789}}});
+  }
+  throw Error('TEST_UNEXPECTED_PUBLIC_FETCH '+s);
+ };
+ const prevPrices=Object.fromEntries(official.map(x=>[x.market,[100,100000000,1000000,3]]));
+ const state={version:1,lastAlert:{},aiQuotaBackoffUntil:NOW+3600000,
+   aiSpotTape:{at:NOW-300000,day:'2026-10-30',prices:prevPrices}};
+ const env={AI:{run:async()=>{count.model++;throw Error('AI_MUST_NOT_BE_CALLED');}},
+   TELEGRAM_BOT_TOKEN:'offline-token',TELEGRAM_CHAT_ID:'123456789',
+   IRYS_KV:{put:async()=>{}}};
+ try{
+  const out=await runMorningAi(env,{snap:{...source(),early_pool:[],
+    watchlist:[]}},state,NOW,1);
+  assert.equal(out.status,'AI_QUOTA_BACKOFF_ACTIVE');
+  assert.equal(out.fastEarly.status,'TELEGRAM_API_ACK');
+  assert.equal(out.fastEarly.spot_sent,1);
+  assert.equal(out.fastEarly.watch_sent,1);
+  assert.equal(out.fastEarly.direction_sent,0);
+  assert.equal(out.alerts_sent,1);
+  assert.equal(count.telegram,1);
+  assert.equal(count.model,0);
+  assert.equal(state.deliveryReceiptsV12[0].channel,'V19_EARLY_NEUTRAL_WATCH');
+ }finally{globalThis.fetch=saved;}
+});
