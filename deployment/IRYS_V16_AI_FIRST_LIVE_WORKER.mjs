@@ -1622,4 +1622,4 @@ export {validateSignal,officialRiskCheck,readGithub,dispatchGithub,scheduledCore
   evaluateOutcomeAtHorizon,parseOutcomeCandles,updateSpotOutcomes,
   parseBitgetOutcomeCandles,evaluateFuturesOutcome,updateFuturesOutcomes,
   validFuturesBookProof,officialDirectionalRiskCheck,telegramTransportProofOnce,
-  officialAiSpotRiskCheck};
+  officialAiSpotRiskCheck,evaluateAiV16Outcome,updateAiV16Outcomes};
