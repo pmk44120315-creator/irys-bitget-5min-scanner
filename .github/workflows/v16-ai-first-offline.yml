@@ -8,6 +8,7 @@ on:
       - 'tests/test_irys_v16_ai_first.mjs'
       - 'tests/test_irys_v16_ai_live_logic.mjs'
       - 'tests/test_irys_v16_outcome_offline.mjs'
+      - 'tests/test_irys_v16_ai_delivery_mock.mjs'
       - '.github/workflows/v16-ai-first-offline.yml'
 permissions:
   contents: read
@@ -26,7 +27,7 @@ jobs:
         run: |
           node --check deployment/IRYS_V16_AI_FIRST_EARLY_WATCH_WORKER.mjs
           node --check deployment/IRYS_V16_AI_FIRST_LIVE_WORKER.mjs
-          node --test tests/test_irys_v16_ai_first.mjs tests/test_irys_v16_ai_live_logic.mjs tests/test_irys_v16_outcome_offline.mjs tests/test_irys_v15_telegram_proof.mjs
+          node --test tests/test_irys_v16_ai_first.mjs tests/test_irys_v16_ai_live_logic.mjs tests/test_irys_v16_outcome_offline.mjs tests/test_irys_v16_ai_delivery_mock.mjs tests/test_irys_v15_telegram_proof.mjs
           python -m unittest discover -s tests -p 'test_*.py' -v
           python -m unittest discover -s ai_twin/tests -p 'test_*.py' -v
           echo 'IRYS_V16_AI_SHADOW_SOURCE_SHA256'
