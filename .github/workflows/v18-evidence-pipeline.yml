@@ -1,0 +1,83 @@
+name: IRYS V18 separate real-taker evidence collector
+on:
+  push:
+    branches:
+      - deploy/irys-v18-evidence-and-shadow-20261030
+    paths:
+      - '.github/workflows/v18-evidence-pipeline.yml'
+      - 'v18_live_evidence.py'
+      - 'bitget_futures_cvd.py'
+      - 'research/v18_flow_selector.py'
+      - 'tests/test_v18_live_evidence.py'
+  workflow_run:
+    workflows: ['Bitget five-minute read-only snapshot']
+    types: [completed]
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: irys-bitget-main-writers
+  cancel-in-progress: false
+  queue: max
+jobs:
+  verify:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m unittest discover -s tests -p 'test_v18_live_evidence.py' -v
+      - run: python -m unittest discover -s tests -p 'test_bitget_futures_cvd.py' -v
+      - run: python -m unittest discover -s tests -p 'test_futures_flow_selector.py' -v
+  collect:
+    if: >-
+      (github.event_name == 'workflow_run' &&
+       github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.head_branch == 'main') ||
+      (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main')
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Fresh main after other market writers
+        run: |
+          git fetch --quiet origin main
+          git reset --hard origin/main
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify evidence engine before reading public exchange API
+        run: |
+          python -m unittest discover -s tests -p 'test_v18_live_evidence.py' -v
+          python -m unittest discover -s tests -p 'test_bitget_futures_cvd.py' -v
+          python -m unittest discover -s tests -p 'test_futures_flow_selector.py' -v
+      - name: Official Bitget source-only API, independent file storage
+        id: evidence
+        continue-on-error: true
+        run: python v18_live_evidence.py
+      - name: Commit only new V18 evidence files; never touch original market data
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add data/v18_evidence_latest.json
+          if test -f data/v18_evidence_state.json; then git add data/v18_evidence_state.json; fi
+          if git diff --staged --quiet; then exit 0; fi
+          git commit -m 'data: V18 independent real taker evidence'
+          for retry in 1 2 3 4 5 6; do
+            git fetch --quiet origin main
+            if ! git rebase origin/main; then
+              git rebase --abort
+              echo '::error::V18 data conflict; never overwrite later data'
+              exit 1
+            fi
+            if git push origin HEAD:main; then exit 0; fi
+            sleep 2
+          done
+          exit 1
+      - name: Do not pass a failed market evidence read
+        if: steps.evidence.outcome == 'failure'
+        run: exit 1
