@@ -110,21 +110,28 @@ function split(events){
    distinct_asof_times:times.length};
 }
 const sigmoid=z=>1/(1+Math.exp(-Math.max(-30,Math.min(30,z))));
-function trainLogistic(events,horizon,features,schema){
- const rows=events.filter(x=>Number.isFinite(x.outcome[horizon]));
+function trainLogistic(events,horizon,features,schema,targetMode='CONTINUATION_VS_REVERSAL'){
+ const rows=events.filter(x=>Number.isFinite(x.outcome[horizon])&&
+    (targetMode!=='CONTINUATION_VS_REVERSAL'||x.naive!==0));
  const weights=features.map(()=>0);let intercept=0;
- // Training weight is bounded to prevent large spikes dominating the objective.
- // Explicit L2 regularization; same trainer for both venues, separate models.
+ const y=r=>targetMode==='CONTINUATION_VS_REVERSAL'?
+    (r.outcome[horizon]*r.naive>0?1:0):(r.outcome[horizon]>0?1:0);
+ const positives=rows.filter(r=>y(r)===1).length,negatives=rows.length-positives;
+ const positiveFactor=positives?Math.min(3,rows.length/(2*positives)):1;
+ const negativeFactor=negatives?Math.min(3,rows.length/(2*negatives)):1;
+ // Learn price reversal or continuation, not a permanent short-only prior.
+ // Class-balanced loss uses ONLY chronologically earlier training observations.
  const epochs=90,reg=.035;
  for(let epoch=0;epoch<epochs;epoch++){
   const grad=features.map(()=>0);let gb=0,total=0;
   for(const r of rows){
-   const target=r.outcome[horizon]>0?1:0;
-   const confidenceWeight=Math.min(1.5,Math.max(.10,Math.abs(r.outcome[horizon])/.3));
+   const target=y(r);
+   const sizeWeight=Math.min(1.5,Math.max(.10,Math.abs(r.outcome[horizon])/.3));
+   const weight=sizeWeight*(target?positiveFactor:negativeFactor);
    const z=intercept+weights.reduce((a,w,i)=>a+w*r.vec[i],0);
-   const diff=(sigmoid(z)-target)*confidenceWeight;
+   const diff=(sigmoid(z)-target)*weight;
    for(let i=0;i<features.length;i++)grad[i]+=diff*r.vec[i];
-   gb+=diff;total+=confidenceWeight;
+   gb+=diff;total+=weight;
   }
   if(total===0)break;
   const rate=.42/Math.sqrt(1+epoch/14);
@@ -132,10 +139,10 @@ function trainLogistic(events,horizon,features,schema){
     weights[i]-=rate*(grad[i]/total+reg*weights[i]);
   intercept-=rate*gb/total;
  }
- return {schema,feature_order:features,horizon_min:horizon,
+ return {schema,feature_order:features,horizon_min:horizon,target_mode:targetMode,
    weights:weights.map(x=>+x.toFixed(9)),
    intercept:+intercept.toFixed(9),trained_samples:rows.length,
-   training: 'chronological_only_regularized_logistic_no_external_training',
+   training:'chronological_class_balanced_continuation_regularized_logistic',
    no_future_prices_in_features:true,probability_not_calibrated:true,
    training_cutoff_ms:rows.length?Math.max(...rows.map(x=>x.published)):null};
 }
@@ -201,6 +208,8 @@ function prove(label,data,venue,featureOrder,schema){
  const holdout=evaluate(s.test,model15,selection.threshold,venue);
  const validation=evaluate(s.validation,model15,selection.threshold,venue);
  const naive=evaluate(s.test,model15,.50000001,venue);
+ const directModel=trainLogistic(s.train,15,featureOrder,schema,'ABSOLUTE_DIRECTION');
+ const absoluteDirectionalBaseline=evaluate(s.test,directModel,.60,venue);
  const rawMomentum={
    signals:s.test.filter(x=>x.naive!==0).length,
    all_decisive_accuracy:(()=>{
@@ -230,6 +239,7 @@ function prove(label,data,venue,featureOrder,schema){
      mean_net:x.metric.average_after_assumed_0_18pct_cost
    })),
    validation,holdout,naive_raw_momentum:rawMomentum,naive_full_model_half_cut:naive,
+   original_absolute_direction_model_baseline: absoluteDirectionalBaseline,
    missing_price_evidence:data.misses,
    "model_weights_research_only":model15,
    "model_5m_research_only":model5,
