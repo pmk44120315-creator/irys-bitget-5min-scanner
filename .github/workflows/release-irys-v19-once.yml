@@ -1,0 +1,37 @@
+name: IRYS V19 one-time guarded Cloudflare alert repair
+on:
+  push:
+    branches:
+      - fix/irys-v19-alert-delivery-early-flow-20261030
+    paths:
+      - '.github/workflows/release-irys-v19-once.yml'
+permissions:
+  contents: read
+concurrency:
+  group: irys-production-worker-code-only-release
+  cancel-in-progress: false
+jobs:
+  verified-release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate V19 source and Cloudflare release code syntax
+        run: |
+          node --check deployment/IRYS_V19_EARLY_FLOW_WORKER.mjs
+          node --check deployment/release-v19-source-safe.mjs
+      - name: Independent early flow and Telegram mock regression
+        run: node --test tests/test_irys_v19_fast_evidence.mjs
+      - name: Check live worker version, source, KV and Cron (no changes)
+        env:
+          IRYS_REALTIME_CF_ACCOUNT_ID: ${{ secrets.IRYS_REALTIME_CF_ACCOUNT_ID }}
+          IRYS_V7_CF_API_TOKEN: ${{ secrets.IRYS_V7_CF_API_TOKEN }}
+          IRYS_V19_RELEASE_APPROVED: OWNER_REQUESTED_FULL_ALERT_REPAIR_20261030
+          IRYS_V19_DRY_RUN: 'true'
+        run: node deployment/release-v19-source-safe.mjs
+      - name: Release only Worker code with automatic integrity rollback
+        env:
+          IRYS_REALTIME_CF_ACCOUNT_ID: ${{ secrets.IRYS_REALTIME_CF_ACCOUNT_ID }}
+          IRYS_V7_CF_API_TOKEN: ${{ secrets.IRYS_V7_CF_API_TOKEN }}
+          IRYS_V19_RELEASE_APPROVED: OWNER_REQUESTED_FULL_ALERT_REPAIR_20261030
+          IRYS_V19_DRY_RUN: 'false'
+        run: node deployment/release-v19-source-safe.mjs
