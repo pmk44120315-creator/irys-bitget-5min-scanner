@@ -52,7 +52,11 @@ export function spotScoreV18(model,vector){
  let z=model.intercept;
  for(let i=0;i<vector.length;i++)z+=model.weights[i]*vector[i];
  if(!Number.isFinite(z))throw Error('V18_SPOT_SCORE_NOT_FINITE');
- return {score_buy:1/(1+Math.exp(-Math.max(-30,Math.min(30,z)))),
+ const base=1/(1+Math.exp(-Math.max(-30,Math.min(30,z))));
+ const priceSign=Math.sign(vector[0]);
+ const score=model.target_mode==='CONTINUATION_VS_REVERSAL'?
+   (priceSign===0?.5:priceSign>0?base:1-base):base;
+ return {score_buy:score,
    horizon_min:model.horizon_min,verified_accuracy:null,
    label:'UNVERIFIED_DIRECTION_SCORE_NOT_A_WIN_PROBABILITY'};
 }
