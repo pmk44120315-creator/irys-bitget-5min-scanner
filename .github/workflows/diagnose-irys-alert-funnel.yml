@@ -1,0 +1,22 @@
+name: IRYS Cloudflare alert funnel GET-only audit
+on:
+  push:
+    branches:
+      - diagnose/irys-no-alerts-20261030
+    paths:
+      - diagnostics/irys_live_delivery_audit.mjs
+      - .github/workflows/diagnose-irys-alert-funnel.yml
+permissions:
+  contents: read
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Syntax check, no server mutation
+        run: node --check diagnostics/irys_live_delivery_audit.mjs
+      - name: Read live Cloudflare public health, Cron, bindings and summary-only KV
+        env:
+          IRYS_REALTIME_CF_ACCOUNT_ID: ${{ secrets.IRYS_REALTIME_CF_ACCOUNT_ID }}
+          IRYS_V7_CF_API_TOKEN: ${{ secrets.IRYS_V7_CF_API_TOKEN }}
+        run: node diagnostics/irys_live_delivery_audit.mjs
