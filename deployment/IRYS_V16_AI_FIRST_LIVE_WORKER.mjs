@@ -564,20 +564,33 @@ function verifyModelAlert(decision,c){
     if(decision.signal!=='UP'||c.spot_risk_status!=='OFFICIAL_NO_WARNING_NOW'||
        c.confirmed_market_risk_clear!==true||
        nf(c.price_krw)===null||c.price_krw<=0)return null;
-    const t=c.taker_2m||{},close=nf(c.windows?.['5m']?.close);
-    const hasRealFlow=t.count>0&&nf(t.net_taker_krw)!==null;
-    const supportive=hasRealFlow&&t.net_taker_krw>0&&close!==null;
-    return {stage:supportive?'REAL_EXECUTION_SUPPORT_OBSERVED':'AI_EARLY_WATCH_UNCONFIRMED',
+    const t=c.taker_2m||{};
+    // Only classify actual SIGNED supporting flow when signed price also
+    // responds UP. Sparse or opposing fills are still provided to the AI,
+    // but never falsely called verified bullish execution.
+    const price=nf(c.price_change_snapshot_pct),net=nf(t.net_taker_krw);
+    const supporting=t.count>0&&net!==null&&net>0&&price!==null&&price>0;
+    const contrary=net!==null&&net<0;
+    return {stage:supporting?'REAL_EXECUTION_SUPPORT_OBSERVED':
+      contrary?'AI_WATCH_CONTRARY_TAKER_EVIDENCE':'AI_EARLY_WATCH_UNCONFIRMED',
       direction_verified:false,not_a_buy_order:true};
   }
   if(c.venue==='bitget'){
     if(c.symbol_type!=='VERIFIED_CRYPTO_USDT_PERPETUAL'||nf(c.price_usdt)===null||
        c.price_usdt<=0)return null;
-    const t=c.recent_futures_taker_sample||{};
-    const net=nf(t.net_taker_quote_usdt);
-    const supportive=t.sample_fresh===true&&net!==null&&
-      (decision.signal==='UP'?net>0:net<0);
-    return {stage:supportive?'REAL_EXECUTION_SUPPORT_OBSERVED':'AI_EARLY_WATCH_UNCONFIRMED',
+    const t=c.real_futures_taker||{},sample=c.recent_futures_taker_sample||{};
+    const confirmedNet=nf(t.net_buy_usdt);
+    const sampleNet=nf(sample.net_taker_quote_usdt);
+    const signedPrice=nf(c.pct5m);
+    const bullish=decision.signal==='UP';
+    const actualNet=t.price_time_alignment==='ALIGNED_REAL_OFFICIAL_1M_CONTEXT'?
+      confirmedNet:(sample.sample_fresh===true?sampleNet:null);
+    const signedFlow=actualNet!==null&&(bullish?actualNet>0:actualNet<0);
+    const signedMove=signedPrice!==null&&(bullish?signedPrice>0:signedPrice<0);
+    const supportive=signedFlow&&signedMove;
+    const contrary=actualNet!==null&&(bullish?actualNet<0:actualNet>0);
+    return {stage:supportive?'REAL_EXECUTION_SUPPORT_OBSERVED':
+      contrary?'AI_WATCH_CONTRARY_TAKER_EVIDENCE':'AI_EARLY_WATCH_UNCONFIRMED',
       direction_verified:false,not_an_order:true};
   }
   return null;
@@ -600,7 +613,11 @@ async function officialAiSpotRiskCheck(c){
 }
 function morningMessage(decision,c,checked,nowMs){
   const long=checked.signal==='UP',dir=long?'상승':'하락',emo=long?'🟢':'🔴';
-  const level=checked.stage==='REAL_EXECUTION_SUPPORT_OBSERVED'?'실제 체결 일부 동행':'AI 초기 탐색 · 체결 방향 미확정';
+  const level=checked.stage==='REAL_EXECUTION_SUPPORT_OBSERVED'?
+    '실제 체결과 가격 반응 동행 · 방향 적중 미검증':
+    checked.stage==='AI_WATCH_CONTRARY_TAKER_EVIDENCE'?
+    '반대 체결 관측 · 방향 판단 주의 · 관찰 전용':
+    'AI 초기 탐색 · 실체결 방향 미확정 · 관찰 전용';
   let facts='';
   if(c.venue==='bithumb'){
     const t=c.taker_2m||{};
@@ -614,7 +631,7 @@ function morningMessage(decision,c,checked,nowMs){
       `OI 변화 ${ko(c.oi_delta_pct)}% (${ko(c.oi_elapsed_min,1)}분) / 펀딩 ${ko(nf(c.funding_rate)===null?null:c.funding_rate*100,4)}%\n`+
       `바이낸스 현물 최근 2분 공격매수 비중: ${b.status==='PASS'?ko(b.taker_buy_share_2m*100,1)+'%':'미확인'}\n`;
   }
-  return `${emo} [5분 AI 종합감시] ${dir} 가능성 | ${level} (확정 아님)\n`+
+  return `${emo} [5분 AI 조기 탐색 · 매매 신호 아님] ${dir} 가설 | ${level} (확정 아님)\n`+
     `${c.venue==='bithumb'?'빗썸 현물':'비트겟 선물'} ${c.symbol} · ${kst(nowMs)}\n`+
     facts+
     `AI 근거: ${clean(decision.reason_ko,190)||'구체 근거 미제공'}\n`+
@@ -680,8 +697,26 @@ async function runMorningAi(env,source,state,nowMs,capacity=AI_MAX_ALERTS){
     return out;
   }
   const table=new Map(items.map(x=>[x.venue+':'+x.symbol,x]));
-  for(const d of decisions){
-    const c=table.get(d.venue+':'+d.symbol),pass=verifyModelAlert(d,c);
+  // Ranking is a delivery priority, NOT an arbitrary trading hard gate.
+  // Alert evidence-backed observations before unverified price-only hypotheses.
+  const rankedDecisions=decisions.map(d=>({
+    d,c:table.get(d.venue+':'+d.symbol),
+    proof:verifyModelAlert(d,table.get(d.venue+':'+d.symbol))
+  })).sort((a,b)=>{
+    const rank=x=>x.proof?.stage==='REAL_EXECUTION_SUPPORT_OBSERVED'?0:
+      x.proof?.stage==='AI_EARLY_WATCH_UNCONFIRMED'?1:
+      x.proof?.stage==='AI_WATCH_CONTRARY_TAKER_EVIDENCE'?2:3;
+    return rank(a)-rank(b) ||
+      (a.d.strength==='STRONG'?-1:0)-(b.d.strength==='STRONG'?-1:0);
+  });
+  out.real_execution_supported=rankedDecisions.filter(x=>
+    x.proof?.stage==='REAL_EXECUTION_SUPPORT_OBSERVED').length;
+  out.model_only_unconfirmed=rankedDecisions.filter(x=>
+    x.proof?.stage==='AI_EARLY_WATCH_UNCONFIRMED').length;
+  out.contrary_taker_observations=rankedDecisions.filter(x=>
+    x.proof?.stage==='AI_WATCH_CONTRARY_TAKER_EVIDENCE').length;
+  for(const {d,c,proof} of rankedDecisions){
+    const pass=proof;
     if(!pass)continue;
     out.passed_evidence++;
     const id=`AI:${c.venue}:${c.symbol}:${d.signal}`;
