@@ -1,0 +1,38 @@
+name: IRYS V17 one-time code-only Cloudflare guarded release
+on:
+  push:
+    branches:
+      - fix/irys-v17-causal-direction-vs-watch-20261030
+    paths:
+      - .github/workflows/release-v17-once-20261030.yml
+permissions:
+  contents: read
+concurrency:
+  group: irys-production-code-only-release
+  cancel-in-progress: false
+jobs:
+  verify-and-release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate exact V17 syntax
+        run: |
+          node --check deployment/IRYS_V17_CAUSAL_AI_DIRECTION_WORKER.mjs
+          node --check deployment/release-v17-causal-direction-safe.mjs
+      - name: Run V17 regression before release
+        run: node --test tests/test_irys_v17_causal_alert.mjs
+      - name: Cloudflare read-only preflight and dry-run
+        env:
+          IRYS_REALTIME_CF_ACCOUNT_ID: ${{ secrets.IRYS_REALTIME_CF_ACCOUNT_ID }}
+          IRYS_V7_CF_API_TOKEN: ${{ secrets.IRYS_V7_CF_API_TOKEN }}
+          IRYS_V17_RELEASE_MARKER: USER_APPROVED_CAUSAL_DIRECTION_FIX_20261030
+          IRYS_V17_DRY_RUN: 'true'
+        run: node deployment/release-v17-causal-direction-safe.mjs
+      - name: Deploy only V17 worker source, preserve KV AI Telegram Cron and rollback on failure
+        env:
+          IRYS_REALTIME_CF_ACCOUNT_ID: ${{ secrets.IRYS_REALTIME_CF_ACCOUNT_ID }}
+          IRYS_V7_CF_API_TOKEN: ${{ secrets.IRYS_V7_CF_API_TOKEN }}
+          IRYS_V17_RELEASE_MARKER: USER_APPROVED_CAUSAL_DIRECTION_FIX_20261030
+          IRYS_V17_DRY_RUN: 'false'
+        run: node deployment/release-v17-causal-direction-safe.mjs
