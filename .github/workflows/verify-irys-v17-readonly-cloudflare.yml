@@ -1,0 +1,19 @@
+name: IRYS V17 Cloudflare READ-ONLY preflight
+on:
+  push:
+    branches:
+      - fix/irys-v17-causal-direction-vs-watch-20261030
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  readonly-live-snapshot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Read live script hash and healthy bindings without writes
+        env:
+          IRYS_REALTIME_CF_ACCOUNT_ID: ${{ secrets.IRYS_REALTIME_CF_ACCOUNT_ID }}
+          IRYS_V7_CF_API_TOKEN: ${{ secrets.IRYS_V7_CF_API_TOKEN }}
+        run: node deployment/v17-cloudflare-readonly-preflight.mjs
