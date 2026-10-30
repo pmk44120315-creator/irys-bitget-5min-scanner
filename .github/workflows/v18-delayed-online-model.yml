@@ -1,0 +1,32 @@
+name: IRYS V18 delayed-label adaptive model retrospective
+on:
+  push:
+    branches:
+      - research/irys-v18-walkforward-forecast-20261030
+    paths:
+      - .github/workflows/v18-delayed-online-model.yml
+      - research/v18_walkforward_train.mjs
+      - research/v18_online_adaptive_replay.mjs
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  delayed-expert-replay:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Syntax and causal score schema
+        run: |
+          node --check research/v18_walkforward_train.mjs
+          node --check research/v18_online_adaptive_replay.mjs
+          node --test tests/test_irys_v18_prediction_engine.mjs
+      - name: Assemble only actual archived source and later market-label evidence
+        env:
+          V18_EXPORT_EXAMPLES_JSON: /tmp/irys-v18-labeled-observations.json
+        run: node research/v18_walkforward_train.mjs
+      - name: Online adaptation using only price results already published before each prediction
+        env:
+          V18_EXPORT_EXAMPLES_JSON: /tmp/irys-v18-labeled-observations.json
+        run: node research/v18_online_adaptive_replay.mjs
