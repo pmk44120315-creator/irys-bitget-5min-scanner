@@ -117,7 +117,11 @@ export function forecastV18(model,vector){
       throw Error('V18_NONFINITE_MODEL_INPUT');
     z+=model.weights[i]*vector[i];
   }
-  const score=1/(1+Math.exp(-clamp(z,-35,35)));
+  const rawScore=1/(1+Math.exp(-clamp(z,-35,35)));
+  const priceSign=Math.sign(vector[FEATURE_ORDER_V18.indexOf('ret5m')]);
+  // Continuation-vs-reversal training removes the global ALWAYS_SHORT bias.
+  const score=model.target_mode==='CONTINUATION_VS_REVERSAL'?
+    (priceSign===0?.5:priceSign>0?rawScore:1-rawScore):rawScore;
   return {score_up:score,score_down:1-score,horizon_min:model.horizon_min,
     verified_accuracy:null,
     meaning:'UNCALIBRATED_RELATIVE_MODEL_SCORE_NOT_A_SUCCESS_PROBABILITY'};
