@@ -1385,6 +1385,89 @@ async function updateFuturesOutcomes(env,state,now){
   return out;
 }
 
+// ===== V16: Provisional AI alert post-price accountability =====
+// Official completed 1m candles only, never fabricated wins, no outcome Telegram spam.
+function evaluateAiV16Outcome(rec,h,now,rows){
+  if(!rec||!['UP','DOWN'].includes(rec.direction)||
+     !Number.isSafeInteger(rec.at_ms)||rec.at_ms>now)return null;
+  if(rec.venue==='bithumb'){
+    if(nf(rec.price)===null||rec.price<=0)return null;
+    const v=evaluateOutcomeAtHorizon({
+      direction:rec.direction,alert_ms:rec.at_ms,alert_price_krw:rec.price
+    },h,now,rows);
+    if(!v)return null;
+    return {...v,source:'BITHUMB_OFFICIAL_COMPLETED_1M',
+      basis:'OFFICIAL_TICKER_NEAR_TELEGRAM_ACK_NOT_TRADE_EXECUTION',
+      favourable_excursion_pct:v.excursion_full_coverage?v.favourable_excursion_pct:null,
+      adverse_excursion_pct:v.excursion_full_coverage?v.adverse_excursion_pct:null};
+  }
+  if(rec.venue==='bitget'){
+    if(nf(rec.first_postalert_close_usdt)===null||
+       rec.first_postalert_close_usdt<=0)return null;
+    const v=evaluateFuturesOutcome({
+      direction:rec.direction,alert_ms:rec.at_ms,
+      first_postalert_close_usdt:rec.first_postalert_close_usdt
+    },h,now,rows);
+    if(!v)return null;
+    return {...v,source:'BITGET_OFFICIAL_COMPLETED_1M',
+      basis:'FIRST_COMPLETED_1M_AFTER_TELEGRAM_ACK_NOT_EXECUTION',
+      favourable_excursion_pct:v.excursion_full_coverage?v.favourable_excursion_pct:null,
+      adverse_excursion_pct:v.excursion_full_coverage?v.adverse_excursion_pct:null};
+  }
+  return null;
+}
+async function updateAiV16Outcomes(env,state,now){
+  const list=Array.isArray(state.aiV16Outcomes)?state.aiV16Outcomes:[];
+  const out={tracked:list.length,updated:0,failed_reads:0,pending:0,
+    last_completed:[],new_alarms_sent:0};
+  let checked=0;
+  for(const rec of list){
+    if(!rec||!['bithumb','bitget'].includes(rec.venue)||
+       !['UP','DOWN'].includes(rec.direction)||!Number.isSafeInteger(rec.at_ms)||
+       now-rec.at_ms<60000||now-rec.at_ms>3*3600000||
+       rec.results?.['60m'])continue;
+    if(checked>=3)break; // A bounded API health budget, never a trade gate.
+    if(!OUTCOME_HORIZONS_MIN.some(h=>!rec.results?.[h+'m']&&
+       now>=Math.ceil((rec.at_ms+h*60000)/60000)*60000+1000))continue;
+    checked++;
+    try{
+      let rows;
+      if(rec.venue==='bithumb'){
+        if(!validSymbol(rec.symbol,'bithumb'))continue;
+        const raw=await requestJson(BITHUMB+'/v1/candles/minutes/1?market='+
+          encodeURIComponent(rec.symbol)+'&count=180',{},8500);
+        rows=parseOutcomeCandles(raw,now);
+      }else{
+        if(!validSymbol(rec.symbol,'bitget'))continue;
+        const start=Math.floor(rec.at_ms/60000)*60000-60000;
+        const end=Math.floor(now/60000)*60000;
+        const raw=await requestJson('https://api.bitget.com/api/v2/mix/market/history-candles?symbol='+
+          encodeURIComponent(rec.symbol)+'&productType=USDT-FUTURES&granularity=1m'+
+          '&limit=180&startTime='+start+'&endTime='+end,{},8500);
+        rows=parseBitgetOutcomeCandles(raw,now);
+        const first=Math.ceil(rec.at_ms/60000)*60000;
+        if(!rec.first_postalert_close_usdt&&rows.has(first))
+          rec.first_postalert_close_usdt=rows.get(first).close;
+      }
+      if(!rows?.size){out.failed_reads++;continue;}
+      rec.results=rec.results||{};
+      for(const h of OUTCOME_HORIZONS_MIN){
+        if(rec.results[h+'m'])continue;
+        const evaluated=evaluateAiV16Outcome(rec,h,now,rows);
+        if(evaluated){
+          rec.results[h+'m']=evaluated;
+          out.updated++;
+          out.last_completed.push({venue:rec.venue,symbol:rec.symbol,
+            direction:rec.direction,horizon_min:h,return_pct:evaluated.return_pct,
+            direction_right:evaluated.direction_right});
+        }
+      }
+    }catch(_e){out.failed_reads++;} // Never infer future from missing exchange API.
+  }
+  out.pending=list.filter(r=>r&&!r?.results?.['60m']).length;
+  out.last_completed=out.last_completed.slice(-5);
+  return out;
+}
 // ===== END V13 =====
 
 function shouldRunExpensiveAi(status,source,confirmed){
@@ -1458,7 +1541,8 @@ async function scheduledCore(env,now=Date.now(),preDispatch=null){
   // Failed outcome reads never invent a win/loss and never block market scanning.
   const outcomeRun=await updateSpotOutcomes(env,state,now);
   const futuresOutcomeRun=await updateFuturesOutcomes(env,state,now);
-  // Legacy Workers AI direct directional Telegram transport remains disabled.
+  // Existing V15 market paths remain unchanged. V16 AI provisional observations
+  // use distinct receipt/outcome keys and their own post-alert audit.
   let aiRun={status:status==='PASS'?'AI_BINDING_NOT_CONFIGURED':'DATA_SOURCE_NOT_READY',
     configured:!!env.AI?.run,model:AI_MODEL,alerts_sent:0};
   // The previous V7 called a large model every 5 minutes for unverified preselection,
@@ -1470,6 +1554,7 @@ async function scheduledCore(env,now=Date.now(),preDispatch=null){
     catch(e){aiRun={status:'AI_PIPELINE_ERROR',configured:!!env.AI?.run,model:AI_MODEL,
       alerts_sent:0,error:clean(e.message,130)};}
   }
+  const aiOutcomeRun=await updateAiV16Outcomes(env,state,now);
   if(aiRun.alerts_sent>0)state.telegramConnectionVerified=true;
   for(const key of Object.keys(state.lastAlert))if(now-(val(state.lastAlert[key])||0)>86400000)delete state.lastAlert[key];
   state.prevAt=now;state.run=(state.run||0)+1;
@@ -1489,7 +1574,7 @@ async function scheduledCore(env,now=Date.now(),preDispatch=null){
     telegramApiAcknowledgementsTotal:state.telegramAcknowledgementsTotal||0,
     telegramLastApiReceipt:(state.deliveryReceiptsV12||[]).at(-1)||null,
     telegramDeviceReceiptVerified:false,
-    aiJudgment:aiRun,
+    aiJudgment:aiRun,aiOutcomeAudit:aiOutcomeRun,
     earlyMarketWatch:earlyRun,
     spotDirectional:directionalRun,spotOutcomeAudit:outcomeRun,
     futuresOutcomeAudit:futuresOutcomeRun,
