@@ -1,0 +1,20 @@
+name: V18 fill-alignment accounting regression
+on:
+  push:
+    branches:
+      - fix/irys-v18-alignment-accounting-20261030
+    paths:
+      - .github/workflows/v18-alignment-audit.yml
+      - v18_live_evidence.py
+      - tests/test_v18_live_evidence.py
+permissions:
+  contents: read
+jobs:
+  regression:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m unittest discover -s tests -p test_v18_live_evidence.py -v
