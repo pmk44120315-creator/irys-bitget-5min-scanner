@@ -1,0 +1,22 @@
+name: IRYS V18 historical forward-label feasibility
+on:
+  push:
+    branches:
+      - research/irys-v18-walkforward-forecast-20261030
+    paths:
+      - .github/workflows/v18-replay-feasibility.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  full-history-readonly:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout all existing archive data commits
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Python syntax check
+        run: python -m py_compile research/v18_data_audit.py
+      - name: Historic read-only price-label coverage and bias audit
+        run: python -u research/v18_data_audit.py
