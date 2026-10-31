@@ -86,3 +86,48 @@ jobs:
       - name: Do not hide failed forecasts or quote reads behind successful legacy scans
         if: steps.model.outcome == 'failure' || steps.v21.outcome == 'failure' || steps.v21_tests.outcome == 'failure'
         run: exit 1
+  v22_adaptive:
+    if: >-
+      github.event_name == 'workflow_run' &&
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.head_branch == 'main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: requirements-v22.txt
+      - run: python -m pip install -r requirements-v22.txt
+      - name: Refresh main after dependency setup, never read queued old snapshots
+        run: |
+          git fetch --quiet origin main
+          git reset --hard origin/main
+      - name: Verify causal learning and outcome-accounting contracts
+        run: python -m unittest discover -s tests -p test_v22_all.py -v
+      - name: Learn only completed public quote outcomes and issue new independent forecasts
+        id: adaptive
+        continue-on-error: true
+        run: python v22_live.py
+      - name: Commit only V22 records, preserving all original market and forecast files
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          test -f data/v22_latest.json
+          git add data/v22_latest.json
+          if test -f data/v22_state.json; then git add data/v22_state.json; fi
+          if git diff --staged --quiet; then exit 0; fi
+          git commit -m 'data: V22 complete-candidate adaptive forecasts and actual quote outcomes'
+          for attempt in 1 2 3 4 5 6; do
+            git fetch --quiet origin main
+            if ! git rebase origin/main; then git rebase --abort; exit 1; fi
+            if git push origin HEAD:main; then exit 0; fi
+            sleep 2
+          done
+          exit 1
+      - name: Expose V22 failures independently of healthy legacy jobs
+        if: steps.adaptive.outcome == 'failure'
+        run: exit 1
