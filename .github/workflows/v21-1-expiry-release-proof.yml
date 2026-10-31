@@ -1,0 +1,47 @@
+name: IRYS V21.1 expiry aligned guarded release and natural proof
+on:
+  push:
+    branches: [feature/irys-v21-causal-forecast-20261031]
+    paths:
+      - .github/workflows/v21-1-expiry-release-proof.yml
+permissions:
+  contents: read
+concurrency:
+  group: irys-production-worker-code-only-release
+  cancel-in-progress: false
+jobs:
+  release-and-observe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Exact reviewed release constants and full regression
+        run: |
+          python diagnostics/v21_prepare_expiry_release.py
+          python -m unittest discover -s tests -v
+          node --test tests/test_v21_delivery.mjs tests/test_v21_report_timing.mjs tests/test_v21_forecast_expiry.mjs
+          node deployment/build_v21_worker.mjs
+          node --check deployment/IRYS_V21_LEARNED_FORECAST_WORKER.mjs
+          node --check deployment/release_v21_guarded.mjs
+          node --check deployment/verify_v21_production.mjs
+      - name: Verify exact current V21 source and active main model without changes
+        env:
+          IRYS_REALTIME_CF_ACCOUNT_ID: ${{ secrets.IRYS_REALTIME_CF_ACCOUNT_ID }}
+          IRYS_V7_CF_API_TOKEN: ${{ secrets.IRYS_V7_CF_API_TOKEN }}
+          V21_RELEASE_INTENT: USER_APPROVED_PREDICTIVE_REIMPLEMENTATION
+          V21_DRY_RUN: 'true'
+        run: node deployment/release_v21_guarded.mjs
+      - name: Code-only V21.1 replacement with exact-byte rollback
+        env:
+          IRYS_REALTIME_CF_ACCOUNT_ID: ${{ secrets.IRYS_REALTIME_CF_ACCOUNT_ID }}
+          IRYS_V7_CF_API_TOKEN: ${{ secrets.IRYS_V7_CF_API_TOKEN }}
+          V21_RELEASE_INTENT: USER_APPROVED_PREDICTIVE_REIMPLEMENTATION
+          V21_DRY_RUN: 'false'
+        run: node deployment/release_v21_guarded.mjs
+      - name: Independently read natural scheduled Worker and actual model report; no message tests
+        env:
+          IRYS_REALTIME_CF_ACCOUNT_ID: ${{ secrets.IRYS_REALTIME_CF_ACCOUNT_ID }}
+          IRYS_V7_CF_API_TOKEN: ${{ secrets.IRYS_V7_CF_API_TOKEN }}
+        run: node deployment/verify_v21_production.mjs
