@@ -87,7 +87,7 @@ def finish_record(record, quote, now):
         'entry_quote':record['entry_quote'],'exit_quote':quote}
 
 
-def certificate(rows, venue, horizon, side):
+def certificate(rows, venue, horizon, side, unmeasured=0):
     own=[r for r in rows if r.get('side')==side]
     metric=evaluate_predictions(own,COST_SCENARIO,venue,horizon)
     lower=metric['hour_block_bootstrap_lower_95_pct']
@@ -100,9 +100,15 @@ def certificate(rows, venue, horizon, side):
         recent=evaluate_predictions([r for r in own if r['issued_ms']>=midpoint],COST_SCENARIO,venue,horizon)
         if lower>0 and number(recent['mean_net_pct'],-1)>0:
             ready=True;reason='POSITIVE_PROSPECTIVE_QUOTE_EVIDENCE'
+    missing=max(0,int(unmeasured))
+    total=metric['signals']+missing
+    coverage=metric['signals']/total if total else 0.0
+    if missing and coverage<.95:
+        ready=False;reason='FORWARD_OUTCOME_COVERAGE_INSUFFICIENT'
     if venue=='bithumb' and side!=1:ready=False;reason='SPOT_SHORT_NOT_ACTIONABLE'
     return {'ready':ready,'reason':reason,'lower_net_pct':lower,
         'span_hours':span,'observed_signals':metric['signals'],
+        'coverage_ratio':coverage,'unmeasured_outcomes':missing,
         'mean_net_pct':metric['mean_net_pct'],'hour_blocks':metric['hour_blocks'],
         'net_wins':metric['net_wins'],'net_losses':metric['net_losses'],
         'cost_scenario_pct':COST_SCENARIO,
@@ -209,6 +215,7 @@ def run(market,flow,market_state,old,models,now,api):
     if source_status=='PASS':state['previous_prices']=previous
     pending=[dict(r) for r in state.get('pending',[]) if isinstance(r,dict)]
     completed=[dict(r) for r in state.get('completed',[]) if isinstance(r,dict)]
+    unmeasured=[dict(r) for r in state.get('unmeasured',[]) if isinstance(r,dict)]
     proposals=[]
     for obs in features:
         for key,p in active.items():
@@ -230,12 +237,16 @@ def run(market,flow,market_state,old,models,now,api):
             completed.append(result);new_outcomes.append(result)
         elif finished_now>r['issued_ms']+r['horizon_min']*MIN+150000:
             expired+=1
+            unmeasured.append({k:r.get(k) for k in ('model_key','model_sha256','symbol','side','issued_ms')})
         else:remaining.append(r)
-    completed=completed[-4000:];certificates={}
+    completed=completed[-4000:];unmeasured=unmeasured[-4000:];certificates={}
     for key,p in active.items():
         own=[r for r in completed if r.get('model_sha256')==p['model_sha256']
           and r.get('model_key')==key and r['issued_ms']>=p['prospective_validation_start_ms']]
-        certificates[key]={str(side):certificate(own,p['venue'],p['horizon_min'],side)
+        certificates[key]={str(side):certificate(own,p['venue'],p['horizon_min'],side,
+            unmeasured=sum(1 for r in unmeasured if r.get('model_key')==key
+                and r.get('model_sha256')==p['model_sha256'] and r.get('side')==side
+                and (r.get('issued_ms') or 0)>=p['prospective_validation_start_ms']))
             for side in ((1,-1) if p['venue']=='bitget' else (1,))}
     seen=state.get('last_registered') or {};forecasts=[];deliverable=[]
     open_ids={(r['model_key'],r['symbol']) for r in remaining}
@@ -255,7 +266,7 @@ def run(market,flow,market_state,old,models,now,api):
             'reason':proof['reason'],'automatic_order':False,'telegram_sent':False}
         forecasts.append(message)
         if proof['ready']:deliverable.append(message)
-    state.update({'pending':remaining,'completed':completed,'last_registered':seen,
+    state.update({'pending':remaining,'completed':completed,'unmeasured':unmeasured,'last_registered':seen,
         'expired_quote_targets_total':state.get('expired_quote_targets_total',0)+expired})
     status=('MODEL_INTEGRITY_FAILURE' if model_errors else 'SOURCE_UNAVAILABLE' if source_status!='PASS'
             else 'QUOTE_FEED_UNAVAILABLE' if pairs and not quotes else 'ACTIVE')
@@ -267,6 +278,7 @@ def run(market,flow,market_state,old,models,now,api):
       'forecast_count':len(forecasts),'forecasts':forecasts,
       'pending_count':len(remaining),'new_outcomes':len(new_outcomes),
       'completed_quote_outcomes':len(completed),'expired_targets_this_run':expired,
+      'unmeasured_quote_targets':len(unmeasured),
       'certificates':certificates,'delivery_candidates':deliverable,
       'delivery_mode':'MEASURED_PROSPECTIVE_EVIDENCE_NOT_PERMANENT_FALSE',
       'cost_scenario_pct':COST_SCENARIO,'actual_trade_execution_verified':False,

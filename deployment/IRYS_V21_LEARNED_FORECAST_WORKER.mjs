@@ -1840,7 +1840,7 @@ function v21ProofReady(p){
    v21Num(p.lower_net_pct)>0&&v21Num(p.mean_net_pct)>0&&v21Num(p.span_hours)>=24&&
    Number.isInteger(p.hour_blocks)&&p.hour_blocks>=8&&
    Number.isInteger(p.observed_signals)&&p.observed_signals>0&&
-   v21Num(p.cost_scenario_pct)>=.20;
+   v21Num(p.cost_scenario_pct)>=.20&&v21Num(p.coverage_ratio)>=.95;
 }
 function v21Message(c,proof,quote,at){
  const fmt=(n,d=3)=>new Intl.NumberFormat('ko-KR',{maximumFractionDigits:d}).format(n);

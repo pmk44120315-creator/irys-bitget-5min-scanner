@@ -6,7 +6,7 @@ async function module(){let m=null;try{m=await import('../deployment/v21_forecas
 function report(){
  const cert={ready:true,evidence_type:'FROZEN_MODEL_PROSPECTIVE_QUOTE_RETURNS',
  lower_net_pct:.3,mean_net_pct:.6,span_hours:48,hour_blocks:16,
- observed_signals:60,net_wins:40,net_losses:20,cost_scenario_pct:.2};
+ observed_signals:60,net_wins:40,net_losses:20,cost_scenario_pct:.2,coverage_ratio:1};
  return {version:'IRYS_V21_SUPERVISED_PROSPECTIVE_V1',status:'ACTIVE',source_status:'PASS',
  at_utc:new Date(NOW-10000).toISOString(),source_finished_utc:new Date(NOW-60000).toISOString(),
  certificates:{bitget_5:{'1':cert}},delivery_candidates:[{
