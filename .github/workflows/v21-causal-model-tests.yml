@@ -6,8 +6,7 @@ on:
       - .github/workflows/v21-causal-model-tests.yml
       - v21_forecast_core.py
       - v21_runtime.py
-      - tests/test_v21_forecast_core.py
-      - tests/test_v21_runtime.py
+      - tests/test_v21_*.py
 permissions:
   contents: read
 jobs:
