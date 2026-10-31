@@ -77,7 +77,7 @@ class RegimeForward(unittest.TestCase):
  def test_quote_coverage_and_missing_time_do_not_create_return(self):
   _,p=update(source(),evidence(),{}, {},ms(4,2))
   a,p=update(source(),evidence(),{'TESTUSDT':(ms(4,6),1)},p,ms(4,7))
-  b,p=update(source(),evidence(),{'TESTUSDT':(ms(4,24),1.2)},p,ms(4,25))
+  b,p=update(source(),evidence(),{'TESTUSDT':(ms(4,26),1.2)},p,ms(4,27))
   self.assertEqual(b['outcomes']['15']['measured'],0)
   self.assertEqual(p['pending'][0]['future_results']['15']['judgment'],
      'UNAVAILABLE_EXACT_COMPLETED_PRICE')
