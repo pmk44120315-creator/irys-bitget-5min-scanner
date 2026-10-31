@@ -1,0 +1,42 @@
+name: IRYS V22 pinned performance evidence bundle
+on:
+  push:
+    branches: [upgrade/irys-v22-performance-20261101]
+    paths: [.github/workflows/v22-pinned-audit-bundle.yml]
+permissions:
+  contents: read
+jobs:
+  evidence:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Reconstruct exact historical feature/label inputs, no model fitting or live calls
+        env:
+          V21_ARCHIVE_REF: 9ae70155bf019c4c72bef70319f8fde9bcdedd4d
+        run: |
+          mkdir -p /tmp/v22-evidence
+          git archive --format=tar.gz 9ae70155bf019c4c72bef70319f8fde9bcdedd4d > /tmp/v22-evidence/baseline.tar.gz
+          python - <<'PY'
+          import gzip, json, hashlib, pathlib, subprocess
+          from research.v21_train_causal_models import archive, PIN
+          events,tapes,counts=archive()
+          path=pathlib.Path('/tmp/v22-evidence/replay.json.gz')
+          with gzip.open(path,'wt',encoding='utf8') as f:
+              json.dump({'pin':PIN,'events':events,'tapes':tapes,'counts':counts},f,separators=(',',':'))
+          print('V22_PINNED_DATA',json.dumps({'pin':PIN,'counts':counts,'events':{k:len(v) for k,v in events.items()},'bytes':path.stat().st_size}))
+          manifest={p.name:hashlib.sha256(p.read_bytes()).hexdigest() for p in pathlib.Path('/tmp/v22-evidence').iterdir()}
+          pathlib.Path('/tmp/v22-evidence/manifest.json').write_text(json.dumps(manifest,indent=2))
+          print('V22_BUNDLE_HASHES',json.dumps(manifest))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: v22-pinned-source-and-causal-evidence
+          path: /tmp/v22-evidence/
+          retention-days: 7
+          if-no-files-found: error
