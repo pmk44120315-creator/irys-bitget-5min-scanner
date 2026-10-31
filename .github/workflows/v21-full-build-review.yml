@@ -1,0 +1,44 @@
+name: IRYS V21 full regression and reproducible Worker build
+on:
+  push:
+    branches: [feature/irys-v21-causal-forecast-20261031]
+    paths:
+      - .github/workflows/v21-full-build-review.yml
+      - deployment/build_v21_worker.mjs
+      - deployment/v21_forecast_delivery.mjs
+      - v21_runtime.py
+      - tests/test_v21_*.py
+      - tests/test_v21_delivery.mjs
+permissions:
+  contents: write
+concurrency:
+  group: irys-v21-build-only
+  cancel-in-progress: false
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Existing scanner and new model unit regressions
+        run: python -m unittest discover -s tests -v
+      - name: Telegram contract tests with mock transport only
+        run: node --test tests/test_v21_delivery.mjs
+      - name: Build from exact protected V20 source; no Cloudflare call
+        run: |
+          node deployment/build_v21_worker.mjs
+          node --check deployment/IRYS_V21_LEARNED_FORECAST_WORKER.mjs
+      - name: Store exact tested Worker candidate on development branch only
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add deployment/IRYS_V21_LEARNED_FORECAST_WORKER.mjs
+          if git diff --staged --quiet; then exit 0; fi
+          git commit -m 'build(v21): preserve reproducible tested Worker candidate'
+          git fetch origin feature/irys-v21-causal-forecast-20261031
+          git rebase origin/feature/irys-v21-causal-forecast-20261031
+          git push origin HEAD:feature/irys-v21-causal-forecast-20261031
