@@ -1,0 +1,37 @@
+name: IRYS V20 stop speculative signal flood guarded release
+on:
+  push:
+    branches:
+      - fix/irys-v20-accuracy-first-20261031
+    paths:
+      - .github/workflows/release-v20-once.yml
+permissions:
+  contents: read
+concurrency:
+  group: irys-production-worker-code-only-release
+  cancel-in-progress: false
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Parse all original and V20 source code
+        run: |
+          node --check deployment/IRYS_V20_ACCURACY_FIRST_WORKER.mjs
+          node --check deployment/release-v20-guarded.mjs
+      - name: Run all V20 source and no-spam tests
+        run: node --test tests/test_irys_v20_no_unvalidated_alerts.mjs
+      - name: Dry-run real current production source/cron/bindings
+        env:
+          IRYS_REALTIME_CF_ACCOUNT_ID: ${{ secrets.IRYS_REALTIME_CF_ACCOUNT_ID }}
+          IRYS_V7_CF_API_TOKEN: ${{ secrets.IRYS_V7_CF_API_TOKEN }}
+          IRYS_V20_RELEASE_APPROVED: OWNER_REQUESTED_ACCURACY_FIRST_ALERT_REPAIR_20261031
+          IRYS_V20_DRY_RUN: 'true'
+        run: node deployment/release-v20-guarded.mjs
+      - name: Change only production Worker source, preserve credentials and original hourly monitor
+        env:
+          IRYS_REALTIME_CF_ACCOUNT_ID: ${{ secrets.IRYS_REALTIME_CF_ACCOUNT_ID }}
+          IRYS_V7_CF_API_TOKEN: ${{ secrets.IRYS_V7_CF_API_TOKEN }}
+          IRYS_V20_RELEASE_APPROVED: OWNER_REQUESTED_ACCURACY_FIRST_ALERT_REPAIR_20261031
+          IRYS_V20_DRY_RUN: 'false'
+        run: node deployment/release-v20-guarded.mjs
