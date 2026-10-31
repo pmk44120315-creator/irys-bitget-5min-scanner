@@ -6,7 +6,7 @@ if(hash!=='d7b9b3187fe338ec3ae2c422bedc1035bd1de5a543e74c00bbf4f8eaf141736a')
  throw Error('V20_BASE_SOURCE_CHANGED_REVIEW_REQUIRED');
 let source=base.toString('utf8');
 function once(a,b,name){const i=source.indexOf(a);if(i<0||source.indexOf(a,i+a.length)>=0)throw Error('BUILD_ANCHOR_'+name);source=source.slice(0,i)+b+source.slice(i+a.length);}
-once("IRYS-V20-ACCURACY-FIRST-NO-UNVALIDATED-DIRECTION-20261031","IRYS-V21-LEARNED-FORECAST-FORWARD-EVIDENCE-20261031","version");
+once("IRYS-V20-ACCURACY-FIRST-NO-UNVALIDATED-DIRECTION-20261031","IRYS-V21.1-LEARNED-FORECAST-EXPIRY-ALIGNED-20261031","version");
 let helper=readFileSync(new URL('./v21_forecast_delivery.mjs',import.meta.url),'utf8');
 const exportLine='export {sendV21Forecasts,v21ProofReady,v21Message};';
 if(!helper.includes(exportLine))throw Error('HELPER_EXPORT_UNEXPECTED');

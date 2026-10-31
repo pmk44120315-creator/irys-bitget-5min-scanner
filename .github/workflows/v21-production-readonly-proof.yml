@@ -1,0 +1,20 @@
+name: IRYS V21 independent production source and natural execution proof
+on:
+  push:
+    branches: [feature/irys-v21-causal-forecast-20261031]
+    paths:
+      - .github/workflows/v21-production-readonly-proof.yml
+      - deployment/verify_v21_production.mjs
+permissions:
+  contents: read
+jobs:
+  production-readonly:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: node --check deployment/verify_v21_production.mjs
+      - name: Read exact Worker, original Cron, natural forecast delivery and main model report
+        env:
+          IRYS_REALTIME_CF_ACCOUNT_ID: ${{ secrets.IRYS_REALTIME_CF_ACCOUNT_ID }}
+          IRYS_V7_CF_API_TOKEN: ${{ secrets.IRYS_V7_CF_API_TOKEN }}
+        run: node deployment/verify_v21_production.mjs

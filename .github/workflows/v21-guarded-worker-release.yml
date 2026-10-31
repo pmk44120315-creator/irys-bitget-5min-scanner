@@ -1,0 +1,40 @@
+name: IRYS V21 guarded production learned forecast consumer
+on:
+  push:
+    branches: [feature/irys-v21-causal-forecast-20261031]
+    paths:
+      - .github/workflows/v21-guarded-worker-release.yml
+permissions:
+  contents: read
+concurrency:
+  group: irys-production-worker-code-only-release
+  cancel-in-progress: false
+jobs:
+  guarded-release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Full legacy and new-model regression
+        run: |
+          python -m unittest discover -s tests -v
+          node --test tests/test_v21_delivery.mjs tests/test_v21_report_timing.mjs
+          node deployment/build_v21_worker.mjs
+          node --check deployment/IRYS_V21_LEARNED_FORECAST_WORKER.mjs
+          node --check deployment/release_v21_guarded.mjs
+      - name: Read production V20 source, bindings, Cron and actual main V21 model result
+        env:
+          IRYS_REALTIME_CF_ACCOUNT_ID: ${{ secrets.IRYS_REALTIME_CF_ACCOUNT_ID }}
+          IRYS_V7_CF_API_TOKEN: ${{ secrets.IRYS_V7_CF_API_TOKEN }}
+          V21_RELEASE_INTENT: USER_APPROVED_PREDICTIVE_REIMPLEMENTATION
+          V21_DRY_RUN: 'true'
+        run: node deployment/release_v21_guarded.mjs
+      - name: Deploy only reviewed Worker code with byte-preserving rollback
+        env:
+          IRYS_REALTIME_CF_ACCOUNT_ID: ${{ secrets.IRYS_REALTIME_CF_ACCOUNT_ID }}
+          IRYS_V7_CF_API_TOKEN: ${{ secrets.IRYS_V7_CF_API_TOKEN }}
+          V21_RELEASE_INTENT: USER_APPROVED_PREDICTIVE_REIMPLEMENTATION
+          V21_DRY_RUN: 'false'
+        run: node deployment/release_v21_guarded.mjs

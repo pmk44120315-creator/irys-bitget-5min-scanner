@@ -51,9 +51,12 @@ async function sendV21Forecasts(env,state,snap,now,capacity=1,options={}){
  if(doc?.version!=='IRYS_V21_SUPERVISED_PROSPECTIVE_V1'||doc.status!=='ACTIVE'||doc.source_status!=='PASS'){
    out.status='FORECAST_NOT_ACTIVE';return out;
  }
- if(!Number.isFinite(published)||published>at||at-published>90000){out.status='STALE_REPORT';return out;}
+ // A quiet, recently refreshed research report is not a delivery failure.
+ if(!Number.isFinite(published)||published>at||at-published>15*60000){out.status='STALE_REPORT';return out;}
  const list=Array.isArray(doc.delivery_candidates)?doc.delivery_candidates:[];
  if(!list.length){out.status='LEARNING_NO_ELIGIBLE_FORWARD_EVIDENCE';return out;}
+ // Only the reviewed 5m model is eligible; require at least half its horizon left.
+ if(at-published>5*60000/2){out.status='STALE_REPORT';return out;}
  if(capacity<=0){out.status='LEGACY_ALERT_CAPACITY_USED';return out;}
  state.v21LastSent=state.v21LastSent||{};
  const hour=Math.floor(at/3600000);
@@ -75,7 +78,7 @@ async function sendV21Forecasts(env,state,snap,now,capacity=1,options={}){
   const proof=doc.certificates?.[c.model_key]?.[String(c.side)];
   if(c.notification_eligible!==true||!v21ProofReady(proof)){reject('PROSP_EVIDENCE_NOT_READY');continue;}
   if(!Number.isSafeInteger(c.issued_ms)||!Number.isSafeInteger(c.expires_ms)||
-      c.issued_ms>at||at-c.issued_ms>90000||c.expires_ms<=at||
+      c.issued_ms>at||at-c.issued_ms>c.horizon_min*60000/2||c.expires_ms<=at||
       c.expires_ms!==c.issued_ms+c.horizon_min*60000||!v21QuoteOk(c.entry_quote)){
     reject('EXPIRED_OR_LATE_FORECAST');continue;
   }
@@ -128,7 +131,7 @@ async function readV21CurrentReport(read,clock=Date.now,pause,waitForFresh=true)
   const current=clock();
   const doc=await read(V21_REPORT_URL+'?at='+current);
   const published=Date.parse(doc?.at_utc||'');
-  const stale=Number.isFinite(published)&&current-published>90000;
+  const stale=Number.isFinite(published)&&current-published>5*60000/2;
   const ready=Object.values(doc?.certificates||{}).some(group=>
     Object.values(group||{}).some(p=>p?.ready===true));
   if(!waitForFresh||!stale||!ready||doc?.status!=='ACTIVE'||clock()>=deadline)return doc;
