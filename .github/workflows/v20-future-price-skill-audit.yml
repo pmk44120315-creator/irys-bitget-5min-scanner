@@ -1,0 +1,20 @@
+name: IRYS V20 real forward accuracy audit of former V19 fast directions
+on:
+  push:
+    branches:
+      - fix/irys-v20-accuracy-first-20261031
+    paths:
+      - .github/workflows/v20-future-price-skill-audit.yml
+      - research/v20_v19_real_flow_hindsight_audit.py
+permissions:
+  contents: read
+jobs:
+  real-price-forward-study:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - run: python -m py_compile research/v20_v19_real_flow_hindsight_audit.py
+      - name: Evaluate historical Bitget actual fills versus strictly later official completed market prices
+        run: python -u research/v20_v19_real_flow_hindsight_audit.py
