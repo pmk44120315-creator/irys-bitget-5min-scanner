@@ -1,0 +1,30 @@
+name: IRYS V21 actual public quote and model smoke
+on:
+  push:
+    branches: [feature/irys-v21-causal-forecast-20261031]
+    paths:
+      - .github/workflows/v21-live-readonly-smoke.yml
+      - research/v21_live_smoke.py
+permissions:
+  contents: read
+jobs:
+  live-readonly:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m unittest discover -s tests -p 'test_v21_*.py' -v
+      - name: Read both official exchanges and current main; no messages or orders
+        run: |
+          git fetch origin main
+          python -u research/v21_live_smoke.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: irys-v21-live-smoke
+          path: /tmp/v21_live_smoke.json
+          if-no-files-found: warn
