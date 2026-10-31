@@ -3,10 +3,14 @@ on:
   push:
     branches:
       - feature/irys-v18-runtime-forecast-20261030
+      - feature/irys-v21-causal-forecast-20261031
     paths:
       - '.github/workflows/v18-shadow-pipeline.yml'
       - 'v18_shadow_forecast.py'
+      - 'v21_runtime.py'
+      - 'v21_forecast_core.py'
       - 'tests/test_v18_shadow_forecast.py'
+      - 'tests/test_v21_*.py'
   workflow_run:
     workflows: ['IRYS V18 separate real-taker evidence collector']
     types: [completed]
@@ -25,10 +29,11 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Realistic clock and delayed-feedback regression
+      - name: Existing and learned-model causal regression
         run: |
-          python -m py_compile v18_shadow_forecast.py
+          python -m py_compile v18_shadow_forecast.py v21_runtime.py v21_forecast_core.py
           python -m unittest discover -s tests -p test_v18_shadow_forecast.py -v
+          python -m unittest discover -s tests -p 'test_v21_*.py' -v
   shadow:
     if: >-
       github.event_name == 'workflow_run' &&
@@ -46,20 +51,31 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Confirm no-lookahead unit tests
+      - name: Confirm existing no-lookahead unit tests
         run: python -m unittest discover -s tests -p test_v18_shadow_forecast.py -v
-      - name: Compare actual market future prices, research only
+      - name: Compare existing market future prices, research only
         id: model
         continue-on-error: true
         run: python v18_shadow_forecast.py
-      - name: Preserve actual model inputs and results in separate files
+      - name: V21 causal, quote freshness and economics contracts
+        id: v21_tests
+        continue-on-error: true
+        run: python -m unittest discover -s tests -p 'test_v21_*.py' -v
+      - name: Frozen V21 supervised forecast with actual public bid-ask validation
+        id: v21
+        if: steps.v21_tests.outcome == 'success'
+        continue-on-error: true
+        run: python v21_runtime.py
+      - name: Preserve separate old/new predictions and evidence without overwriting collector data
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add data/v18_shadow_latest.json
           if test -f data/v18_shadow_state.json; then git add data/v18_shadow_state.json; fi
+          if test -f data/v21_latest.json; then git add data/v21_latest.json; fi
+          if test -f data/v21_state.json; then git add data/v21_state.json; fi
           if git diff --staged --quiet; then exit 0; fi
-          git commit -m 'data: V18 delayed-feedback shadow forecasts'
+          git commit -m 'data: independent legacy and V21 learned forecasts with future evidence'
           for attempt in 1 2 3 4 5 6; do
             git fetch --quiet origin main
             if ! git rebase origin/main; then git rebase --abort; exit 1; fi
@@ -67,6 +83,6 @@ jobs:
             sleep 2
           done
           exit 1
-      - name: Report all non-successful prediction reads
-        if: steps.model.outcome == 'failure'
+      - name: Do not hide failed forecasts or quote reads behind successful legacy scans
+        if: steps.model.outcome == 'failure' || steps.v21.outcome == 'failure' || steps.v21_tests.outcome == 'failure'
         run: exit 1

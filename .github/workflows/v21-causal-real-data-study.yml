@@ -1,0 +1,53 @@
+name: IRYS V21 learned real-data forecast study
+on:
+  push:
+    branches: [feature/irys-v21-causal-forecast-20261031]
+    paths:
+      - .github/workflows/v21-causal-real-data-study.yml
+      - research/v21_train_causal_models.py
+      - v21_forecast_core.py
+permissions:
+  contents: write
+concurrency:
+  group: irys-v21-research-only
+  cancel-in-progress: false
+jobs:
+  evaluate:
+    runs-on: ubuntu-latest
+    env:
+      V21_ARCHIVE_REF: e240a447a9c5ea3b034c5e6f9549bd2d80276f0c
+      V21_OUTPUT: /tmp/irys-v21
+      OMP_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '2'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Fixed training dependency; existing runtime remains standard-library only
+        run: python -m pip install scikit-learn==1.7.2
+      - name: Core source and causal tests
+        run: |
+          python -m py_compile v21_forecast_core.py research/v21_train_causal_models.py
+          python -m unittest discover -s tests -p test_v21_forecast_core.py -v
+      - name: Train and evaluate pinned historical exchange records
+        run: python -u research/v21_train_causal_models.py
+      - name: Preserve actual report and trained models only on this development branch
+        run: |
+          mkdir -p research/v21_results
+          cp /tmp/irys-v21/report.json research/v21_results/report.json
+          cp /tmp/irys-v21/models.json research/v21_results/models.json
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add research/v21_results/report.json research/v21_results/models.json
+          if git diff --staged --quiet; then exit 0; fi
+          git commit -m 'research(v21): actual pinned-data forecast report and immutable selected models'
+          git fetch origin feature/irys-v21-causal-forecast-20261031
+          git rebase origin/feature/irys-v21-causal-forecast-20261031
+          git push origin HEAD:feature/irys-v21-causal-forecast-20261031
+      - uses: actions/upload-artifact@v4
+        with:
+          name: irys-v21-evidence
+          path: /tmp/irys-v21/

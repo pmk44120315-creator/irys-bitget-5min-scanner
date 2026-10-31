@@ -1,0 +1,43 @@
+name: IRYS V21 reviewed schedule timing correction
+on:
+  push:
+    branches: [feature/irys-v21-causal-forecast-20261031]
+    paths:
+      - .github/workflows/v21-timing-review-fix.yml
+permissions:
+  contents: write
+concurrency:
+  group: irys-v21-build-only
+  cancel-in-progress: false
+jobs:
+  reviewed-fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Confirm producer-consumer timing contract fails before correction
+        run: |
+          if node --test tests/test_v21_report_timing.mjs; then
+            echo 'Expected missing timing behavior was not reproduced'; exit 1
+          fi
+      - name: Apply reviewed quote and report synchronization only
+        run: python diagnostics/v21_apply_timing_review.py
+      - name: Full old/new tests and exact Worker build
+        run: |
+          python -m unittest discover -s tests -v
+          node --test tests/test_v21_delivery.mjs tests/test_v21_report_timing.mjs
+          node deployment/build_v21_worker.mjs
+          node --check deployment/IRYS_V21_LEARNED_FORECAST_WORKER.mjs
+      - name: Store reviewed and tested source on development branch only
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add v21_runtime.py deployment/v21_forecast_delivery.mjs tests/test_v21_delivery.mjs deployment/IRYS_V21_LEARNED_FORECAST_WORKER.mjs
+          git commit -m 'fix(v21): align forward quotes and recover fresh report publication races'
+          git fetch origin feature/irys-v21-causal-forecast-20261031
+          git rebase origin/feature/irys-v21-causal-forecast-20261031
+          git push origin HEAD:feature/irys-v21-causal-forecast-20261031
