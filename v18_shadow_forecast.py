@@ -6,6 +6,7 @@ import json
 import math
 from pathlib import Path
 import collector
+from v20_regime_shadow import update as update_v20_regime
 
 UTC=dt.timezone.utc
 DATA=Path(__file__).resolve().parent/'data'
@@ -138,6 +139,15 @@ def run(market,source_state,flow,state,now):
    'venue_local_real_taker':item['taker_proof'],'signal_class':'RESEARCH_ONLY',
    'telegram_sent':False,'trade_allowed':False})
  history={'pending':remaining[-160:],'outcomes':outcomes[-300:],'weights':weights}
+ # Independent forward-only model cannot break the existing V18 study.
+ try:
+  regime_report,regime_history=update_v20_regime(
+   market,flow,prices['bitget'],state.get('v20_regime') or {},now)
+  history['v20_regime']=regime_history
+ except Exception as exc:
+  history['v20_regime']=state.get('v20_regime') or {}
+  regime_report={'status':'RESEARCH_CALIBRATION_FAILED',
+    'error_type':type(exc).__name__,'telegram_sent':False,'real_orders':False}
  summaries={}
  for venue in EXPERTS:
   rows=[x for x in history['outcomes'] if x['venue']==venue]
@@ -151,7 +161,8 @@ def run(market,source_state,flow,state,now):
   'forecast_at_utc':dt.datetime.fromtimestamp(now/1000,UTC).isoformat(),
   'predictions':predictions,'matured_new':newly_scored,
   'observed_results':summaries,'pending':len(history['pending']),
-  'weights':weights,'no_orders':True,'no_telegram':True,
+  'weights':weights,'v20_regime_shadow':regime_report,
+  'no_orders':True,'no_telegram':True,
   'higher_predictive_accuracy_unverified':True},history
 def main():
  now=int(collector.utc_now().timestamp()*1000)
