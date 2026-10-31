@@ -1,0 +1,72 @@
+name: IRYS status 23:30 read-only production audit
+on:
+  push:
+    branches:
+      - audit/irys-status-20261031-2330
+permissions:
+  contents: read
+jobs:
+  live:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Read actual Worker code, Cron, latest natural tick and telegram receipts only
+        env:
+          CF_ACCOUNT: ${{ secrets.IRYS_REALTIME_CF_ACCOUNT_ID }}
+          CF_READ_TOKEN: ${{ secrets.IRYS_V7_CF_API_TOKEN }}
+        run: |
+          node --input-type=module <<'JS'
+          import {createHash} from 'node:crypto';
+          const account=process.env.CF_ACCOUNT||'',token=process.env.CF_READ_TOKEN||'';
+          if(!/^[0-9a-f]{32}$/.test(account)||token.length<20)throw Error('READ_AUTH_UNAVAILABLE');
+          const base='https://api.cloudflare.com/client/v4/accounts/'+account+'/workers/scripts/irys-surge-monitor';
+          const auth={authorization:'Bearer '+token,accept:'application/json'};
+          async function get(url,authorized=true){
+            const r=await fetch(url,{headers:authorized?auth:{accept:'application/json'},signal:AbortSignal.timeout(18000)});
+            if(!r.ok)throw Error('LIVE_READ_HTTP_'+r.status+' '+new URL(url).pathname);
+            return r;
+          }
+          const [sr,cr,br,hr]=await Promise.all([
+            get(base),get(base+'/schedules'),get(base+'/settings'),
+            get('https://irys-surge-monitor.vhehwpfl.workers.dev/',false)]);
+          const health=await hr.json(),last=health.last||{};
+          const cronData=await cr.json(),bindData=await br.json();
+          const crons=(Array.isArray(cronData.result?.schedules)?cronData.result.schedules:
+             Array.isArray(cronData.result)?cronData.result:[]).map(x=>x.cron);
+          const bindings=(bindData.result?.bindings||[]).map(x=>x.name+':'+x.type).sort();
+          let bytes;
+          if((sr.headers.get('content-type')||'').startsWith('multipart/form-data')){
+            const form=await sr.formData(),raw=form.get('metadata');
+            const info=raw?JSON.parse(typeof raw==='string'?raw:await raw.text()):{};
+            const name=info.main_module||info.body_part||'worker.js',part=form.get(name);
+            if(!part)throw Error('WORKER_PART_MISSING');
+            bytes=Buffer.from(typeof part==='string'?part:await part.arrayBuffer());
+          }else bytes=Buffer.from(await sr.arrayBuffer());
+          const digest=createHash('sha256').update(bytes).digest('hex');
+          const d=last.v21ForecastDelivery||{},ai=last.aiJudgment||{};
+          const summary={
+            checked_at_utc:new Date().toISOString(),worker_sha256:digest,version:last.codeVersion||null,
+            tick_kst:last.time||null,status:last.status||null,
+            dispatch:last.githubDispatchStatus||null,
+            source_utc:last.githubBitgetFinishedUtc||null,
+            cron:crons,
+            bindings_ok:['AI:ai','IRYS_KV:kv_namespace','GITHUB_DISPATCH_TOKEN:secret_text',
+              'TELEGRAM_BOT_TOKEN:secret_text','TELEGRAM_CHAT_ID:plain_text'].every(x=>bindings.includes(x)),
+            model_delivery:{status:d.status||null,sent:d.sent??null,inspected:d.inspected??null,
+              reason_counts:d.reasons||null,send_error:d.send_error||null,
+              independent_forward_evidence_required:d.independent_forward_evidence_required??null,
+              permanent_disable_switch:d.permanent_disable_switch??null},
+            ai_status:ai.status||null,
+            v19_suppression:last.v20UnverifiedDirectionalSuppressionActive??null,
+            bot_api_ack_this_tick:last.telegramApiAckedThisRun??null,
+            bot_api_ack_total:last.telegramApiAcknowledgementsTotal??null,
+            last_v21_delivery:last.v21LastDelivery||null,
+            last_bot_channel:last.telegramLastApiReceipt?.channel||null,
+            last_bot_timestamp:last.telegramLastApiReceipt?.accepted_at||null,
+            current_streams_untouched:true,telegram_test_messages_sent:false
+          };
+          console.log('IRYS_2330_LIVE_STATUS',JSON.stringify(summary));
+          if(digest!=='d05577405be21f4a2c72f076ac5dd3b334b62c4cc52886eb4d69fb7e01ef016d')
+            throw Error('LIVE_WORKER_SOURCE_CHANGED_SINCE_VERIFIED_V21_1');
+          if(JSON.stringify(crons)!=='["*/5 * * * *"]'||!summary.bindings_ok)throw Error('CRON_OR_BINDINGS_CHANGED');
+          JS
