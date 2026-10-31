@@ -1,0 +1,21 @@
+name: IRYS V20 passive scheduled alert accuracy gate verification
+on:
+  push:
+    branches:
+      - fix/irys-v20-accuracy-first-20261031
+    paths:
+      - .github/workflows/v20-verify-natural-cron.yml
+      - deployment/verify-v20-natural-cron.mjs
+permissions:
+  contents: read
+jobs:
+  passive:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: node --check deployment/verify-v20-natural-cron.mjs
+      - name: Observe untouched scheduled Cloudflare Cron and no V19 flood without sending messages
+        env:
+          IRYS_REALTIME_CF_ACCOUNT_ID: ${{ secrets.IRYS_REALTIME_CF_ACCOUNT_ID }}
+          IRYS_V7_CF_API_TOKEN: ${{ secrets.IRYS_V7_CF_API_TOKEN }}
+        run: node deployment/verify-v20-natural-cron.mjs
