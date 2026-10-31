@@ -1,0 +1,16 @@
+name: IRYS V21 evidence based Telegram contracts
+on:
+  push:
+    branches: [feature/irys-v21-causal-forecast-20261031]
+    paths:
+      - .github/workflows/v21-delivery-tests.yml
+      - deployment/v21_forecast_delivery.mjs
+      - tests/test_v21_delivery.mjs
+permissions:
+  contents: read
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: node --test tests/test_v21_delivery.mjs
