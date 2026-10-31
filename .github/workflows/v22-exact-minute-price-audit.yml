@@ -1,0 +1,30 @@
+name: IRYS V22 exact one-minute price target audit
+on:
+  push:
+    branches: [upgrade/irys-v22-performance-20261101]
+    paths: [.github/workflows/v22-exact-minute-price-audit.yml]
+permissions:
+  contents: read
+jobs:
+  actual-prices:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Source syntax
+        run: python -m py_compile research/v22_collect_exact_labels.py
+      - name: Only public Bitget and Bithumb historical minute targets, original source pinned
+        env:
+          V21_ARCHIVE_REF: 9ae70155bf019c4c72bef70319f8fde9bcdedd4d
+        run: python -u research/v22_collect_exact_labels.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: v22-official-exact-minute-targets
+          path: /tmp/v22-exact/exact-prices.json.gz
+          retention-days: 7
+          if-no-files-found: error
