@@ -1,0 +1,38 @@
+name: IRYS V22 Bithumb KST historical target recovery
+on:
+  push:
+    branches: [upgrade/irys-v22-performance-20261101]
+    paths: [.github/workflows/v22-bithumb-kst-price-recovery.yml]
+permissions:
+  contents: read
+jobs:
+  recover:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Validate KST argument and actual public historical response first
+        run: |
+          python - <<'PY'
+          from research.v22_collect_exact_labels import bithumb_to,get_one
+          assert bithumb_to(1793445000000)=='2026-10-31T20:10:00'
+          r=get_one('bithumb','KRW-BTC',{1793445000000})
+          print('V22_BITHUMB_KST_PREFLIGHT',r)
+          assert r['found']==1 and not r['errors']
+          PY
+      - name: Recover only failed Bithumb targets, preserving prior Bitget evidence
+        env:
+          V21_ARCHIVE_REF: 9ae70155bf019c4c72bef70319f8fde9bcdedd4d
+          V22_TARGET_VENUES: bithumb
+        run: python -u research/v22_collect_exact_labels.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: v22-bithumb-kst-exact-targets
+          path: /tmp/v22-exact/exact-prices.json.gz
+          retention-days: 7
+          if-no-files-found: error
