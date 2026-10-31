@@ -1,0 +1,21 @@
+name: IRYS V20 latest live status independent check
+on:
+  push:
+    branches:
+      - audit/irys-v20-readonly-live-20261031
+    paths:
+      - .github/workflows/v20-live-readonly-now.yml
+permissions:
+  contents: read
+jobs:
+  status:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Strict syntax check
+        run: node --check diagnostics/v20_current_production_health_readonly.mjs
+      - name: Inspect actual Cloudflare Worker and last Telegram stats without changing anything
+        env:
+          IRYS_REALTIME_CF_ACCOUNT_ID: ${{ secrets.IRYS_REALTIME_CF_ACCOUNT_ID }}
+          IRYS_V7_CF_API_TOKEN: ${{ secrets.IRYS_V7_CF_API_TOKEN }}
+        run: node diagnostics/v20_current_production_health_readonly.mjs
