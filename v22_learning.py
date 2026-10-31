@@ -8,7 +8,7 @@ import copy,math
 from v21_forecast_core import number
 REGULARIZATION=30.
 HALF_LIFE_MS=12*3600000
-POLICY='V22_CAUSAL_RLS_RETURN_H12_A30_V1'
+POLICY='V22_CAUSAL_RLS_RETURN_H12_A30_SEEDCURVATURE_V2'
 
 def initialize(seed):
     names=list(seed['features']);d=len(names)+1
@@ -16,9 +16,21 @@ def initialize(seed):
     for k in ('mean','scale','coef'):
         if len(seed[k])!=len(names) or any(number(v) is None for v in seed[k]):raise ValueError('V22_SEED_DIMENSION')
     if any(v<=0 for v in seed['scale']) or number(seed['intercept']) is None:raise ValueError('V22_SEED_SCALE')
+    covariance=copy.deepcopy(seed.get('covariance') or [[1/REGULARIZATION if i==j else 0. for j in range(d)] for i in range(d)])
+    if len(covariance)!=d or any(len(r)!=d for r in covariance):raise ValueError('V22_SEED_COVARIANCE_DIMENSION')
+    if any(number(v) is None for r in covariance for v in r):raise ValueError('V22_SEED_COVARIANCE_NONFINITE')
+    if any(abs(covariance[i][j]-covariance[j][i])>1e-8 for i in range(d) for j in range(d)):raise ValueError('V22_SEED_COVARIANCE_NOT_SYMMETRIC')
+    lower=[[0.]*d for _ in range(d)]
+    for i in range(d):
+        for j in range(i+1):
+            residual=covariance[i][j]-sum(lower[i][k]*lower[j][k] for k in range(j))
+            if i==j:
+                if residual<=0:raise ValueError('V22_SEED_COVARIANCE_NOT_POSITIVE')
+                lower[i][j]=math.sqrt(residual)
+            else:lower[i][j]=residual/lower[j][j]
     return {'policy':POLICY,'features':names,'mean':list(seed['mean']),'scale':list(seed['scale']),
             'weights':[float(seed['intercept'])]+list(seed['coef']),
-            'covariance':[[1/REGULARIZATION if i==j else 0. for j in range(d)] for i in range(d)],
+            'covariance':covariance,
             'updates':0,'last_update_ms':None,'seen_outcomes':[],'absolute_error_ema':.5}
 
 def vector(state,features):
