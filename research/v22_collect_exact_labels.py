@@ -1,9 +1,13 @@
 """Official public minute-price targets for archived events. No trades or Telegram."""
-import concurrent.futures,datetime as dt,gzip,json,pathlib,sys
+import concurrent.futures,datetime as dt,gzip,json,os,pathlib,sys
 ROOT=pathlib.Path(__file__).resolve().parents[1];sys.path.insert(0,str(ROOT))
 from collector import http_json,parse_bitget_candles,parse_bithumb_candles
 from research.v21_train_causal_models import archive,PIN
 MIN=60000
+
+def bithumb_to(stamp_ms):
+    # Official API 'to' is KST without timezone suffix; response utc fields remain UTC.
+    return dt.datetime.fromtimestamp(stamp_ms/1000,dt.timezone(dt.timedelta(hours=9))).strftime('%Y-%m-%dT%H:%M:%S')
 
 def get_one(venue,symbol,needed):
     outstanding=set(needed);found={};requests=0;errors=[]
@@ -16,8 +20,7 @@ def get_one(venue,symbol,needed):
                   'endTime':str(target+MIN),'limit':'200'})
                 rows=parse_bitget_candles(raw)
             else:
-                stamp=dt.datetime.fromtimestamp((target+MIN)/1000,dt.timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
-                raw=http_json(venue,'/v1/candles/minutes/1',{'market':symbol,'to':stamp,'count':200})
+                raw=http_json(venue,'/v1/candles/minutes/1',{'market':symbol,'to':bithumb_to(target+MIN),'count':200})
                 rows=parse_bithumb_candles(raw)
             requests+=1
             rows=[r for r in rows if r['ts']<=target and r['open']>0 and r['high']>=r['low']]
@@ -37,7 +40,9 @@ def get_one(venue,symbol,needed):
 
 def main():
     events,_,counts=archive();groups={}
+    requested_venues=set(os.environ.get('V22_TARGET_VENUES','bitget,bithumb').split(','))
     for venue,items in events.items():
+        if venue not in requested_venues:continue
         for e in items:
             t=((e['issued_ms']//MIN)+1)*MIN
             groups.setdefault((venue,e['symbol']),set()).update((t,t+5*MIN,t+15*MIN))
@@ -59,5 +64,5 @@ def main():
       'wanted':sum(r['requested'] for r in results if r['venue']==v),
       'found':sum(r['found'] for r in results if r['venue']==v),
       'requests':sum(r['requests'] for r in results if r['venue']==v),
-      'failed_markets':sum(bool(r['errors']) for r in results if r['venue']==v)} for v in events}),flush=True)
+      'failed_markets':sum(bool(r['errors']) for r in results if r['venue']==v)} for v in requested_venues}),flush=True)
 if __name__=='__main__':main()
