@@ -1871,7 +1871,7 @@ async function sendV21Forecasts(env,state,snap,now,capacity=1,options={}){
  const clock=options.clock||Date.now;
  const read=options.readReport||((url)=>requestJson(url,{headers:{accept:'application/json'}},8500));
  let doc;
- try{doc=await read(V21_REPORT_URL+'?minute='+Math.floor(now/60000));}
+ try{doc=await readV21CurrentReport(read,clock,options.pause,options.waitForFresh!==false);}
  catch(e){out.status='FORECAST_REPORT_UNAVAILABLE';return out;}
  const published=Date.parse(doc?.at_utc||''),at=clock();
  if(doc?.version!=='IRYS_V21_SUPERVISED_PROSPECTIVE_V1'||doc.status!=='ACTIVE'||doc.source_status!=='PASS'){
@@ -1943,6 +1943,25 @@ async function sendV21Forecasts(env,state,snap,now,capacity=1,options={}){
  return out;
 }
 
+
+/** Handle report publication just after Cron reads. No extra timer, dispatch or
+ * model invocation. Retry only if the prior report already has eligible future
+ * evidence; unqualified research never delays existing legacy monitoring. */
+async function readV21CurrentReport(read,clock=Date.now,pause,waitForFresh=true){
+ const sleep=pause||((ms)=>new Promise(resolve=>setTimeout(resolve,ms)));
+ const deadline=clock()+90000;
+ while(true){
+  const current=clock();
+  const doc=await read(V21_REPORT_URL+'?at='+current);
+  const published=Date.parse(doc?.at_utc||'');
+  const stale=Number.isFinite(published)&&current-published>90000;
+  const ready=Object.values(doc?.certificates||{}).some(group=>
+    Object.values(group||{}).some(p=>p?.ready===true));
+  if(!waitForFresh||!stale||!ready||doc?.status!=='ACTIVE'||clock()>=deadline)return doc;
+  await sleep(Math.min(15000,deadline-clock()));
+ }
+}
+export {readV21CurrentReport};
 
 async function scheduledCore(env,now=Date.now(),preDispatch=null){
   if(!env.IRYS_KV)throw Error('IRYS_KV_MISSING');

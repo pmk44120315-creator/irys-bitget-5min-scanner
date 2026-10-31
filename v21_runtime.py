@@ -10,6 +10,7 @@ import json
 import math
 import pathlib
 import time
+from v21_clock import align_validation_clock
 from v21_forecast_core import (number, futures_features, spot_features,
     evaluate_predictions, clip)
 
@@ -189,7 +190,7 @@ def current_features(market,flow,market_state,previous,now):
         item=items.get(obs.get('symbol'))
         if not item:continue
         try:
-            f=futures_features(obs,item,observed_ms)
+            f=futures_features(obs,item,now)
             f.update(ctx);f['relative_to_market']=clip(f['p5']-f['market_median5'])
             rows.append({'symbol':obs['symbol'],'venue':'bitget','features':f})
         except (ValueError,TypeError):continue
@@ -197,7 +198,7 @@ def current_features(market,flow,market_state,previous,now):
         sym=seed.get('market')
         if not isinstance(sym,str) or not sym.startswith('KRW-'):continue
         try:
-            f=spot_features(seed,ctx);f.update(spot_sample_features(market_state,sym,source_ms))
+            f=spot_features(seed,ctx);f.update(spot_sample_features(market_state,sym,now))
             rows.append({'symbol':sym,'venue':'bithumb','features':f})
         except (ValueError,TypeError):continue
     return rows,prices,'PASS'
@@ -210,6 +211,7 @@ def _ms(s):
 
 def run(market,flow,market_state,old,models,now,api):
     state=dict(old or {});active,model_errors=verified_models(models)
+    now,validation_wait_ms=align_validation_clock(state.get('pending') or [],now) if active else (now,0)
     model_status={key:research_reason(p) for key,p in active.items()}
     features,previous,source_status=current_features(market,flow,market_state,state.get('previous_prices') or {},now)
     if source_status=='PASS':state['previous_prices']=previous
@@ -281,6 +283,7 @@ def run(market,flow,market_state,old,models,now,api):
       'unmeasured_quote_targets':len(unmeasured),
       'certificates':certificates,'delivery_candidates':deliverable,
       'delivery_mode':'MEASURED_PROSPECTIVE_EVIDENCE_NOT_PERMANENT_FALSE',
+      'validation_clock_wait_ms':validation_wait_ms,
       'cost_scenario_pct':COST_SCENARIO,'actual_trade_execution_verified':False,
       'no_orders':True,'telegram_sent':False}
     return report,state

@@ -17,7 +17,7 @@ function report(){
 }
 const market={collector_status:'PASS',early_pool:[{venue:'bitget',symbol:'ALTUSDT',asset_identity:'VERIFIED_CRYPTO'}],watchlist:[]};
 function opts(doc=report()){
- return {clock:()=>NOW,readReport:async()=>doc,
+ return {clock:()=>NOW,waitForFresh:false,readReport:async()=>doc,
    getQuote:async()=>({bid:100.01,ask:100.02,at_ms:NOW}),
    send:async()=>({message_id:123}),
    receipt:(_state,channel,symbol,at,ack)=>({channel,symbol,accepted_at:at,telegram_message_id:ack.message_id}),
