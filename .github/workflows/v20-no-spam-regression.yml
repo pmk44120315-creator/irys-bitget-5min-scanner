@@ -1,0 +1,18 @@
+name: IRYS V20 accuracy first preserve legacy signals
+on:
+  push:
+    branches:
+      - fix/irys-v20-accuracy-first-20261031
+    paths:
+      - .github/workflows/v20-no-spam-regression.yml
+      - deployment/IRYS_V20_ACCURACY_FIRST_WORKER.mjs
+      - tests/test_irys_v20_no_unvalidated_alerts.mjs
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: node --check deployment/IRYS_V20_ACCURACY_FIRST_WORKER.mjs
+      - run: node --test tests/test_irys_v20_no_unvalidated_alerts.mjs
