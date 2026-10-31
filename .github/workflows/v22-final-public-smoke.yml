@@ -1,0 +1,42 @@
+name: IRYS V22 final regression and actual public quote smoke
+on:
+  push:
+    branches: [upgrade/irys-v22-performance-20261101]
+    paths: [.github/workflows/v22-final-public-smoke.yml]
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: requirements-v22.txt
+      - run: python -m pip install -r requirements-v22.txt
+      - name: Complete old and new regression with compact receipt
+        run: |
+          python -m unittest discover -s tests -v > /tmp/v22-python-tests.log 2>&1
+          tail -5 /tmp/v22-python-tests.log
+          node --test tests/test_v21_delivery.mjs tests/test_v21_report_timing.mjs tests/test_v21_forecast_expiry.mjs tests/test_v22_delivery.mjs > /tmp/v22-node-tests.log
+          tail -10 /tmp/v22-node-tests.log
+          node deployment/build_v22_worker.mjs
+          node --check deployment/IRYS_V22_ADAPTIVE_WORKER.mjs
+      - name: Coherent current source and actual public quote integration, no orders or messages
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: python research/v22_live_smoke.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: v22-final-tests-and-public-runtime
+          path: |
+            /tmp/v22-python-tests.log
+            /tmp/v22-node-tests.log
+            /tmp/v22-smoke/report.json
+          retention-days: 14
