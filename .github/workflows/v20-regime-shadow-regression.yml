@@ -1,0 +1,24 @@
+name: IRYS V20 causal regime shadow actual price regression
+on:
+  push:
+    branches:
+      - fix/irys-v20-accuracy-first-20261031
+    paths:
+      - .github/workflows/v20-regime-shadow-regression.yml
+      - v20_regime_shadow.py
+      - v18_shadow_forecast.py
+      - tests/test_v20_regime_shadow.py
+      - tests/test_v18_shadow_forecast.py
+permissions:
+  contents: read
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m py_compile v20_regime_shadow.py v18_shadow_forecast.py
+      - run: python -m unittest discover -s tests -p test_v20_regime_shadow.py -v
+      - run: python -m unittest discover -s tests -p test_v18_shadow_forecast.py -v
