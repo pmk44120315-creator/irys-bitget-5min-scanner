@@ -149,6 +149,41 @@ def main():
               'close_location_5m':n(recent.get('actual_5m_close_location_in_range'))})
         if (i+1)%100==0:print('V20_AUDIT_EVIDENCE_PROGRESS',i+1,flush=True)
     labeled,missing=label_rows(events,symbols)
+    # Detect hidden dependence: eliminate repeat alerts on the same symbol
+    # within 90 minutes, and compare independent sign strategies. This is a
+    # retrospective *hypothesis*, not a validated production forecast.
+    last_signal_by_symbol={}
+    distinct=[]
+    for e in sorted(labeled,key=lambda z:z['at_ms']):
+        last=last_signal_by_symbol.get(e['symbol'])
+        if last is not None and e['at_ms']-last<90*MIN:
+            continue
+        distinct.append(e)
+        last_signal_by_symbol[e['symbol']]=e['at_ms']
+    def flip(events):
+        return [{**e,'signed_outcomes':{k:-v for k,v in e['signed_outcomes'].items()}}
+          for e in events]
+    def candidate_regime(events):
+        return [{**e,'signed_outcomes':{
+          k:(v if e['reversal_5m_15m'] else -v)
+            for k,v in e['signed_outcomes'].items()}} for e in events]
+    strategies={}
+    for title,rule in [('prior_V19_direction',lambda z:z),
+                       ('opposite_current_5m',flip),
+                       ('follow_only_early_reversal_else_countertrend',candidate_regime)]:
+        transformed=rule(distinct)
+        strategies[title]={'nonoverlap_90m_15m':summary(transformed,15),
+          'nonoverlap_90m_5m':summary(transformed,5),
+          'nonoverlap_90m_30m':summary(transformed,30),
+          'nonoverlap_90m_60m':summary(transformed,60)}
+    last30=[x for x in distinct if x['at_ms']>=
+      (sorted(set(e['at_ms'] for e in labeled))[int(len(set(e['at_ms'] for e in labeled))*.7)]
+       if labeled else float('inf'))]
+    strategies['later30_nonoverlap_15m']={
+      'V19':summary(last30,15),
+      'opposite':summary(flip(last30),15),
+      'reversal_aware':summary(candidate_regime(last30),15)}
+
     # Separate raw 15m outcome and candidate subgroups, no training or post-hoc
     # cherry-picking promoted to production. Includes small-sample warnings.
     groups={
@@ -191,6 +226,7 @@ def main():
       'all_horizons':{str(m):summary(labeled,m) for m in (5,15,30,60)},
       'risk_subgroups':summary_table,
       'chronological_periods':periods,
+      'nonoverlapping_studies_not_deployable':strategies,
       'limits':['Only Bitget official 15-minute local taker flows previously selected by the live collector',
         'Not the complete set of actual V19 Telegram messages; their KV receipts are inaccessible with the current read token',
         'No proof of execution prices, fees, slippage, market impact, wallet accounts or future profitability',
