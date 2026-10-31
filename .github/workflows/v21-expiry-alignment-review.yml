@@ -1,0 +1,44 @@
+name: IRYS V21.1 observed forecast expiry correction
+on:
+  push:
+    branches: [feature/irys-v21-causal-forecast-20261031]
+    paths:
+      - .github/workflows/v21-expiry-alignment-review.yml
+permissions:
+  contents: write
+concurrency:
+  group: irys-v21-build-only
+  cancel-in-progress: false
+jobs:
+  reviewed-correction:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Reproduce live-observed excess freshness rejection before correction
+        run: |
+          if node --test tests/test_v21_forecast_expiry.mjs; then
+            echo 'Expected live expiry defect not reproduced'; exit 1
+          fi
+      - name: Apply exact reviewed expiry correction only
+        run: python diagnostics/v21_align_forecast_expiry.py
+      - name: Full regression and reproducible Worker
+        run: |
+          python -m unittest discover -s tests -v
+          node --test tests/test_v21_delivery.mjs tests/test_v21_report_timing.mjs tests/test_v21_forecast_expiry.mjs
+          node deployment/build_v21_worker.mjs
+          node --check deployment/IRYS_V21_LEARNED_FORECAST_WORKER.mjs
+          sha256sum deployment/IRYS_V21_LEARNED_FORECAST_WORKER.mjs > deployment/v21_candidate.sha256
+      - name: Store tested source and byte hash on development branch only
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add deployment/v21_forecast_delivery.mjs deployment/build_v21_worker.mjs deployment/IRYS_V21_LEARNED_FORECAST_WORKER.mjs deployment/v21_candidate.sha256
+          git commit -m 'fix(v21.1): align notifications with valid prediction lifetime and correct learning diagnostics'
+          git fetch origin feature/irys-v21-causal-forecast-20261031
+          git rebase origin/feature/irys-v21-causal-forecast-20261031
+          git push origin HEAD:feature/irys-v21-causal-forecast-20261031
