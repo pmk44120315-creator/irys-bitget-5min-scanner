@@ -1,0 +1,21 @@
+name: IRYS V20 read-only actual Telegram alert count
+on:
+  push:
+    branches:
+      - fix/irys-v20-accuracy-first-20261031
+    paths:
+      - diagnostics/v20_readonly_spam_audit.mjs
+      - .github/workflows/v20-readonly-alert-audit.yml
+permissions:
+  contents: read
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: node --check diagnostics/v20_readonly_spam_audit.mjs
+      - name: Read Cloudflare live state without Telegram sends or writes
+        env:
+          IRYS_REALTIME_CF_ACCOUNT_ID: ${{ secrets.IRYS_REALTIME_CF_ACCOUNT_ID }}
+          IRYS_V7_CF_API_TOKEN: ${{ secrets.IRYS_V7_CF_API_TOKEN }}
+        run: node diagnostics/v20_readonly_spam_audit.mjs
