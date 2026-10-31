@@ -62,7 +62,7 @@ def options(market,flow,now):
                'entry':None,'future_results':{}}
 def _summarize(rows,h):
     rr=[r['future_results'].get(str(h)) for r in rows]
-    rr=[x for x in rr if isinstance(x,dict)]
+    rr=[x for x in rr if isinstance(x,dict) and x.get('judgment') in ('RIGHT','WRONG','FLAT')]
     right=sum(x.get('judgment')=='RIGHT' for x in rr)
     wrong=sum(x.get('judgment')=='WRONG' for x in rr)
     flat=sum(x.get('judgment')=='FLAT' for x in rr)
