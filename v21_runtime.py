@@ -1,34 +1,30 @@
 """V21 frozen-model market forecaster and independent forward-validation ledger.
 Uses public quotes only. NO Telegram/Cloudflare/account/order credentials.
-A positive historical study cannot unlock a message: fresh quote-based evidence
-from AFTER model freezing, separately by venue/side/horizon, is required.
-Quote returns include crossing bid/ask but are not executed fills.
+Historical success alone never unlocks a message. Future quote-based evidence
+is separated by frozen model, venue, side and horizon. Quotes are not fills.
 """
 from __future__ import annotations
-import collections
 import datetime as dt
 import hashlib
 import json
 import math
 import pathlib
-import statistics
 import time
 from v21_forecast_core import (number, futures_features, spot_features,
-    evaluate_predictions, nonoverlap)
+    evaluate_predictions, clip)
 
 MIN=60000
 ROOT=pathlib.Path(__file__).resolve().parent
 DATA=ROOT/'data'
 MODELS=ROOT/'research/v21_results/models.json'
-COST_SCENARIO=.20  # assumed round-trip costs beyond quote spread; not account fees
+COST_SCENARIO=.20  # assumed round-trip costs beyond quote spread, not actual account fees
 
 
 def probabilities(model, features):
     names=model['features'];classes=[int(x) for x in model['classes']]
     x=[number(features.get(k),0.0) for k in names]
     if model['kind']=='forest':
-        scores=[0.0]*len(classes)
-        trees=model['trees']
+        scores=[0.0]*len(classes);trees=model['trees']
         if not trees:raise ValueError('EMPTY_FOREST')
         for tree in trees:
             node=0;visited=set()
@@ -79,8 +75,7 @@ def quote_return(entry, exit, side):
 
 def finish_record(record, quote, now):
     if not valid_quote(quote):return None
-    target=record['issued_ms']+record['horizon_min']*MIN
-    stamp=quote['at_ms']
+    target=record['issued_ms']+record['horizon_min']*MIN;stamp=quote['at_ms']
     if stamp<target or stamp>target+150000 or stamp>now or now-stamp>MIN:return None
     signed=quote_return(record['entry_quote'],quote,record['side'])
     return {'model_key':record['model_key'],'model_sha256':record.get('model_sha256'),
@@ -93,14 +88,12 @@ def finish_record(record, quote, now):
 
 
 def certificate(rows, venue, horizon, side):
-    # Return value is a monitored empirical qualification, NOT a guarantee.
     own=[r for r in rows if r.get('side')==side]
     metric=evaluate_predictions(own,COST_SCENARIO,venue,horizon)
     lower=metric['hour_block_bootstrap_lower_95_pct']
     times=sorted({r['issued_ms'] for r in own})
     span=(times[-1]-times[0])/3600000 if len(times)>1 else 0
-    reason='INSUFFICIENT_INDEPENDENT_FORWARD_EVIDENCE'
-    ready=False
+    reason='INSUFFICIENT_INDEPENDENT_FORWARD_EVIDENCE';ready=False
     if span>=24 and metric['hour_blocks']>=8 and lower is not None:
         reason='FORWARD_NET_ADVANTAGE_NOT_SUPPORTED'
         midpoint=times[len(times)//2]
@@ -126,6 +119,7 @@ def load(path):
 
 def verified_models(raw):
     out={};errors={}
+    if not isinstance(raw,dict) or not raw:return {},{'models':'MISSING_MODEL_BUNDLE'}
     for key,p in raw.items():
         try:
             if p.get('schema')!='IRYS_V21_SUPERVISED_MODEL_V1' or not p.get('frozen_before_test'):
@@ -140,36 +134,36 @@ def verified_models(raw):
 
 
 def fetch_quotes(pairs,api,now):
-    result={};failures=[]
-    bitget={sym for venue,sym in pairs if venue=='bitget'}
+    result={};failures=[];bitget={sym for venue,sym in pairs if venue=='bitget'}
     if bitget:
         try:
             ticks=api('bitget','/api/v2/mix/market/tickers',{'productType':'USDT-FUTURES'})
+            received=max(now,int(time.time()*1000))
             for r in ticks if isinstance(ticks,list) else []:
                 sym=r.get('symbol')
                 if sym not in bitget:continue
                 ts=number(r.get('ts'));bid=number(r.get('bidPr'));ask=number(r.get('askPr'))
                 q={'at_ms':int(ts) if ts is not None else 0,'bid':bid,'ask':ask,
                     'source':'BITGET_OFFICIAL_PUBLIC_BEST_QUOTES'}
-                if valid_quote(q) and 0<=now-q['at_ms']<=MIN:result[('bitget',sym)]=q
+                if valid_quote(q) and 0<=received-q['at_ms']<=MIN:result[('bitget',sym)]=q
         except Exception as exc:failures.append('BITGET_QUOTES_'+type(exc).__name__)
     symbols=sorted({sym for venue,sym in pairs if venue=='bithumb'})
     for start in range(0,len(symbols),80):
         try:
             rows=api('bithumb','/v1/orderbook',{'markets':','.join(symbols[start:start+80])})
+            received=max(now,int(time.time()*1000))
             for r in rows if isinstance(rows,list) else []:
                 units=r.get('orderbook_units') or []
                 if not units:continue
                 u=units[0];ts=number(r.get('timestamp'))
                 q={'at_ms':int(ts) if ts is not None else 0,'bid':number(u.get('bid_price')),
                     'ask':number(u.get('ask_price')),'source':'BITHUMB_OFFICIAL_PUBLIC_BEST_QUOTES'}
-                if valid_quote(q) and 0<=now-q['at_ms']<=MIN:result[('bithumb',r.get('market'))]=q
+                if valid_quote(q) and 0<=received-q['at_ms']<=MIN:result[('bithumb',r.get('market'))]=q
         except Exception as exc:failures.append('BITHUMB_QUOTES_'+type(exc).__name__)
     return result,failures
 
 
 def current_features(market,flow,market_state,previous,now):
-    # Share the training feature functions, avoiding live/training schema drift.
     from research.v21_train_causal_models import context,spot_sample_features
     source_ms=_ms(market.get('finished_utc'));observed_ms=_ms(flow.get('at_utc'))
     if (market.get('collector_status')!='PASS' or flow.get('status')!='PASS'
@@ -190,7 +184,7 @@ def current_features(market,flow,market_state,previous,now):
         if not item:continue
         try:
             f=futures_features(obs,item,observed_ms)
-            f.update(ctx);f['relative_to_market']=f['p5']-f['market_median5']
+            f.update(ctx);f['relative_to_market']=clip(f['p5']-f['market_median5'])
             rows.append({'symbol':obs['symbol'],'venue':'bitget','features':f})
         except (ValueError,TypeError):continue
     for seed in (market.get('spot_flow') or {}).get('direction_review_seeds') or []:
@@ -209,8 +203,7 @@ def _ms(s):
 
 
 def run(market,flow,market_state,old,models,now,api):
-    state=dict(old or {})
-    active,model_errors=verified_models(models)
+    state=dict(old or {});active,model_errors=verified_models(models)
     model_status={key:research_reason(p) for key,p in active.items()}
     features,previous,source_status=current_features(market,flow,market_state,state.get('previous_prices') or {},now)
     if source_status=='PASS':state['previous_prices']=previous
@@ -226,10 +219,8 @@ def run(market,flow,market_state,old,models,now,api):
             proposals.append({**obs,'model_key':key,'model_sha256':p['model_sha256'],
                 'side':side,'horizon_min':p['horizon_min'],
                 'model_score_not_calibrated_win_probability':max(up,down)})
-    # Pending outcomes are evaluated even when new candidate source is unavailable.
     pairs={(r['venue'],r['symbol']) for r in pending+proposals}
     quotes,quote_errors=fetch_quotes(pairs,api,now)
-    # Public reads can end after now; timestamp verification uses actual completion clock.
     finished_now=max(now,int(time.time()*1000))
     remaining=[];new_outcomes=[];expired=0
     for r in pending:
@@ -240,8 +231,7 @@ def run(market,flow,market_state,old,models,now,api):
         elif finished_now>r['issued_ms']+r['horizon_min']*MIN+150000:
             expired+=1
         else:remaining.append(r)
-    completed=completed[-4000:]
-    certificates={}
+    completed=completed[-4000:];certificates={}
     for key,p in active.items():
         own=[r for r in completed if r.get('model_sha256')==p['model_sha256']
           and r.get('model_key')==key and r['issued_ms']>=p['prospective_validation_start_ms']]
@@ -267,7 +257,9 @@ def run(market,flow,market_state,old,models,now,api):
         if proof['ready']:deliverable.append(message)
     state.update({'pending':remaining,'completed':completed,'last_registered':seen,
         'expired_quote_targets_total':state.get('expired_quote_targets_total',0)+expired})
-    report={'version':'IRYS_V21_SUPERVISED_PROSPECTIVE_V1','status':'ACTIVE' if not model_errors else 'MODEL_INTEGRITY_FAILURE',
+    status=('MODEL_INTEGRITY_FAILURE' if model_errors else 'SOURCE_UNAVAILABLE' if source_status!='PASS'
+            else 'QUOTE_FEED_UNAVAILABLE' if pairs and not quotes else 'ACTIVE')
+    report={'version':'IRYS_V21_SUPERVISED_PROSPECTIVE_V1','status':status,
       'at_utc':dt.datetime.fromtimestamp(finished_now/1000,dt.timezone.utc).isoformat(),
       'source_finished_utc':market.get('finished_utc'),'source_status':source_status,
       'model_status':model_status,'model_integrity_errors':model_errors,
