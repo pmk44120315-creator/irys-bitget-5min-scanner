@@ -1,0 +1,34 @@
+name: IRYS V25 balanced watch read-only regression (NO DEPLOY)
+on:
+  push:
+    branches:
+      - fix/irys-v25-balanced-bitget-watch-research-20261101
+    paths:
+      - 'deployment/v23_direct_market_scout.mjs'
+      - 'deployment/IRYS_V24_BITGET_FALLBACK_WORKER.mjs'
+      - 'deployment/v25_balanced_watch.mjs'
+      - 'tests/test_v25_balanced_watch.mjs'
+      - '.github/workflows/v25-balanced-watch-review.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  regression:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Validate original Worker and isolated alert fairness (no Cloudflare, no Telegram)
+        run: |
+          node --check deployment/IRYS_V24_BITGET_FALLBACK_WORKER.mjs
+          node --check deployment/v23_direct_market_scout.mjs
+          node --check deployment/v25_balanced_watch.mjs
+          node --test tests/test_v23_direct_scout.mjs tests/test_v24_bitget_fast_fallback.mjs tests/test_v24_worker_integration.mjs tests/test_v25_balanced_watch.mjs
+      - name: Preserve all current collector / learned-direction regression tests
+        run: python -m unittest discover -s tests -v
+      - name: No live mutation proof
+        run: |
+          echo "V25_RESEARCH_ONLY_NO_CLOUDFLARE_DEPLOY_NO_TELEGRAM_NO_ORDERS"
+          sha256sum deployment/IRYS_V24_BITGET_FALLBACK_WORKER.mjs
