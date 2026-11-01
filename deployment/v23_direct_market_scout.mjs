@@ -6,7 +6,7 @@
  * Uses prior actual observations stored in the ORIGINAL IRYS_KV state.
  * No orders, accounts, WebSocket leases, secrets, new cron or AI dependence.
  */
-const V23_VER='IRYS_V23_DIRECT_SCOUT_V1';
+const V23_VER='IRYS_V23_1_VENUE_ISOLATED_SCOUT_V1';
 const V23_MAX_HOURLY_NOTICES=2;  // transport anti-spam, never a candidate selection gate
 const V23_NOTICE_COOLDOWN_MS=90*60000;
 const V23_RECENT_MARKET_MS=150000;
