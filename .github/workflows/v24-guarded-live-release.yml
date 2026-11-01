@@ -1,0 +1,40 @@
+name: IRYS V24 guarded Cloudflare official Bitget fallback deployment
+on:
+  push:
+    branches: [feature/irys-v24-worker-bitget-github-fallback-20261101]
+    paths: ['.github/workflows/v24-guarded-live-release.yml']
+permissions:
+  contents: read
+concurrency:
+  group: irys-production-worker-code-only-release
+  cancel-in-progress: false
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Test all original and V24 verified direction/WATCH contracts before release
+        run: |
+          node --check deployment/IRYS_V24_BITGET_FALLBACK_WORKER.mjs
+          node --check deployment/release_v24_guarded.mjs
+          node --test tests/test_v23_direct_scout.mjs tests/test_v24_bitget_fast_fallback.mjs tests/test_v24_worker_integration.mjs
+          node --test tests/test_v21_delivery.mjs tests/test_v21_report_timing.mjs tests/test_v21_forecast_expiry.mjs
+          python -m unittest discover -s tests -v
+          echo 'd1a46e867b57d5bce542d46abbbc3b7c9ceeda762700e12dd18b56ee89ba02c7  deployment/IRYS_V24_BITGET_FALLBACK_WORKER.mjs' | sha256sum -c -
+      - name: Source integrity and original binding/Cron dry-run, NO messages
+        env:
+          IRYS_REALTIME_CF_ACCOUNT_ID: ${{ secrets.IRYS_REALTIME_CF_ACCOUNT_ID }}
+          IRYS_V7_CF_API_TOKEN: ${{ secrets.IRYS_V7_CF_API_TOKEN }}
+          IRYS_V24_RELEASE_INTENT: USER_APPROVED_REAL_BITGET_OFFICIAL_FALLBACK_AND_BITHUMB_PRESERVATION_20261101
+          IRYS_V24_DRY_RUN: 'true'
+        run: node deployment/release_v24_guarded.mjs
+      - name: Code-only Cloudflare fast Bitget fallback release, exact hash and automatic safe rollback
+        env:
+          IRYS_REALTIME_CF_ACCOUNT_ID: ${{ secrets.IRYS_REALTIME_CF_ACCOUNT_ID }}
+          IRYS_V7_CF_API_TOKEN: ${{ secrets.IRYS_V7_CF_API_TOKEN }}
+          IRYS_V24_RELEASE_INTENT: USER_APPROVED_REAL_BITGET_OFFICIAL_FALLBACK_AND_BITHUMB_PRESERVATION_20261101
+          IRYS_V24_DRY_RUN: 'false'
+        run: node deployment/release_v24_guarded.mjs
