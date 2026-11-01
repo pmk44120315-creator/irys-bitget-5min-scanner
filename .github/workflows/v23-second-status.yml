@@ -1,0 +1,32 @@
+name: IRYS V23 instant second-tick post-warmup read-only status
+on:
+  push:
+    branches:
+      - feature/irys-v23-direct-fast-scout-20261101
+    paths:
+      - '.github/workflows/v23-instant-status.yml'
+permissions:
+  contents: read
+jobs:
+  instant:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Read only existing published Worker health without dispatch or bot sends
+        run: |
+          node --input-type=module <<'JS'
+          const response=await fetch('https://irys-surge-monitor.vhehwpfl.workers.dev/',{signal:AbortSignal.timeout(15000)});
+          if(!response.ok)throw Error('PUBLIC_HEALTH_'+response.status);
+          const h=await response.json(),x=h.last||{},v=x.v23DirectFastScout||{};
+          console.log('V23_FIRST_NATURAL_TICK',JSON.stringify({
+             version:x.codeVersion,tick:x.time,worker_status:x.status,
+             original_github_dispatch:x.githubDispatchStatus,
+             direct_status:v.status,direct_market_status:v.market_status,
+             source_read_errors:v.read_errors,listed_candidates:v.candidate_count,
+             compared:v.observed,elapsed_min:v.elapsed_min,chosen:v.chosen,
+             sent:v.sent,send_error:v.send_error,
+             Telegram_total_api_ack:x.telegramApiAcknowledgementsTotal,
+             Telegram_acks_this_tick:x.telegramApiAckedThisRun,
+             last_channel:x.telegramLastApiReceipt?.channel||null,
+             original_v21_status:x.v21ForecastDelivery?.status||null,
+             original_reactive_spam_disabled:x.v20UnverifiedDirectionalSuppressionActive}));
+          JS
