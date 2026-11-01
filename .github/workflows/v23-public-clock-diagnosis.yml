@@ -1,0 +1,16 @@
+name: IRYS V23 Bithumb ticker trade timestamp diagnosis
+on:
+  push:
+    branches:
+      - feature/irys-v23-direct-fast-scout-20261101
+    paths:
+      - '.github/workflows/v23-public-clock-diagnosis.yml'
+permissions:
+  contents: read
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compare Bithumb public ticker timestamp and execution timestamps to actual UTC clock
+        run: node research/v23_bithumb_trade_clock.mjs
