@@ -130,6 +130,17 @@ class DirectionV26Runtime(unittest.TestCase):
         self.assertEqual(report['new_future_quote_labels'],0)
         self.assertEqual(report['quote_coverage']['5']['source_missing_or_expired'],1)
         self.assertEqual(report['forward_quote_results']['5']['bitget']['v26_primary']['measured'],0)
+    def test_original_entry_quote_change_cannot_relabel_frozen_prediction(self):
+        e=event()
+        _,state=engine.run(source(NOW),ledger(e),{},NOW)
+        at=e['issued_ms']+5*60_000+10_000
+        altered=later(e,5)
+        altered['entry_quote']['ask']=100.8
+        # Maliciously/accidentally rewritten source quote must not be treated as
+        # the historical entry that was frozen at original issue time.
+        r,new=engine.run(source(at),ledger(altered),state,at)
+        self.assertEqual(r['new_future_quote_labels'],0)
+        self.assertEqual(new['records'][0]['labels'],{})
     def test_duplicate_immutable_issue_not_reenrolled(self):
         e=event()
         report,state=engine.run(source(NOW),ledger(e),{},NOW)
