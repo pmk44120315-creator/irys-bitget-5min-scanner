@@ -1,0 +1,34 @@
+name: IRYS V23.1 actual scheduled warmup-comparison and bot receipt probe
+on:
+  push:
+    branches: [audit/irys-v23-1-postwarmup-2030]
+permissions:
+  contents: read
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Read live Worker actual V23.1 post-warmup tick without sending
+        run: |
+          node --input-type=module <<'JS'
+          const response=await fetch('https://irys-surge-monitor.vhehwpfl.workers.dev/',{signal:AbortSignal.timeout(20000)});
+          if(!response.ok)throw Error('READ_HTTP_'+response.status);
+          const h=await response.json(),last=h.last||{},v=last.v23DirectFastScout||{};
+          const result={read_at_utc:new Date().toISOString(),worker_version:last.codeVersion,
+            last_tick_kst:last.time,worker_status:last.status,dispatch:last.githubDispatchStatus,
+            scout_status:v.status,market_status:v.market_status,
+            venue_availability:v.venue_availability,compared_venues:v.compared_venues,
+            compared_count:v.observed,candidate_count:v.candidate_count,
+            source_errors:v.read_errors,fast_sent:v.sent,send_error:v.send_error,
+            selected:v.chosen?.slice(0,4),actual_taker:v.actual_taker,
+            cumulative_api_acks:last.telegramApiAcknowledgementsTotal,
+            api_acks_this_tick:last.telegramApiAckedThisRun,
+            last_telegram_receipt:last.telegramLastApiReceipt?{
+              channel:last.telegramLastApiReceipt.channel,
+              symbol:last.telegramLastApiReceipt.symbol,
+              id:last.telegramLastApiReceipt.telegram_message_id,
+              at:last.telegramLastApiReceipt.accepted_at}:null,
+            legacy_v21_status:last.v21ForecastDelivery?.status};
+          console.log('V23_1_NATURAL_TICK_PROOF',JSON.stringify(result));
+          if(result.worker_version!=='IRYS-V23.1-VENUE-ISOLATED-DIRECT-SCOUT-20261101'||result.worker_status!=='PASS')throw Error('UNEXPECTED_PRODUCTION_VERSION_OR_STATUS');
+          JS
