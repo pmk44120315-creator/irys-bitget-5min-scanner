@@ -1,0 +1,46 @@
+name: IRYS V23 live 20-20 after-no-alert read-only audit
+on:
+  push:
+    branches: [audit/irys-v23-live-20261101-2020]
+permissions:
+  contents: read
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Inspect actual Cloudflare live V23 alert failure and provider health no writes or messages
+        env:
+          CF_ACCOUNT: ${{ secrets.IRYS_REALTIME_CF_ACCOUNT_ID }}
+          CF_TOKEN: ${{ secrets.IRYS_V7_CF_API_TOKEN }}
+        run: |
+          node --input-type=module <<'JS'
+          const acc=process.env.CF_ACCOUNT||'',token=process.env.CF_TOKEN||'';
+          if(!/^[0-9a-f]{32}$/.test(acc)||token.length<20)throw Error('READ_SCOPE_NOT_CONFIGURED');
+          const url='https://api.cloudflare.com/client/v4/accounts/'+acc+'/workers/scripts/irys-surge-monitor';
+          const get=async(u,auth=true)=>{
+             const r=await fetch(u,{headers:auth?{Authorization:'Bearer '+token,Accept:'application/json'}:{Accept:'application/json'},signal:AbortSignal.timeout(18000)});
+             if(!r.ok)throw Error('READ_HTTP_'+r.status+' '+new URL(u).pathname);
+             return await r.json();
+          };
+          const [health,settings,schedules]=await Promise.all([
+             get('https://irys-surge-monitor.vhehwpfl.workers.dev/',false),
+             get(url+'/settings'),get(url+'/schedules')]);
+          const state=health.last||{},v=state.v23DirectFastScout||{};
+          const bindings=(settings.result?.bindings||[]).map(x=>x.name+':'+x.type);
+          const crons=(schedules.result?.schedules||[]).map(x=>x.cron);
+          const report={at:new Date().toISOString(),version:state.codeVersion,last_cron_tick_kst:state.time,
+             worker_pass:state.status,github_dispatch:state.githubDispatchStatus,
+             cron:crons,all_five_required_bindings:['IRYS_KV:kv_namespace','AI:ai',
+               'TELEGRAM_BOT_TOKEN:secret_text','TELEGRAM_CHAT_ID:plain_text',
+               'GITHUB_DISPATCH_TOKEN:secret_text'].every(z=>bindings.includes(z)),
+             direct_scout:v,old_v21:state.v21ForecastDelivery||null,
+             futures:state.futuresDirection||null,spot:state.spotDirectional||null,
+             ai_status:state.aiJudgment?.status||null,
+             telegram_bot_ack_total:state.telegramApiAcknowledgementsTotal,
+             telegram_ack_current_tick:state.telegramApiAckedThisRun,
+             last_telegram_receipt:state.telegramLastApiReceipt||null,
+             telemetry_read_only:true};
+          console.log('V23_DIRECT_LIVE_2020',JSON.stringify(report));
+          if(!report.all_five_required_bindings||JSON.stringify(crons)!=='["*/5 * * * *"]')
+            throw Error('ORIGINAL_BINDING_OR_CRON_NOT_HEALTHY');
+          JS
