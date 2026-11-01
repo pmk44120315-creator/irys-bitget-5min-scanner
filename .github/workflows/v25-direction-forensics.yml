@@ -1,0 +1,40 @@
+name: IRYS V25 live-evidence direction forensics (READ ONLY)
+on:
+  push:
+    branches: [fix/irys-v25-balanced-bitget-watch-research-20261101]
+    paths:
+      - '.github/workflows/v25-direction-forensics.yml'
+      - 'diagnostics/v25_direction_forensics.py'
+      - 'tests/test_v25_direction_forensics.py'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  study:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Test replay metrics and no-lookahead conditions
+        run: python -m unittest discover -s tests -p 'test_v25_direction_forensics.py' -v
+      - name: Fetch a frozen, authentic, main-branch mature research ledger (no writes)
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --quiet --depth=1 origin main
+          sha="$(git rev-parse origin/main)"
+          git show "origin/main:data/v22_evidence_state.json" > "$RUNNER_TEMP/v22_evidence_state.json"
+          python -m json.tool "$RUNNER_TEMP/v22_evidence_state.json" >/dev/null
+          echo "V25_FROZEN_MAIN_SHA=$sha" >> "$GITHUB_ENV"
+          echo "V25_READONLY_FROZEN_MAIN_SHA=$sha"
+          wc -c "$RUNNER_TEMP/v22_evidence_state.json"
+      - name: Analyze only original preissued 5m/15m hypotheses and subsequent genuine quote outcomes
+        shell: bash
+        run: |
+          python diagnostics/v25_direction_forensics.py "$RUNNER_TEMP/v22_evidence_state.json" --source-sha "$V25_FROZEN_MAIN_SHA" --observed-at "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+      - name: Record no live side effects
+        run: |
+          echo "V25_DIRECTION_FORENSICS_RESEARCH_ONLY"
+          echo "NO_CLOUDFLARE_RELEASE_NO_TELEGRAM_NO_ACCOUNTS_NO_ORDERS"
