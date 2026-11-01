@@ -1,0 +1,115 @@
+name: IRYS 14-54 Telegram zero-delivery actual Cloudflare audit
+on:
+  push:
+    branches:
+      - audit/irys-telegram-20261101-1454
+permissions:
+  contents: read
+jobs:
+  cloudflare-get-only:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Read real Worker, last Cron, stored receipts and blocking causes without sending Telegram
+        env:
+          IRYS_CF_ACCOUNT: ${{ secrets.IRYS_REALTIME_CF_ACCOUNT_ID }}
+          IRYS_CF_READ_TOKEN: ${{ secrets.IRYS_V7_CF_API_TOKEN }}
+        run: |
+          node --input-type=module <<'JS'
+          import {createHash} from 'node:crypto';
+          const account=process.env.IRYS_CF_ACCOUNT||'';
+          const token=process.env.IRYS_CF_READ_TOKEN||'';
+          if(!/^[a-f0-9]{32}$/.test(account)||token.length<20)
+            throw Error('LIVE_SCOPED_READ_AUTH_UNAVAILABLE');
+          const base='https://api.cloudflare.com/client/v4/accounts/'+account+
+            '/workers/scripts/irys-surge-monitor';
+          const HEAD={authorization:'Bearer '+token,accept:'application/json'};
+          async function fetcher(url,auth=true) {
+            return await fetch(url,{headers:auth?HEAD:{accept:'application/json'},
+              signal:AbortSignal.timeout(18000)});
+          }
+          const [raw,settings,schedules,health]=await Promise.all([
+            fetcher(base),fetcher(base+'/settings'),fetcher(base+'/schedules'),
+            fetcher('https://irys-surge-monitor.vhehwpfl.workers.dev/',false)]);
+          for(const [label,r] of [['source',raw],['settings',settings],['schedule',schedules],['health',health]])
+            if(!r.ok)throw Error(label+'_LIVE_HTTP_'+r.status);
+          const srcType=(raw.headers.get('content-type')||'').toLowerCase();
+          let script;
+          if(srcType.startsWith('multipart/form-data')){
+            const form=await raw.formData(), meta=form.get('metadata');
+            const o=meta?JSON.parse(typeof meta==='string'?meta:await meta.text()):{};
+            const part=form.get(o.main_module||o.body_part||'worker.js');
+            if(!part)throw Error('NO_MAIN_WORKER_SOURCE');
+            script=Buffer.from(typeof part==='string'?part:await part.arrayBuffer());
+          }else script=Buffer.from(await raw.arrayBuffer());
+          const sha=createHash('sha256').update(script).digest('hex');
+          const set=await settings.json(),cronDoc=await schedules.json(),h=await health.json();
+          const binding=(set.result?.bindings||[]).map(x=>x.name+':'+x.type).sort();
+          const cron=(Array.isArray(cronDoc.result?.schedules)?cronDoc.result.schedules:
+            Array.isArray(cronDoc.result)?cronDoc.result:[]).map(x=>x.cron);
+          const last=h.last||{}, ai=last.aiJudgment||{},v21=last.v21ForecastDelivery||{},
+            spot=last.spotDirectional||{},fut=last.futuresDirection||{};
+          const result={
+            checked_utc:new Date().toISOString(),source_sha256:sha,
+            runtime_version:last.codeVersion||null,last_scheduled_tick:last.time||null,
+            last_tick_status:last.status||null,
+            original_github_dispatch:last.githubDispatchStatus||null,
+            source_finished_utc:last.githubBitgetFinishedUtc||null,
+            schedule:cron,
+            binding_names_present:['AI:ai','IRYS_KV:kv_namespace',
+              'GITHUB_DISPATCH_TOKEN:secret_text','TELEGRAM_BOT_TOKEN:secret_text',
+              'TELEGRAM_CHAT_ID:plain_text'].every(x=>binding.includes(x)),
+            telegram_connected:!!h.telegramSecretConfigured,
+            ai_status:ai.status||null,ai_error:ai.error||null,
+            ai_alerts_sent:ai.alerts_sent??null,
+            v19_reactive_spam_disabled:last.v20UnverifiedDirectionalSuppressionActive===true,
+            v21:{status:v21.status||null,sent:v21.sent??null,inspected:v21.inspected??null,
+              reject_reasons:v21.reasons||{},send_error:v21.send_error||null,
+              permanent_disable_switch:v21.permanent_disable_switch??null},
+            bitget_existing:{status:fut.status||null,inspected:fut.inspected??null,
+              qualified:fut.qualified??null,sent:fut.sent??null,
+              reject_reasons:fut.reasons||{}},
+            bithumb_existing:{status:spot.status||null,qualified:spot.qualified??null,
+              sent:spot.sent??null,reject_reasons:spot.reasons||{},
+              send_error:spot.send_error||null},
+            existing_spot_sent:last.sent??null,
+            bot_acks_current_tick:last.telegramApiAckedThisRun??null,
+            bot_acks_total:last.telegramApiAcknowledgementsTotal??null,
+            last_ack: last.telegramLastApiReceipt?{
+              channel:last.telegramLastApiReceipt.channel||null,
+              symbol:last.telegramLastApiReceipt.symbol||null,
+              time:last.telegramLastApiReceipt.accepted_at||null,
+              message_id:last.telegramLastApiReceipt.telegram_message_id||null}:null,
+            last_v21_delivery:last.v21LastDelivery||null,
+            no_test_message_or_mutation:true
+          };
+          console.log('IRYS_LIVE_DELIVERY_20261101_1454',JSON.stringify(result));
+          const kvBinding=(set.result?.bindings||[]).find(x=>x.name==='IRYS_KV'&&x.type==='kv_namespace');
+          if(kvBinding?.namespace_id){
+             const url='https://api.cloudflare.com/client/v4/accounts/'+account+
+               '/storage/kv/namespaces/'+kvBinding.namespace_id+'/values/'+encodeURIComponent('irys:fast:state:v1');
+             try{
+               const res=await fetcher(url);
+               if(res.ok){
+                 const data=await res.json();
+                 const all=data.deliveryReceiptsV12||[];
+                 const ago=Date.now()-24*3600000;
+                 const recent=all.filter(x=>{
+                   const tm=Date.parse(x.accepted_at||x.at||'');
+                   return Number.isFinite(tm)&&tm>=ago;
+                 });
+                 console.log('IRYS_KV_LAST24H_RECEIPTS',JSON.stringify({
+                   status:'READ_OK',count:recent.length,
+                   by_channel:Object.fromEntries([...new Set(recent.map(x=>x.channel))].map(
+                     ch=>[ch,recent.filter(x=>x.channel===ch).length])),
+                   latest:all.slice(-5).map(x=>({channel:x.channel,symbol:x.symbol,
+                     at:x.accepted_at||x.at||null})),readonly:true}));
+               }else console.log('IRYS_KV_LAST24H_RECEIPTS',
+                  JSON.stringify({status:'READ_HTTP_'+res.status,not_inferred_zero:true}));
+             }catch(e){console.log('IRYS_KV_LAST24H_RECEIPTS',JSON.stringify({
+               status:'READ_ERROR',error_type:e.constructor.name,not_inferred_zero:true}));}
+          }
+          if(result.last_tick_status!=='PASS'||JSON.stringify(cron)!=='["*/5 * * * *"]'
+              ||!result.binding_names_present)
+            throw Error('PRODUCTION_RUNTIME_OR_BINDINGS_NOT_HEALTHY');
+          JS
