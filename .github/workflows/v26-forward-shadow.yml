@@ -1,0 +1,67 @@
+name: IRYS V26 independent forward causal direction shadow (NO ALERTS)
+on:
+  workflow_run:
+    workflows: ['IRYS V18 independent delayed-label prediction']
+    types: [completed]
+permissions:
+  contents: read
+concurrency:
+  group: irys-v18-append-only-writers
+  cancel-in-progress: false
+  queue: max
+jobs:
+  forward_shadow:
+    if: >-
+      github.event_name == 'workflow_run' &&
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.head_branch == 'main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Load authentic latest completed V22 data, NEVER workflow event artifact
+        run: |
+          git fetch --quiet origin main
+          git reset --hard origin/main
+          echo "V26_SOURCE_TREE_SHA=$(git rev-parse HEAD)"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify causality, source authenticity and all original regressions
+        run: |
+          python -m py_compile v26_direction_core.py v26_direction_runtime.py
+          python -m unittest discover -s tests -p 'test_v26_direction.py' -v
+          python -m unittest discover -s tests -p 'test_v22_counterfactual.py' -v
+      - name: Freeze new issued V22 hypotheses before future quote labels, annotate old futures
+        id: forward
+        run: python -u v26_direction_runtime.py
+      - name: Commit ONLY independent forward-study reports (no live Worker or old state)
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add data/v26_direction_latest.json data/v26_direction_state.json
+          if git diff --staged --quiet; then
+            echo "V26_NO_NEW_SOURCE_CHANGE"
+            exit 0
+          fi
+          git commit -m 'data(v26): prospective real-quote direction evidence only'
+          for attempt in 1 2 3 4 5 6 7 8; do
+            git fetch --quiet origin main
+            if ! git rebase origin/main; then
+              git rebase --abort
+              echo '::error::V26 state collided with concurrent writes; preserve main, no force'
+              exit 1
+            fi
+            if git push origin HEAD:main; then exit 0; fi
+            sleep 2
+          done
+          echo '::error::Unable to publish V26 independently without overwriting main'
+          exit 1
+      - name: Explicitly document no live directional promotion
+        run: |
+          echo 'V26_SHADOW_ONLY_NO_CLOUDFLARE_EDIT_NO_TELEGRAM_NO_ORDERS_NO_ACCOUNT_API'
+          echo 'The new V26 forecast is NOT a production LONG/SHORT/BUY signal.'
