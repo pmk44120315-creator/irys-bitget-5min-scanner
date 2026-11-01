@@ -1,0 +1,29 @@
+name: IRYS V24 full Worker safe public fallback regressions
+on:
+  push:
+    branches: [feature/irys-v24-worker-bitget-github-fallback-20261101]
+    paths:
+      - .github/workflows/v24-full-worker-review.yml
+      - deployment/v23_direct_market_scout.mjs
+      - deployment/v24_bitget_fast_fallback.mjs
+      - deployment/IRYS_V24_BITGET_FALLBACK_WORKER.mjs
+      - tests/test_v24*.mjs
+permissions:
+  contents: read
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Audit new official Bitget fast-source fallback and ALL old Bithumb/Worker direction code
+        run: |
+          node --check deployment/v23_direct_market_scout.mjs
+          node --check deployment/v24_bitget_fast_fallback.mjs
+          node --check deployment/IRYS_V24_BITGET_FALLBACK_WORKER.mjs
+          node --test tests/test_v23_direct_scout.mjs tests/test_v24_bitget_fast_fallback.mjs tests/test_v24_worker_integration.mjs
+          node --test tests/test_v21_delivery.mjs tests/test_v21_report_timing.mjs tests/test_v21_forecast_expiry.mjs
+          python -m unittest discover -s tests -v
+          sha256sum deployment/IRYS_V24_BITGET_FALLBACK_WORKER.mjs
