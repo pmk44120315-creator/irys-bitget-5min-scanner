@@ -36,9 +36,7 @@ jobs:
       - name: Existing and learned-model causal regression
         run: |
           python -m py_compile v18_shadow_forecast.py v21_runtime.py v21_forecast_core.py v22_runtime.py v22_direction_core.py
-          python -m unittest discover -s tests -p 'test_v22_counterfactual.py' -v
-          python -m unittest discover -s tests -p test_v18_shadow_forecast.py -v
-          python -m unittest discover -s tests -p 'test_v21_*.py' -v
+          python -m unittest discover -s tests -v
   shadow:
     if: >-
       github.event_name == 'workflow_run' &&
