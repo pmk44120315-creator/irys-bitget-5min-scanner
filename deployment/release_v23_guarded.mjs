@@ -8,7 +8,7 @@ import {createHash} from 'node:crypto';
 const account=process.env.IRYS_REALTIME_CF_ACCOUNT_ID||'';
 const token=process.env.IRYS_V7_CF_API_TOKEN||'';
 const ROOT='https://api.cloudflare.com/client/v4/accounts/'+account+'/workers/scripts/irys-surge-monitor';
-const URL='https://irys-surge-monitor.vhehwpfl.workers.dev/';
+const PUBLIC_URL='https://irys-surge-monitor.vhehwpfl.workers.dev/';
 const headers={authorization:'Bearer '+token,accept:'application/json'};
 const OLD_SHA='d05577405be21f4a2c72f076ac5dd3b334b62c4cc52886eb4d69fb7e01ef016d';
 const OLD_VERSION='IRYS-V21.1-LEARNED-FORECAST-EXPIRY-ALIGNED-20261031';
@@ -43,7 +43,7 @@ async function workerSource(){
 }
 async function config(){
  const [bindingRes,cronRes,statusRes]=await Promise.all([
-   get(ROOT+'/settings'),get(ROOT+'/schedules'),get(URL,false)]);
+   get(ROOT+'/settings'),get(ROOT+'/schedules'),get(PUBLIC_URL,false)]);
  const bindingJson=await bindingRes.json(),cronJson=await cronRes.json(),
    health=await statusRes.json();
  const bindings=(bindingJson.result?.bindings||[]).map(x=>({
