@@ -1,0 +1,56 @@
+name: IRYS V26 independent causal direction preflight (NO DEPLOY)
+on:
+  push:
+    branches: [feature/irys-v26-causal-direction-shadow-20261101]
+    paths:
+      - 'v26_direction_core.py'
+      - 'v26_direction_runtime.py'
+      - 'tests/test_v26_direction.py'
+      - '.github/workflows/v26-isolated-review.yml'
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: V26 Python syntax and causal tests
+        run: |
+          python -m py_compile v26_direction_core.py v26_direction_runtime.py
+          python -m unittest discover -s tests -p 'test_v26_direction.py' -v
+      - name: All original GitHub collector / direction / no-order regressions
+        run: python -m unittest discover -s tests -v
+      - name: Read frozen main ledger and exercise new engine WITHOUT changing server or state
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --quiet --depth=1 origin main
+          git show origin/main:data/v22_evidence_latest.json > data/v22_evidence_latest.json
+          git show origin/main:data/v22_evidence_state.json > data/v22_evidence_state.json
+          python - <<'PY'
+          import json,pathlib
+          from v26_direction_runtime import run,iso_ms
+          root=pathlib.Path('data')
+          report=json.loads((root/'v22_evidence_latest.json').read_text())
+          state=json.loads((root/'v22_evidence_state.json').read_text())
+          issued=iso_ms(report['asof_utc'])
+          result,frozen=run(report,state,{},issued+1000)
+          print('V26_FROZEN_MAIN_ASOF',report['asof_utc'])
+          print('V26_NO_FUTURE_PREISSUED_ENROLL',result['new_predictions'])
+          print('V26_ORIGINAL_PENDING',len(state.get('pending') or []))
+          print('V26_SHADOW_STATUS',result['status'])
+          print('V26_EVIDENCE_CLASSES',json.dumps(result['evidence_class_counts']))
+          assert result['status']=='PROSPECTIVE_RESEARCH_ACTIVE'
+          assert result['orders_sent'] is False and result['telegram_sent'] is False
+          assert result['production_signal_eligible'] is False
+          assert result['new_future_quote_labels']==0
+          assert all(not x['labels'] for x in frozen['records'])
+          assert all(not x['future_accurate_proven'] for x in frozen['records'])
+          PY
+      - name: Confirm no account / live Worker mutation
+        run: |
+          echo 'V26_TEST_ONLY_NO_TELEGRAM_NO_ORDERS_NO_CLOUDFLARE_RELEASE_NO_PRODUCTION_CHANGE'
+          sha256sum v26_direction_core.py v26_direction_runtime.py
