@@ -1,0 +1,70 @@
+name: IRYS V24 Bitget direct-source fast sidecar (public only)
+on:
+  push:
+    branches: [feature/irys-v24-github-bitget-fast-fallback-20261101]
+    paths:
+      - '.github/workflows/v24-bitget-fast-sidecar.yml'
+      - 'bitget_fast_public.py'
+      - 'tests/test_bitget_fast_public.py'
+  workflow_run:
+    workflows: ['Bitget five-minute read-only snapshot']
+    types: [requested]
+permissions:
+  contents: read
+concurrency:
+  group: irys-v24-bitget-fast-source-main-writer
+  cancel-in-progress: false
+  queue: max
+jobs:
+  test:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Isolated source and core no-lookahead price checks
+        run: |
+          python -m py_compile bitget_fast_public.py
+          python -m unittest discover -s tests -p 'test_bitget_fast_public.py' -v
+          python -m unittest discover -s tests -p 'test_v22_counterfactual.py' -v
+  fast:
+    if: >-
+      github.event_name == 'workflow_run' &&
+      github.event.workflow_run.head_branch == 'main' &&
+      github.event.workflow_run.event == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - run: |
+          git fetch --quiet origin main
+          git reset --hard origin/main
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Public official Bitget V2 and V3 verified crypto + latest ticker only (no trading)
+        run: python -u bitget_fast_public.py
+      - name: Independently publish only fast public Bitget observations without overwriting normal full-scan data
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add data/v24_bitget_fast_latest.json
+          git diff --staged --quiet && exit 0
+          git commit -m 'data(v24): independent Bitget official fast first-impulse public ticker'
+          for attempt in 1 2 3 4 5 6 7 8; do
+            git fetch --quiet origin main
+            if ! git rebase origin/main; then
+              git rebase --abort
+              echo '::error::V24 independent live observation update conflicted; no force push'
+              exit 1
+            fi
+            if git push origin HEAD:main; then exit 0; fi
+            sleep 2
+          done
+          exit 1
