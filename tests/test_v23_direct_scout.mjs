@@ -141,7 +141,7 @@ test('missing exchange read never sends or overwrites previous tape with fake ze
  const z=await v23ScoutTick({},state,NOW+300000,{
   read:async()=>{throw Error('EXCHANGE_OFFLINE')},
   send:async()=>{throw Error('SHOULD_NOT_SEND')}});
- assert.equal(z.status,'PUBLIC_TICKER_FEED_PARTIAL');
+ assert.equal(z.status,'BOTH_VENUES_UNAVAILABLE_NO_BASELINE_CHANGE');
  assert.equal(z.sent,0);
  assert.equal(JSON.stringify(state.v23ScoutTape),prior);
 });
