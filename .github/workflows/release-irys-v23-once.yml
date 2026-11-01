@@ -5,6 +5,7 @@ on:
       - feature/irys-v23-direct-fast-scout-20261101
     paths:
       - '.github/workflows/release-irys-v23-once.yml'
+      - 'deployment/release_v23_guarded.mjs'
 permissions:
   contents: read
 concurrency:
