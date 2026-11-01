@@ -52,8 +52,8 @@ def build_candidates(market,flow,market_state,previous,now):
                 if isinstance(o,dict) and isinstance(o.get('symbol'),str)}
     contracts={}
     for item in list(market.get('early_pool') or [])+list(market.get('watchlist') or []):
-        if not isinstance(item,dict) or item.get('venue')!='bitget' or
-           item.get('asset_identity')!='VERIFIED_CRYPTO':continue
+        if (not isinstance(item,dict) or item.get('venue')!='bitget' or
+           item.get('asset_identity')!='VERIFIED_CRYPTO'):continue
         symbol=item.get('symbol')
         if isinstance(symbol,str) and symbol.endswith('USDT'):
             contracts[symbol]=item
