@@ -5,6 +5,7 @@ on:
       - feature/irys-v23-direct-fast-scout-20261101
     paths:
       - '.github/workflows/v23-public-clock-diagnosis.yml'
+      - 'research/v23_bithumb_trade_clock.mjs'
 permissions:
   contents: read
 jobs:
@@ -13,4 +14,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Compare Bithumb public ticker timestamp and execution timestamps to actual UTC clock
-        run: node research/v23_bithumb_trade_clock.mjs
+        run: |
+          node --check research/v23_bithumb_trade_clock.mjs
+          node research/v23_bithumb_trade_clock.mjs
