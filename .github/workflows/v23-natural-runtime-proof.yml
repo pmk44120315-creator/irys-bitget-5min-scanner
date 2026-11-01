@@ -1,0 +1,23 @@
+name: IRYS V23 independent natural direct-scout and Telegram evidence
+on:
+  push:
+    branches:
+      - feature/irys-v23-direct-fast-scout-20261101
+    paths:
+      - '.github/workflows/v23-natural-runtime-proof.yml'
+      - 'deployment/verify_v23_natural.mjs'
+permissions:
+  contents: read
+jobs:
+  actual-live:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Static audit without any live Worker mutation
+        run: node --check deployment/verify_v23_natural.mjs
+      - name: Read exact live deployed source then observe original scheduled V23 market scans without sending Telegram
+        env:
+          IRYS_REALTIME_CF_ACCOUNT_ID: ${{ secrets.IRYS_REALTIME_CF_ACCOUNT_ID }}
+          IRYS_V7_CF_API_TOKEN: ${{ secrets.IRYS_V7_CF_API_TOKEN }}
+        run: node deployment/verify_v23_natural.mjs
