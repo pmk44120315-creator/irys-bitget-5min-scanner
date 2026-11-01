@@ -154,11 +154,13 @@ def metrics(rows,horizon,venue,side):
 def prequential_summary(rows,horizon,venue):
     """Evaluate fixed experts using their pre-issued votes, not hindsight rules."""
     out={}
-    for expert in EXPERTS:
+    for expert in EXPERTS+('online_ensemble',):
         selected=[]
         for r in rows:
             if r.get('venue')!=venue:continue
-            vote=r.get('votes',{}).get(expert,0)
+            vote=(r.get('decisions',{}).get(str(horizon),{}).get('direction',0)
+                  if expert=='online_ensemble' else
+                  r.get('votes',{}).get(str(horizon),{}).get(expert,0))
             if vote not in (-1,1) or venue=='bithumb' and vote==-1:continue
             outcome=r.get('outcomes',{}).get(str(horizon))
             if not isinstance(outcome,dict):continue
