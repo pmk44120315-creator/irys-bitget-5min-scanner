@@ -88,8 +88,8 @@ def build_candidates(market,flow,market_state,previous,now):
         try:
             f=spot_features(seed,ctx)
             f.update(spot_sample_features(market_state,sym,now))
-            rank=abs(f['p5'])+1.2*max(0,f['turnover_log_change'])+
-                .3*abs(f['relative_to_market'])
+            rank=(abs(f['p5'])+1.2*max(0,f['turnover_log_change'])+
+                .3*abs(f['relative_to_market']))
             spot.append({'symbol':sym,'venue':'bithumb','features':f,
                 'real_taker_verified':False,'quote_research_rank':round(rank,6)})
         except (ValueError,TypeError,KeyError):continue
