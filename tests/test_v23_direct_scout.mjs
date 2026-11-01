@@ -83,6 +83,31 @@ test('valid taker sample is partial not manufactured CVD, wrong future direction
  assert.match(msg,/방향 예측 아님/);
  assert.match(msg,/매수·롱·숏 진입 신호나 미래 수익 보장은 아닙니다/);
 });
+test('actual Bithumb ticker epoch is UTC+9 but UTC trade_date/trade_time is correctly used',()=>{
+ const old=feeds(NOW),later=feeds(NOW+300000,true);
+ for(const [d,time] of [[old,NOW],[later,NOW+300000]]){
+   for(const r of d.bithumb_tickers){
+     const iso=new Date(time-1000).toISOString();
+     r.timestamp=time+9*3600000-1000;
+     r.trade_timestamp=time+9*3600000-1000;
+     r.trade_date=iso.slice(0,10).replaceAll('-','');
+     r.trade_time=iso.slice(11,19).replaceAll(':','');
+   }
+ }
+ const start=v23TickerBundle({},old,NOW).next;
+ const result=v23TickerBundle(start,later,NOW+300000);
+ assert.ok(result.observation.candidates.some(x=>x.symbol==='KRW-POP'),
+    'A valid real UTC timestamp must not be rejected as nine hours in the future');
+});
+test('Bithumb recent public trade samples use true timestamp, not missing trade_timestamp',()=>{
+ const sample=v23SampleTaker([
+ {timestamp:NOW-1000,ask_bid:'BID',trade_price:100,trade_volume:10,sequential_id:1},
+ {timestamp:NOW-2000,ask_bid:'ASK',trade_price:100,trade_volume:4,sequential_id:2}
+ ],'bithumb',NOW);
+ assert.equal(sample.status,'SAMPLE_AVAILABLE');
+ assert.equal(sample.trades,2);
+ assert.ok(sample.buy_share>.5);
+});
 test('actual mock Telegram ACK increments exactly once; duplicate 5m episode rejected',async()=>{
  const now=NOW,state={},sent=[],store=[];
  const base=feeds(now),current=feeds(now+300000,true);
