@@ -2,7 +2,7 @@ name: IRYS V24 guarded Cloudflare official Bitget fallback deployment
 on:
   push:
     branches: [feature/irys-v24-worker-bitget-github-fallback-20261101]
-    paths: ['.github/workflows/v24-guarded-live-release.yml']
+    paths: ['.github/workflows/v24-guarded-live-release.yml', 'deployment/release_v24_guarded.mjs']
 permissions:
   contents: read
 concurrency:
