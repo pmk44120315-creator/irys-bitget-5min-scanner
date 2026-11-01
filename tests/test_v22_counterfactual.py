@@ -109,7 +109,7 @@ class CounterfactualRuntime(unittest.TestCase):
         self.assertFalse(report['orders_sent'])
         self.assertEqual(report['eligible_candidates'],2)
         early=dict(state['learning'])
-        future_time=BASE+5*60000
+        future_time=BASE+5*60000+1000  # later quote must actually be after target
         with patch('v22_runtime.fetch_quotes',side_effect=books),patch(
             'v22_runtime.verified_models',return_value=({},{})),patch(
             'v22_runtime.time.time',return_value=future_time/1000):
