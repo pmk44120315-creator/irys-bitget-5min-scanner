@@ -1,0 +1,34 @@
+name: IRYS V26 real quote retrospective alternatives (NO LIVE ACTION)
+on:
+  push:
+    branches: [feature/irys-v26-causal-direction-shadow-20261101]
+    paths:
+      - 'v26_historical_audit.py'
+      - 'v26_direction_core.py'
+      - 'v26_direction_runtime.py'
+      - '.github/workflows/v26-historical-audit.yml'
+permissions:
+  contents: read
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Check pure code validity before importing the market ledger
+        run: |
+          python -m py_compile v26_historical_audit.py v26_direction_core.py v26_direction_runtime.py
+          python -m unittest discover -s tests -p 'test_v26_direction.py' -v
+      - name: Read real frozen production research ledger, never update that ledger
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --quiet --depth=1 origin main
+          git show origin/main:data/v22_evidence_state.json > "$RUNNER_TEMP/v22_frozen_for_v26.json"
+          echo "V26_SOURCE_MAIN_COMMIT=$(git rev-parse origin/main)"
+          python -m json.tool "$RUNNER_TEMP/v22_frozen_for_v26.json" >/dev/null
+          python v26_historical_audit.py "$RUNNER_TEMP/v22_frozen_for_v26.json" --asof-ms "$(date -u +%s000)"
+      - name: Read-only integrity
+        run: echo 'V26_ONLY_AUDIT_NO_MODEL_SELECTION_NO_CLOUDFLARE_NO_TELEGRAM_NO_TRADING'
