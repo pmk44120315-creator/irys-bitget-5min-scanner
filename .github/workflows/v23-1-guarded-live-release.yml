@@ -1,0 +1,40 @@
+name: IRYS V23.1 production repair - Bitget outage cannot block Bithumb
+on:
+  push:
+    branches: [fix/irys-v23-isolate-venue-failures-20261101]
+    paths: ['.github/workflows/v23-1-guarded-live-release.yml']
+permissions:
+  contents: read
+concurrency:
+  group: irys-production-worker-code-only-release
+  cancel-in-progress: false
+jobs:
+  verify-and-release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Strict original and new Worker tests
+        run: |
+          node --check deployment/IRYS_V23_1_VENUE_ISOLATED_WORKER.mjs
+          node --check deployment/release_v23_1_guarded.mjs
+          node --test tests/test_v23_direct_scout.mjs tests/test_v23_1_isolated_worker.mjs
+          node --test tests/test_v21_delivery.mjs tests/test_v21_report_timing.mjs tests/test_v21_forecast_expiry.mjs
+          python -m unittest discover -s tests -v
+          echo '26f72a82351480c14ef1361c7ee38ced0189ccf6b307bfca57ade3f8cfb3926e  deployment/IRYS_V23_1_VENUE_ISOLATED_WORKER.mjs' | sha256sum -c -
+      - name: Read actual Cloudflare source and exact preserved Cron/Telegram/AI/KV
+        env:
+          IRYS_REALTIME_CF_ACCOUNT_ID: ${{ secrets.IRYS_REALTIME_CF_ACCOUNT_ID }}
+          IRYS_V7_CF_API_TOKEN: ${{ secrets.IRYS_V7_CF_API_TOKEN }}
+          IRYS_V23_1_RELEASE_INTENT: USER_APPROVED_REPAIR_V23_BITGET_OUTAGE_DOES_NOT_BLOCK_BITHUMB_20261101
+          IRYS_V23_1_DRY_RUN: 'true'
+        run: node deployment/release_v23_1_guarded.mjs
+      - name: Code-only deploy V23.1 then verify source SHA and retained Cron/bindings or rollback
+        env:
+          IRYS_REALTIME_CF_ACCOUNT_ID: ${{ secrets.IRYS_REALTIME_CF_ACCOUNT_ID }}
+          IRYS_V7_CF_API_TOKEN: ${{ secrets.IRYS_V7_CF_API_TOKEN }}
+          IRYS_V23_1_RELEASE_INTENT: USER_APPROVED_REPAIR_V23_BITGET_OUTAGE_DOES_NOT_BLOCK_BITHUMB_20261101
+          IRYS_V23_1_DRY_RUN: 'false'
+        run: node deployment/release_v23_1_guarded.mjs
