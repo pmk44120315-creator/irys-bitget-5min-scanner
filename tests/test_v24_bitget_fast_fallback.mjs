@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {v24FastFallback} from '../deployment/v24_bitget_fast_fallback.mjs';
+import {v23ScoutTick} from '../deployment/v23_direct_market_scout.mjs';
 const NOW=Date.parse('2026-11-01T11:48:00Z');
 function report(now=NOW){
  const t=now-4*60000;
@@ -58,4 +59,43 @@ test('tradeable top-of-book and validated clock are mandatory',()=>{
  assert.equal(v24FastFallback(b,NOW).candidates.length,0);
  const c=report();c.candidates[0].move_pct=.2;
  assert.equal(v24FastFallback(c,NOW).candidates.length,0);
+});
+
+test('actual V24 GitHub Bitget official source restores one MARKET WATCH despite both Cloudflare venue failures',async()=>{
+ const state={lastAlert:{}},sent=[],receipts=[];
+ const read=async url=>{
+  if(url.includes('raw.githubusercontent.com'))return report();
+  throw Error('HTTP_403_CF_NETWORK');
+ };
+ const result=await v23ScoutTick({},state,NOW,{
+   read,send:async(_env,msg)=>{sent.push(msg);return {message_id:491}},
+   receipt:(_state,channel,symbol,at,ack)=>{
+     receipts.push({channel,symbol,id:ack.message_id});return {channel,symbol}},
+   persistReceipt:async()=>true
+ });
+ assert.equal(result.status,'TELEGRAM_API_ACK');
+ assert.equal(result.sent_venue,'bitget');
+ assert.equal(result.sent_symbol,'MOVERUSDT');
+ assert.equal(result.bitget_fast_fallback.status,'PASS');
+ assert.ok(result.compared_venues.includes('bitget_github_official'));
+ assert.equal(sent.length,1);
+ assert.match(sent[0],/GitHub 경유/);
+ assert.match(sent[0],/미래 방향 확인 아님/);
+ assert.match(sent[0],/진입 신호나 미래 수익 보장은 아닙니다/);
+ assert.equal(receipts[0].channel,'V23_DIRECT_FAST_MARKET_WATCH');
+});
+test('stale GitHub fallback and both Cloudflare APIs down produce NO alert, no baseline forgery',async()=>{
+ const saved={at_ms:NOW-400000,spot:{'KRW-KEEP':[100,200]},futures:{'ABCUSDT':[1,0]}};
+ const state={v23ScoutTape:saved},before=JSON.stringify(saved);
+ const x=await v23ScoutTick({},state,NOW,{
+   read:async url=>{
+     if(url.includes('raw.githubusercontent.com'))return report(NOW-7*60000);
+     throw Error('PUBLIC_403');
+   },
+   send:async()=>{throw Error('MUST_NOT_SEND_STALE_BITGET')}
+ });
+ assert.equal(x.sent,0);
+ assert.equal(x.status,'BOTH_VENUES_UNAVAILABLE_NO_BASELINE_CHANGE');
+ assert.equal(x.bitget_fast_fallback.status,'STALE_FAST_SOURCE');
+ assert.equal(JSON.stringify(state.v23ScoutTape),before);
 });
