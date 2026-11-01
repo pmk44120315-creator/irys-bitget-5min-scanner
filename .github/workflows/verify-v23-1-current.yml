@@ -1,0 +1,57 @@
+name: IRYS V23.1 independent official live scheduled scout read
+on:
+  push:
+    branches: [audit/irys-v23-1-live-20261101-2027]
+permissions:
+  contents: read
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Read live public Worker status, per-exchange HTTP and actual Bot API ACK without sending
+        env:
+          CF_ACCOUNT: ${{ secrets.IRYS_REALTIME_CF_ACCOUNT_ID }}
+          CF_TOKEN: ${{ secrets.IRYS_V7_CF_API_TOKEN }}
+        run: |
+          node --input-type=module <<'JS'
+          import {createHash} from 'node:crypto';
+          const account=process.env.CF_ACCOUNT||'',token=process.env.CF_TOKEN||'';
+          if(!/^[a-f0-9]{32}$/.test(account)||token.length<20)throw Error('NO_CLOUDFLARE_SOURCE_ACCESS');
+          const base='https://api.cloudflare.com/client/v4/accounts/'+account+'/workers/scripts/irys-surge-monitor';
+          async function read(u,auth=true){
+            const r=await fetch(u,{headers:auth?{Authorization:'Bearer '+token,Accept:'application/json'}:{Accept:'application/json'},signal:AbortSignal.timeout(20000)});
+            if(!r.ok)throw Error('READ_ONLY_HTTP_'+r.status);
+            return r;
+          }
+          const [s,h,c]=await Promise.all([read(base),read('https://irys-surge-monitor.vhehwpfl.workers.dev/',false),read(base+'/schedules')]);
+          let source;
+          if((s.headers.get('content-type')||'').startsWith('multipart/form-data')){
+            const form=await s.formData(),raw=form.get('metadata'),meta=raw?JSON.parse(typeof raw==='string'?raw:await raw.text()):{};
+            const b=form.get(meta.main_module||meta.body_part||'worker.js');
+            source=Buffer.from(typeof b==='string'?b:await b.arrayBuffer());
+          }else source=Buffer.from(await s.arrayBuffer());
+          const health=await h.json(),last=health.last||{},v=last.v23DirectFastScout||{};
+          const cron=(await c.json()).result?.schedules?.map(x=>x.cron);
+          const summary={at:new Date().toISOString(),
+            worker_sha256:createHash('sha256').update(source).digest('hex'),
+            version:last.codeVersion||null,prior_tick_kst:last.time||null,
+            worker_status:last.status||null,cron,
+            original_github_dispatch:last.githubDispatchStatus||null,
+            fast_status:v.status||null,venue_available:v.venue_availability||null,
+            compared_venues:v.compared_venues||null,
+            direct_errors:v.read_errors||[],error:v.send_error||null,
+            compared_symbols:v.observed??null,live_candidate_count:v.candidate_count??null,
+            selected:v.chosen||[],fast_bot_sent:v.sent??null,
+            last_sample:v.actual_taker||null,
+            original_v21: last.v21ForecastDelivery?.status||null,
+            last_api_ack_count: last.telegramApiAcknowledgementsTotal??null,
+            acks_this_tick:last.telegramApiAckedThisRun??null,
+            last_receipt:last.telegramLastApiReceipt?
+              {symbol:last.telegramLastApiReceipt.symbol,at:last.telegramLastApiReceipt.accepted_at,
+               channel:last.telegramLastApiReceipt.channel,id:last.telegramLastApiReceipt.telegram_message_id}:null,
+            no_telegram_message_sent_by_audit:true};
+          console.log('V23_1_REAL_POSTDEPLOY_PROOF',JSON.stringify(summary));
+          if(summary.worker_sha256!=='26f72a82351480c14ef1361c7ee38ced0189ccf6b307bfca57ade3f8cfb3926e')
+             throw Error('V23_1_SOURCE_HASH_MISMATCH');
+          if(last.status!=='PASS'||JSON.stringify(cron)!=='["*/5 * * * *"]')throw Error('LIVE_RUNTIME_NOT_HEALTHY');
+          JS
