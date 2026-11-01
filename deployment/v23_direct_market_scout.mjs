@@ -40,20 +40,38 @@ function v23SpotTradeMs(row,now){
   const raw=v23N(row?.trade_timestamp??row?.timestamp);
   return raw!==null&&v23Fresh(raw,now)?raw:null;
 }
-function v23TickerBundle(old,snapshot,now){
-  const previous=old?.at_ms||null,day=v23Day(now);
-  const elapsed=Number.isFinite(previous)?now-previous:null;
-  const comparable=(elapsed!==null&&elapsed>=V23_QUOTE_GAP_MIN_MS&&
-    elapsed<=V23_QUOTE_GAP_MAX_MS);
-  const baseline={at_ms:now,kst_day:day,spot:{},futures:{}};
+function v23TickerBundle(old,snapshot,now,availability={bithumb:true,bitget:true}){
+  const day=v23Day(now),spotReady=availability.bithumb!==false,
+    futuresReady=availability.bitget!==false;
+  const spotOld=v23N(old?.spot_at_ms??old?.at_ms),futuresOld=v23N(old?.futures_at_ms??old?.at_ms);
+  const spotElapsed=spotOld===null?null:now-spotOld;
+  const futuresElapsed=futuresOld===null?null:now-futuresOld;
+  const spotComparable=(spotReady&&spotElapsed!==null&&spotElapsed>=V23_QUOTE_GAP_MIN_MS&&
+    spotElapsed<=V23_QUOTE_GAP_MAX_MS);
+  const futuresComparable=(futuresReady&&futuresElapsed!==null&&
+    futuresElapsed>=V23_QUOTE_GAP_MIN_MS&&futuresElapsed<=V23_QUOTE_GAP_MAX_MS);
+  const comparable=spotComparable||futuresComparable;
+  const elapsed=spotComparable?spotElapsed:futuresComparable?futuresElapsed:null;
+  // A venue's failed source preserves both its prior book AND its true clock.
+  // Do not misreport 10-minute recovered data as a 5-minute price move.
+  const baseline={
+    at_ms:now,kst_day:day,
+    spot_at_ms:spotReady?now:spotOld,
+    spot_kst_day:spotReady?day:(old?.spot_kst_day??old?.kst_day??null),
+    futures_at_ms:futuresReady?now:futuresOld,
+    spot:spotReady?{}:{...(old?.spot||{})},
+    futures:futuresReady?{}:{...(old?.futures||{})}
+  };
   const out={status:'WARMUP_OR_GAP',elapsed_min:elapsed===null?null:v23Round(elapsed/60000,2),
     compared:0,positive:0,negative:0,listed_spot:0,verified_futures:0,
-    warnings_filtered:0,stale_filtered:0,candidates:[],all:[]};
+    warnings_filtered:0,stale_filtered:0,candidates:[],all:[],
+    venue_availability:{bithumb:spotReady,bitget:futuresReady},
+    compared_venues:[],partial_venue_outage:!spotReady||!futuresReady};
   const activeMarkets=new Set((snapshot.bithumb_markets||[])
     .filter(x=>v23Code(x?.market,'bithumb')&&x.market_warning==='NONE')
     .map(x=>x.market));
   const risk=new Set((snapshot.bithumb_warnings||[]).map(x=>x?.market));
-  for(const row of snapshot.bithumb_tickers||[]){
+  for(const row of (spotReady?snapshot.bithumb_tickers:[])||[]){
     const sym=row?.market,price=v23N(row?.trade_price),
       cumulative=v23N(row?.acc_trade_price),stamp=v23SpotTradeMs(row,now);
     if(!v23Code(sym,'bithumb')||price===null||price<=0||cumulative===null||
@@ -61,10 +79,10 @@ function v23TickerBundle(old,snapshot,now){
     const pre=old?.spot?.[sym],lastPrice=Array.isArray(pre)?v23N(pre[0]):null,
       lastAcc=Array.isArray(pre)?v23N(pre[1]):null,oldEma=Array.isArray(pre)?v23N(pre[2]):null,
       oldMove=Array.isArray(pre)?v23N(pre[3]):null;
-    const validTurn=(comparable&&old?.kst_day===day&&lastAcc!==null&&cumulative>=lastAcc);
-    const turn=validTurn?(cumulative-lastAcc)*300000/elapsed:null;
+    const validTurn=(spotComparable&&(old?.spot_kst_day??old?.kst_day)===day&&lastAcc!==null&&cumulative>=lastAcc);
+    const turn=validTurn?(cumulative-lastAcc)*300000/spotElapsed:null;
     const ema=turn!==null?(oldEma!==null&&oldEma>0?.25*turn+.75*oldEma:turn):oldEma;
-    let change=lastPrice!==null&&comparable?v23Pct(price,lastPrice):null;
+    let change=lastPrice!==null&&spotComparable?v23Pct(price,lastPrice):null;
     baseline.spot[sym]=[price,cumulative,ema,v23Round(change??oldMove??0,5)];
     if(!activeMarkets.has(sym)||risk.has(sym)||row.is_trading_suspended===true||
         row.delisting_date||row.market_state&&row.market_state!=='ACTIVE'){
@@ -72,7 +90,7 @@ function v23TickerBundle(old,snapshot,now){
     }
     out.listed_spot++;
     if(!v23Fresh(stamp,now)){out.stale_filtered++;continue;}
-    if(!comparable||change===null||turn===null)continue;
+    if(!spotComparable||change===null||turn===null)continue;
     out.compared++;
     const turnoverRatio=oldEma!==null&&oldEma>0?turn/oldEma:null;
     const accel=oldMove===null?null:change-oldMove;
@@ -95,13 +113,13 @@ function v23TickerBundle(old,snapshot,now){
     x&&String(x.symbolType||'').toLowerCase()==='crypto'&&
     String(x.instrumentType||'').toLowerCase()==='crypto'&&
     v23Code(x.symbol,'bitget')).map(x=>x.symbol));
-  for(const row of snapshot.bitget_tickers||[]){
+  for(const row of (futuresReady?snapshot.bitget_tickers:[])||[]){
     const sym=row?.symbol,price=v23N(row?.lastPr),stamp=v23N(row?.ts);
     if(!v23Code(sym,'bitget')||price===null||price<=0||!validCrypto.has(sym))
       continue;
     const p=old?.futures?.[sym],prior=Array.isArray(p)?v23N(p[0]):null,
       pastMove=Array.isArray(p)?v23N(p[1]):null;
-    const change=comparable&&prior!==null?v23Pct(price,prior):null;
+    const change=futuresComparable&&prior!==null?v23Pct(price,prior):null;
     baseline.futures[sym]=[price,v23Round(change??pastMove??0,5)];
     out.verified_futures++;
     if(!v23Fresh(stamp,now)){out.stale_filtered++;continue;}
@@ -124,6 +142,8 @@ function v23TickerBundle(old,snapshot,now){
     if(change>0)out.positive++;else if(change<0)out.negative++;
   }
   out.status=comparable?'MARKET_COMPARISON_PASS':'WARMUP_OR_GAP';
+  if(spotComparable)out.compared_venues.push('bithumb');
+  if(futuresComparable)out.compared_venues.push('bitget');
   // No fixed trading turnover floor or 20-candle streak. It is just a market
   // observation, never a verified BUY/LONG/SHORT future prediction.
   out.all.sort((a,b)=>b.priority-a.priority);
@@ -185,7 +205,13 @@ async function v23ReadFeeds(read){
    const [name]=specs[i],x=r[i];
    let body=x.status==='fulfilled'?x.value:null;
    if(name.startsWith('bitget')&&body?.code==='00000')body=body.data;
-   if(!Array.isArray(body)){feeds[name]=[];failures.push(name+'_FAILED');}
+   if(!Array.isArray(body)){
+    feeds[name]=[];
+    const reason=x.status==='rejected'?
+      String(x.reason?.message||'READ_EXCEPTION').match(/HTTP_[0-9]{3}|AbortError|TimeoutError|TypeError/)?.[0]||'READ_EXCEPTION':
+      'INVALID_PUBLIC_RESPONSE';
+    failures.push(name+'_FAILED_'+reason);
+  }
    else feeds[name]=body;
  }
  if(feeds.bithumb_markets.length>=100){
@@ -204,7 +230,13 @@ async function v23ReadFeeds(read){
  }
  if(feeds.bitget_instruments.length<100||feeds.bitget_tickers.length<100)
    failures.push('BITGET_UNIVERSE_UNAVAILABLE');
- return {feeds,failures};
+ const bithumbOk=feeds.bithumb_markets.length>=100 &&
+   Array.isArray(feeds.bithumb_warnings) &&
+   !failures.some(x=>x.startsWith('bithumb_')||x.startsWith('BITHUMB_'));
+ const bitgetOk=feeds.bitget_instruments.length>=100 &&
+   feeds.bitget_tickers.length>=100 &&
+   !failures.some(x=>x.startsWith('bitget_')||x.startsWith('BITGET_'));
+ return {feeds,failures,availability:{bithumb:bithumbOk,bitget:bitgetOk}};
 }
 async function v23ScoutTick(env,state,now,options={}){
  const output={version:V23_VER,status:'INITIAL',market_status:'UNKNOWN',observed:0,
@@ -212,17 +244,20 @@ async function v23ScoutTick(env,state,now,options={}){
   elapsed_min:null,actual_taker:null,original_directional_channels_untouched:true};
  const read=options.read||requestJson;
  try{
-   const {feeds,failures}=await v23ReadFeeds(read);
+   const {feeds,failures,availability}=await v23ReadFeeds(read);
    output.read_errors=failures;
-   // Never turn a partial/failed feed into a fake zero-moving full universe.
-   if(failures.length){
-     output.status='PUBLIC_TICKER_FEED_PARTIAL';
-     output.market_status='UNAVAILABLE';
-     return output;
+   output.venue_availability=availability;
+   // A single exchange outage must NOT disable the other exchange.
+   // Both failed = do not mutate either venue's previous valid baseline.
+   if(!availability.bithumb&&!availability.bitget){
+     output.status='BOTH_VENUES_UNAVAILABLE_NO_BASELINE_CHANGE';
+     output.market_status='UNAVAILABLE';return output;
    }
-   const result=v23TickerBundle(state.v23ScoutTape||{},feeds,now);
+   const result=v23TickerBundle(state.v23ScoutTape||{},feeds,now,availability);
    state.v23ScoutTape=result.next;
    output.market_status=result.observation.status;
+   output.compared_venues=result.observation.compared_venues;
+   output.partial_venue_outage=result.observation.partial_venue_outage;
    output.elapsed_min=result.observation.elapsed_min;
    output.observed=result.observation.compared;
    output.candidate_count=result.observation.candidates.length;
