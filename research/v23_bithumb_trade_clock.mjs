@@ -26,7 +26,7 @@ for(let i=0;i<urls.length;i++){
     exchange_timestamp_delta_sec:z.ts?Math.round((Number(z.ts)-now)/1000):null,
     trade_date:z.trade_date??null,trade_time:z.trade_time??null,
     trade_date_kst:z.trade_date_kst??null,trade_time_kst:z.trade_time_kst??null,
-    has_trade_side:z.ask_bid!==undefined})})});
+    has_trade_side:z.ask_bid!==undefined})});
 }
 console.log('IRYS_PUBLIC_EXCHANGE_CLOCK_DIAGNOSTIC',JSON.stringify(output));
 if(output.samples.some(x=>x.error_type))throw Error('SOME_EXCHANGE_TIME_FEEDS_UNAVAILABLE');
