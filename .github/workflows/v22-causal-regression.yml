@@ -1,0 +1,26 @@
+name: IRYS V22 public-quote direction causal regression
+on:
+  push:
+    branches:
+      - feature/irys-v22-counterfactual-prospective-20261101
+    paths:
+      - '.github/workflows/v22-causal-regression.yml'
+      - 'v22_direction_core.py'
+      - 'v22_runtime.py'
+      - 'tests/test_v22_counterfactual.py'
+permissions:
+  contents: read
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: No lookahead or faked trading, legacy and new source
+        run: |
+          python -m py_compile v22_direction_core.py v22_runtime.py
+          python -m unittest discover -s tests -p 'test_v22_counterfactual.py' -v
+          python -m unittest discover -s tests -p 'test_v21_*.py' -v
+          python -m unittest discover -s tests -p 'test_v18_shadow_forecast.py' -v
