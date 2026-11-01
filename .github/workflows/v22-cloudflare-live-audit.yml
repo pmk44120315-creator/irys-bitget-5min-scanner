@@ -1,0 +1,62 @@
+name: IRYS V22 current Cloudflare connectivity audit read-only
+on:
+  push:
+    branches:
+      - feature/irys-v22-counterfactual-prospective-20261101
+    paths:
+      - '.github/workflows/v22-cloudflare-live-audit.yml'
+permissions:
+  contents: read
+jobs:
+  status:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify actual Cloudflare runtime status, connections and V21 alert eligibility (GET only)
+        env:
+          CF_ACCOUNT: ${{ secrets.IRYS_REALTIME_CF_ACCOUNT_ID }}
+          CF_TOKEN: ${{ secrets.IRYS_V7_CF_API_TOKEN }}
+        run: |
+          node --input-type=module <<'JS'
+          const account=process.env.CF_ACCOUNT||'',token=process.env.CF_TOKEN||'';
+          if(!/^[0-9a-f]{32}$/.test(account)||token.length<20)throw Error('READ_ONLY_CF_AUTH_UNAVAILABLE');
+          const base='https://api.cloudflare.com/client/v4/accounts/'+account+'/workers/scripts/irys-surge-monitor';
+          const auth={authorization:'Bearer '+token,accept:'application/json'};
+          async function read(url,authorized=true){
+            const r=await fetch(url,{headers:authorized?auth:{accept:'application/json'},
+              signal:AbortSignal.timeout(20000)});
+            if(!r.ok)throw Error('CLOUDFLARE_READ_HTTP_'+r.status+' '+new URL(url).pathname);
+            return await r.json();
+          }
+          const [health,schedules,settings]=await Promise.all([
+            read('https://irys-surge-monitor.vhehwpfl.workers.dev/',false),
+            read(base+'/schedules'),read(base+'/settings')]);
+          const runtime=health.last||{}, v=runtime.v21ForecastDelivery||{};
+          const cron=(Array.isArray(schedules.result?.schedules)?schedules.result.schedules:
+            Array.isArray(schedules.result)?schedules.result:[]).map(x=>x.cron);
+          const bind=(settings.result?.bindings||[]).map(x=>x.name+':'+x.type);
+          const required=['AI:ai','IRYS_KV:kv_namespace','GITHUB_DISPATCH_TOKEN:secret_text',
+            'TELEGRAM_BOT_TOKEN:secret_text','TELEGRAM_CHAT_ID:plain_text'];
+          const result={
+            checked_utc:new Date().toISOString(),worker_version:runtime.codeVersion||null,
+            last_tick_kst:runtime.time||null,worker_status:runtime.status||null,
+            github_dispatch_status:runtime.githubDispatchStatus||null,
+            market_source_utc:runtime.githubBitgetFinishedUtc||null,
+            cron,required_bindings_ok:required.every(x=>bind.includes(x)),
+            ai_status:runtime.aiJudgment?.status||null,
+            v21_delivery:{status:v.status||null,sent:v.sent??null,inspected:v.inspected??null,
+               reasons:v.reasons||{},send_error:v.send_error||null},
+            original_v19_spam_stopped:runtime.v20UnverifiedDirectionalSuppressionActive===true,
+            telegram_api_ack_this_tick:runtime.telegramApiAckedThisRun??null,
+            telegram_api_ack_total:runtime.telegramApiAcknowledgementsTotal??null,
+            latest_telegram_channel:runtime.telegramLastApiReceipt?.channel||null,
+            newest_v21_alert:runtime.v21LastDelivery?{
+               channel:runtime.v21LastDelivery.channel||null,
+               symbol:runtime.v21LastDelivery.symbol||null}:null,
+            no_telegram_sent_by_audit:true
+          };
+          console.log('V22_ACTUAL_PRODUCTION_HEALTH',JSON.stringify(result));
+          if(result.worker_status!=='PASS'||result.github_dispatch_status!=='ACCEPTED'
+             ||JSON.stringify(cron)!=='["*/5 * * * *"]'||!result.required_bindings_ok)
+            throw Error('CURRENT_CLOUDFLARE_INTEGRATION_NOT_HEALTHY');
+          JS
