@@ -23,7 +23,7 @@ test('verified V24 standalone helper integrated into deployed Worker byte for by
  assert.ok(helper.includes('function v24FastFallback('));
  assert.ok(next.includes(helper),'source drift between tested V24 module and production source');
  assert.ok(next.includes("output.bitget_fast_fallback="));
- assert.ok(next.includes("status:'STALE_FAST_SOURCE'"));
+ assert.ok(next.includes("unavailable('STALE_FAST_SOURCE')"));
 });
 test('source identity and latency claims exposed; no speculative trade orders added',()=>{
  assert.ok(next.includes("source_age_min"));
