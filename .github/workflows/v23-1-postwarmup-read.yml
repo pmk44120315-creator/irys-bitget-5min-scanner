@@ -1,4 +1,4 @@
-name: IRYS V23.1 actual scheduled warmup-comparison and bot receipt probe
+name: IRYS V23.1 second real tick and Bot API post-warmup proof
 on:
   push:
     branches: [audit/irys-v23-1-postwarmup-2030]
@@ -13,7 +13,14 @@ jobs:
           node --input-type=module <<'JS'
           const response=await fetch('https://irys-surge-monitor.vhehwpfl.workers.dev/',{signal:AbortSignal.timeout(20000)});
           if(!response.ok)throw Error('READ_HTTP_'+response.status);
-          const h=await response.json(),last=h.last||{},v=last.v23DirectFastScout||{};
+          let h=await response.json(),last=h.last||{},v=last.v23DirectFastScout||{};
+          const start=Date.now();
+          while(last.time==='2026-11-01 20:25 KST' && Date.now()-start<3*60000){
+            await new Promise(resolve=>setTimeout(resolve,15000));
+            const rr=await fetch('https://irys-surge-monitor.vhehwpfl.workers.dev/',{signal:AbortSignal.timeout(20000)});
+            if(!rr.ok)throw Error('LIVE_READ_RETRY_HTTP_'+rr.status);
+            h=await rr.json();last=h.last||{};v=last.v23DirectFastScout||{};
+          }
           const result={read_at_utc:new Date().toISOString(),worker_version:last.codeVersion,
             last_tick_kst:last.time,worker_status:last.status,dispatch:last.githubDispatchStatus,
             scout_status:v.status,market_status:v.market_status,
