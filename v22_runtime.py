@@ -194,7 +194,12 @@ def run(market,flow,market_state,old,raw_models,now,api):
             done=[x for x in past+still if x.get('venue')==venue and
                 str(h) in x.get('outcomes',{}) and
                 x['outcomes'][str(h)].get('both_sides_measured')]
+            due=[x for x in past+still if x.get('venue')==venue and str(h) in x.get('outcomes',{})]
+            missed=sum(x['outcomes'][str(h)].get('status')=='UNMEASURED_AFTER_TARGET' for x in due)
+            measured=len(done)
             summary[key]={
+               'forward_measurement_coverage_ratio':round(measured/(measured+missed),5) if measured+missed else None,
+               'unmeasured_due_to_delayed_or_unavailable_book':missed,
                'long':metrics(done,h,venue,1),
                'short':metrics(done,h,venue,-1) if venue=='bitget' else None,
                'fixed_experts':prequential_summary(done,h,venue),
@@ -205,7 +210,8 @@ def run(market,flow,market_state,old,raw_models,now,api):
        'asof_utc':dt.datetime.fromtimestamp(snapshot_now/1000,dt.timezone.utc).isoformat(),
        'source_finished_utc':market.get('finished_utc'),
        'source_status':source_status,
-       'status':'RESEARCH_ACTIVE' if not errors and not quote_errors else 'RESEARCH_PARTIAL',
+       'status':('QUOTE_FEED_UNAVAILABLE' if rows and not observed_quotes else
+         'RESEARCH_ACTIVE' if not errors and not quote_errors else 'RESEARCH_PARTIAL'),
        'model_integrity_errors':errors,'quote_errors':quote_errors,
        'eligible_candidates':eligible,'selected_for_quote_research':len(rows),
        'quotes_available':len(observed_quotes),
