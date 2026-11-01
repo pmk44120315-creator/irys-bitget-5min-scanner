@@ -90,6 +90,17 @@ def run(source,ledger,old,now_ms):
                 summary['source_event_without_original']+=1
                 continue
             labels=dict(r.get('labels') or {})
+            entry=original.get('entry_quote') or {}
+            frozen=r.get('entry_quote') or {}
+            # V22 may only annotate future outcomes. Its original bid, ask and
+            # issued quote timestamp must never change after V26 freezes them.
+            same_entry=(quote_ok(entry) and quote_ok(frozen)
+                and entry.get('at_ms')==frozen.get('at_ms')
+                and number(entry.get('bid'))==number(frozen.get('bid'))
+                and number(entry.get('ask'))==number(frozen.get('ask')))
+            if not same_entry:
+                summary['source_event_without_original']+=1
+                continue
             for horizon in HORIZONS:
                 k=str(horizon)
                 if k in labels:continue
