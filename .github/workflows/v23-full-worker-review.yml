@@ -1,0 +1,28 @@
+name: IRYS V23 full legacy and fast Worker source regression
+on:
+  push:
+    branches:
+      - feature/irys-v23-direct-fast-scout-20261101
+    paths:
+      - '.github/workflows/v23-full-worker-review.yml'
+      - 'deployment/IRYS_V23_DIRECT_SCOUT_WORKER.mjs'
+      - 'deployment/v23_direct_market_scout.mjs'
+      - 'tests/test_v23*.mjs'
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Validate complete inlined 137KB Cloudflare source plus original signal contracts
+        run: |
+          node --check deployment/IRYS_V23_DIRECT_SCOUT_WORKER.mjs
+          node --check deployment/v23_direct_market_scout.mjs
+          node --test tests/test_v23_direct_scout.mjs tests/test_v23_worker_integration.mjs
+          node --test tests/test_v21_delivery.mjs tests/test_v21_report_timing.mjs tests/test_v21_forecast_expiry.mjs
+      - name: Preserve all Python market scanning and actual quote evaluation contracts
+        run: python -m unittest discover -s tests -v
