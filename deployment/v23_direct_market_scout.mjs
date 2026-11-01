@@ -21,6 +21,25 @@ function v23Code(sym,venue){return typeof sym==='string' &&
 function v23Pct(now,old){return now>0&&old>0?100*(now/old-1):null;}
 function v23Round(v,d=3){return v===null?null:Number(v.toFixed(d));}
 function v23Fresh(ts,now){return Number.isFinite(ts)&&ts<=now+60000&&now-ts<=V23_RECENT_MARKET_MS;}
+function v23SpotTradeMs(row,now){
+  // On the REAL Bithumb /v1/ticker feed, trade_timestamp and timestamp
+  // currently encode a Korea-local wall clock as if UTC: +9h vs actual UTC.
+  // Its 'trade_date'+'trade_time' fields themselves are explicitly UTC.
+  // Construct the actual UTC instant from those fields, never blindly
+  // subtract nine hours from every API timestamp.
+  const d=row?.trade_date,t=row?.trade_time;
+  const date=typeof d==='string'?d:'',time=typeof t==='string'?t:'';
+  if(/^\d{8}$/.test(date)&&/^\d{6}$/.test(time)){
+    const iso=date.slice(0,4)+'-'+date.slice(4,6)+'-'+date.slice(6,8)+
+      'T'+time.slice(0,2)+':'+time.slice(2,4)+':'+time.slice(4,6)+'Z';
+    const parsed=Date.parse(iso);
+    return Number.isFinite(parsed)?parsed:null;
+  }
+  // A source lacking canonical UTC fields is accepted ONLY when its raw
+  // timestamp is plausible against the actual receiving UTC clock.
+  const raw=v23N(row?.trade_timestamp??row?.timestamp);
+  return raw!==null&&v23Fresh(raw,now)?raw:null;
+}
 function v23TickerBundle(old,snapshot,now){
   const previous=old?.at_ms||null,day=v23Day(now);
   const elapsed=Number.isFinite(previous)?now-previous:null;
@@ -36,7 +55,7 @@ function v23TickerBundle(old,snapshot,now){
   const risk=new Set((snapshot.bithumb_warnings||[]).map(x=>x?.market));
   for(const row of snapshot.bithumb_tickers||[]){
     const sym=row?.market,price=v23N(row?.trade_price),
-      cumulative=v23N(row?.acc_trade_price),stamp=v23N(row?.trade_timestamp);
+      cumulative=v23N(row?.acc_trade_price),stamp=v23SpotTradeMs(row,now);
     if(!v23Code(sym,'bithumb')||price===null||price<=0||cumulative===null||
        cumulative<0)continue;
     const pre=old?.spot?.[sym],lastPrice=Array.isArray(pre)?v23N(pre[0]):null,
@@ -139,7 +158,7 @@ function v23SampleTaker(raw,venue,now){
  if(!Array.isArray(rows))return {status:'NO_PUBLIC_SAMPLE'};
  let buy=0,sell=0,seen=new Set(),count=0,latest=0;
  for(const x of rows){
-   const at=v23N(venue==='bitget'?x.ts:x.trade_timestamp),
+   const at=v23N(venue==='bitget'?x.ts:(x.timestamp??x.trade_timestamp)),
       price=v23N(venue==='bitget'?x.price:x.trade_price),
       size=v23N(venue==='bitget'?x.size:x.trade_volume),
       side=String(venue==='bitget'?x.side:x.ask_bid).toUpperCase();
@@ -279,4 +298,4 @@ async function v23ScoutTick(env,state,now,options={}){
    return output;
  }
 }
-export {v23TickerBundle,v23ReadFeeds,v23SampleTaker,v23Message,v23ScoutTick,V23_VER};
+export {v23TickerBundle,v23SpotTradeMs,v23ReadFeeds,v23SampleTaker,v23Message,v23ScoutTick,V23_VER};
