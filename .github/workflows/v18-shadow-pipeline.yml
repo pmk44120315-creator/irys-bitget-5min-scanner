@@ -4,6 +4,7 @@ on:
     branches:
       - feature/irys-v18-runtime-forecast-20261030
       - feature/irys-v21-causal-forecast-20261031
+      - feature/irys-v22-counterfactual-prospective-20261101
     paths:
       - '.github/workflows/v18-shadow-pipeline.yml'
       - 'v18_shadow_forecast.py'
@@ -11,6 +12,9 @@ on:
       - 'v21_forecast_core.py'
       - 'tests/test_v18_shadow_forecast.py'
       - 'tests/test_v21_*.py'
+      - 'v22_runtime.py'
+      - 'v22_direction_core.py'
+      - 'tests/test_v22_counterfactual.py'
   workflow_run:
     workflows: ['IRYS V18 separate real-taker evidence collector']
     types: [completed]
@@ -31,9 +35,8 @@ jobs:
           python-version: '3.12'
       - name: Existing and learned-model causal regression
         run: |
-          python -m py_compile v18_shadow_forecast.py v21_runtime.py v21_forecast_core.py
-          python -m unittest discover -s tests -p test_v18_shadow_forecast.py -v
-          python -m unittest discover -s tests -p 'test_v21_*.py' -v
+          python -m py_compile v18_shadow_forecast.py v21_runtime.py v21_forecast_core.py v22_runtime.py v22_direction_core.py
+          python -m unittest discover -s tests -v
   shadow:
     if: >-
       github.event_name == 'workflow_run' &&
@@ -66,6 +69,13 @@ jobs:
         if: steps.v21_tests.outcome == 'success'
         continue-on-error: true
         run: python v21_runtime.py
+      - name: V22 independent actual two-sided market quote outcome comparisons
+        id: v22
+        continue-on-error: true
+        run: python v22_runtime.py
+      - name: Keep V22 observation errors visible but never stop healthy original scans
+        if: steps.v22.outcome == 'failure'
+        run: echo '::warning::V22 research path reported non-PASS; baseline market collection and existing V21 evaluations remain independent'
       - name: Preserve separate old/new predictions and evidence without overwriting collector data
         run: |
           git config user.name 'github-actions[bot]'
@@ -74,6 +84,8 @@ jobs:
           if test -f data/v18_shadow_state.json; then git add data/v18_shadow_state.json; fi
           if test -f data/v21_latest.json; then git add data/v21_latest.json; fi
           if test -f data/v21_state.json; then git add data/v21_state.json; fi
+          if test -f data/v22_evidence_latest.json; then git add data/v22_evidence_latest.json; fi
+          if test -f data/v22_evidence_state.json; then git add data/v22_evidence_state.json; fi
           if git diff --staged --quiet; then exit 0; fi
           git commit -m 'data: independent legacy and V21 learned forecasts with future evidence'
           for attempt in 1 2 3 4 5 6; do

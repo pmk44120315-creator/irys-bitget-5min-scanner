@@ -1,0 +1,28 @@
+name: IRYS V22 official Bitget Bithumb read-only smoke
+on:
+  push:
+    branches:
+      - feature/irys-v22-counterfactual-prospective-20261101
+    paths:
+      - '.github/workflows/v22-real-market-smoke.yml'
+      - 'research/v22_live_readonly.py'
+permissions:
+  contents: read
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify prior regression and actual official price APIs without modifying live systems
+        run: |
+          python -m unittest discover -s tests -p 'test_v22_counterfactual.py' -v
+          python -u research/v22_live_readonly.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: v22-readonly-real-exchange-coverage
+          path: /tmp/v22_live_smoke.json
