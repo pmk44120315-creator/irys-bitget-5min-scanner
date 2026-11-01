@@ -2,6 +2,13 @@
  * Cloudflare's direct Bitget official API returns HTTP 403.
  * Never fabricate a current Bitget price or a confirmed future direction.
  */
+function v24N(x){
+ if(x===null||x===undefined||x===''||typeof x==='boolean')return null;
+ const v=Number(x);return Number.isFinite(v)?v:null;
+}
+function v24Code(s){
+ return typeof s==='string'&&/^[A-Z0-9]{2,25}USDT$/.test(s);
+}
 const V24_FAST_URL='https://raw.githubusercontent.com/pmk44120315-creator/irys-bitget-5min-scanner/main/data/v24_bitget_fast_latest.json';
 function v24FastFallback(doc,now){
  const unavailable=(reason)=>({status:reason,age_min:null,candidates:[],observed:0});
@@ -18,19 +25,19 @@ function v24FastFallback(doc,now){
  if(doc.status!=='MARKET_COMPARISON_PASS'){
    return unavailable('BASELINE_WARMUP_NOT_READY');
  }
- const at=v23N(doc.at_ms);
+ const at=v24N(doc.at_ms);
  if(at===null||!Number.isSafeInteger(at)||Date.parse(doc.at_utc||'')!==at||
     at>now+60000||now-at>8*60000||now-at<0)return unavailable('STALE_FAST_SOURCE');
  const bySym=new Map();
  for(const c of doc.candidates.slice(0,20)){
-   if(!v23Code(c?.symbol,'bitget')||c.venue!=='bitget'||
+   if(!v24Code(c?.symbol)||c.venue!=='bitget'||
       c.identity_verified_v3_crypto!==true||
       c.active_contract_verified_v2!==true||
       c.price_only_not_future_direction!==true||
       c.source!=='BITGET_OFFICIAL_GITHUB_RUNNER_PUBLIC_FAST')continue;
-   const p=v23N(c.price),delta=v23N(c.move_pct),spread=v23N(c.spread_pct),
-      priceAt=v23N(c.price_timestamp_ms),rank=v23N(c.priority),
-      quote24=v23N(c.quote_24h_usdt);
+   const p=v24N(c.price),delta=v24N(c.move_pct),spread=v24N(c.spread_pct),
+      priceAt=v24N(c.price_timestamp_ms),rank=v24N(c.priority),
+      quote24=v24N(c.quote_24h_usdt);
    if(p===null||p<=0||delta===null||delta<.7||
       spread===null||spread<0||spread>1.5||
       priceAt===null||!Number.isSafeInteger(priceAt)||
@@ -38,7 +45,7 @@ function v24FastFallback(doc,now){
    const obs={venue:'bitget',symbol:c.symbol,price:p,
      side_observed:'UP',move_pct:delta,spread_pct:spread,
      priority:rank,price_timestamp_ms:priceAt,quote_24h_usdt:quote24,
-     price_acceleration_pct:v23N(c.price_acceleration_pct),
+     price_acceleration_pct:v24N(c.price_acceleration_pct),
      turnover5_est_krw:null,turnover_ratio:null,warning_checked:true,
      identity_verified:true,price_only_not_future_direction:true,
      source:'BITGET_OFFICIAL_GITHUB_RUNNER_PUBLIC_FAST',
