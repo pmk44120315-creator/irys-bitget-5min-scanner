@@ -164,8 +164,8 @@ def run(market,flow,market_state,old,raw_models,now,api):
             key=r['venue']+'_'+str(h)
             frozen=models.get(key)
             p=None
-            if frozen and frozen['venue']==r['venue'] and
-                frozen['horizon_min']==h:
+            if (frozen and frozen['venue']==r['venue'] and
+                frozen['horizon_min']==h):
                 p=probabilities(frozen['model'],r['features'])
                 p={'up':p.get(1,0),'down':p.get(-1,0)}
             votes=expert_votes(r['features'],p)
