@@ -85,6 +85,19 @@ class CounterfactualCore(unittest.TestCase):
         self.assertEqual(m['hour_blocks'],2)
         self.assertIsNone(m['lower_95_pct'])
 
+    def test_preissued_horizon_votes_and_online_ensemble_are_scored(self):
+        sample={'venue':'bitget','symbol':'SAMPLEUSDT','issued_ms':BASE,
+            'votes':{'5':{'momentum5':1,'countertrend5':-1}},
+            'decisions':{'5':{'direction':-1}},
+            'outcomes':{'5':{'both_sides_measured':True,
+                'signed_quote_returns':{'1':1.4,'-1':-1.6}}}}
+        result=core.prequential_summary([sample],5,'bitget')
+        self.assertEqual(result['momentum5']['n'],1)
+        self.assertAlmostEqual(result['momentum5']['mean_net_pct'],1.2)
+        self.assertEqual(result['countertrend5']['n'],1)
+        self.assertEqual(result['online_ensemble']['n'],1)
+        self.assertAlmostEqual(result['online_ensemble']['mean_net_pct'],-1.8)
+
 class CounterfactualRuntime(unittest.TestCase):
     def test_fast_mover_observed_even_if_taker_collector_outage(self):
         s=market();r,prev,status,eligible=runtime.build_candidates(
