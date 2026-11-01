@@ -1,0 +1,67 @@
+name: IRYS V24 actual 20-50 natural Cron Bitget fallback and Bot ACK
+on:
+  push:
+    branches: [audit/irys-v24-natural-2050-20261101]
+permissions:
+  contents: read
+jobs:
+  real:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Read actual deployed V24 market source, natural scheduled tick and Telegram Bot API acceptance without sending
+        env:
+          ACCOUNT: ${{ secrets.IRYS_REALTIME_CF_ACCOUNT_ID }}
+          TOKEN: ${{ secrets.IRYS_V7_CF_API_TOKEN }}
+        run: |
+          node --input-type=module <<'JS'
+          import {createHash} from 'node:crypto';
+          const account=process.env.ACCOUNT||'',token=process.env.TOKEN||'';
+          if(!/^[0-9a-f]{32}$/.test(account)||token.length<20)throw Error('LIVE_READ_ACCESS_NOT_CONFIGURED');
+          const base='https://api.cloudflare.com/client/v4/accounts/'+account+'/workers/scripts/irys-surge-monitor';
+          async function src(){
+            const r=await fetch(base,{headers:{Authorization:'Bearer '+token,Accept:'application/json'},signal:AbortSignal.timeout(18000)});
+            if(!r.ok)throw Error('SOURCE_READ_'+r.status);
+            if((r.headers.get('content-type')||'').startsWith('multipart/form-data')){
+              const form=await r.formData(),m=form.get('metadata'),meta=m?JSON.parse(typeof m==='string'?m:await m.text()):{};
+              const p=form.get(meta.main_module||meta.body_part||'worker.js');
+              if(!p)throw Error('WORKER_MAIN_MISSING');
+              return Buffer.from(typeof p==='string'?p:await p.arrayBuffer());
+            }
+            return Buffer.from(await r.arrayBuffer());
+          }
+          const digest=createHash('sha256').update(await src()).digest('hex');
+          if(digest!=='d1a46e867b57d5bce542d46abbbc3b7c9ceeda762700e12dd18b56ee89ba02c7')
+            throw Error('V24_SOURCE_HASH_NOT_VERIFIED');
+          let last=null,reads=0;
+          const deadline=Date.now()+5*60000;
+          while(Date.now()<deadline){
+            const r=await fetch('https://irys-surge-monitor.vhehwpfl.workers.dev/',{signal:AbortSignal.timeout(18000)});
+            if(!r.ok)throw Error('PUBLIC_HEALTH_'+r.status);
+            last=(await r.json()).last||{};
+            reads++;
+            if(last.codeVersion==='IRYS-V24-BITGET-GITHUB-FAST-FALLBACK-20261101'
+              &&last.time!=='2026-11-01 20:45 KST'&&last.status==='PASS')break;
+            await new Promise(resolve=>setTimeout(resolve,16000));
+          }
+          const f=last?.v23DirectFastScout||{},r=last?.telegramLastApiReceipt||{};
+          const result={read_at_utc:new Date().toISOString(),
+             version:last?.codeVersion,actual_tick_kst:last?.time,
+             cloudflare_status:last?.status,original_dispatch:last?.githubDispatchStatus,
+             source_sha256:digest,reads,
+             direct_venue_availability:f.venue_availability,
+             fast_bitget_fallback:f.bitget_fast_fallback,
+             compared_venues:f.compared_venues,
+             candidate_count:f.candidate_count,selected:f.chosen?.slice(0,4),
+             watch_status:f.status,watch_sent:f.sent,watch_send_error:f.send_error,
+             direct_provider_errors:f.read_errors,
+             telegram_api_ack_total:last?.telegramApiAcknowledgementsTotal,
+             telegram_api_ack_this_tick:last?.telegramApiAckedThisRun,
+             last_bot_receipt:{channel:r.channel,symbol:r.symbol,accepted_at:r.accepted_at,message_id:r.telegram_message_id},
+             v21_direction_gate:last?.v21ForecastDelivery?.status,
+             no_new_test_telegram_messages_or_trades:true};
+          console.log('IRYS_V24_FIRST_REAL_BITGET_FALLBACK_TICK',JSON.stringify(result));
+          if(result.version!=='IRYS-V24-BITGET-GITHUB-FAST-FALLBACK-20261101'||result.cloudflare_status!=='PASS')
+            throw Error('V24_NATURAL_WORKER_TICK_NOT_VERIFIED');
+          if(f.send_error)throw Error('V24_TELEGRAM_TRANSPORT_ERROR');
+          JS
