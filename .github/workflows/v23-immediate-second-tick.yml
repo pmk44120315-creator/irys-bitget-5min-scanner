@@ -1,0 +1,36 @@
+name: IRYS V23 immediate second scheduled tick read only
+on:
+  push:
+    branches:
+      - audit/irys-v23-post-warmup-20261101
+permissions:
+  contents: read
+jobs:
+  quick:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Inspect current publicly exposed Cloudflare health and direct scan telemetry without any writes
+        run: |
+          node --input-type=module <<'JS'
+          const response=await fetch('https://irys-surge-monitor.vhehwpfl.workers.dev/',{signal:AbortSignal.timeout(15000)});
+          if(!response.ok)throw Error('LIVE_HEALTH_HTTP_'+response.status);
+          const h=await response.json(),x=h.last||{},v=x.v23DirectFastScout||{};
+          console.log('V23_SECOND_TICK_NOW',JSON.stringify({
+            utc:new Date().toISOString(),last_tick:x.time,
+            version:x.codeVersion,worker_status:x.status,
+            original_dispatch:x.githubDispatchStatus,
+            fast_status:v.status,market_status:v.market_status,
+            compared_symbols:v.observed,early_candidate_count:v.candidate_count,
+            selected:v.chosen,fast_sent:v.sent,
+            provider_failures:v.read_errors,send_error:v.send_error,
+            actual_sample:v.actual_taker,elapsed_min:v.elapsed_min,
+            telegram_acks_this_tick:x.telegramApiAckedThisRun,
+            cumulative_acks:x.telegramApiAcknowledgementsTotal,
+            last_channel:x.telegramLastApiReceipt?.channel||null,
+            last_symbol:x.telegramLastApiReceipt?.symbol||null,
+            last_message_id:x.telegramLastApiReceipt?.telegram_message_id||null,
+            V21_direction_status:x.v21ForecastDelivery?.status||null,
+            legacy_spam_guard:x.v20UnverifiedDirectionalSuppressionActive,
+            read_only:true
+          }));
+          JS
