@@ -1,0 +1,20 @@
+name: IRYS V23 reproduce and repair split venue outage
+on:
+  push:
+    branches:
+      - fix/irys-v23-isolate-venue-failures-20261101
+    paths:
+      - .github/workflows/v23-isolated-venue-regression.yml
+      - deployment/v23_direct_market_scout.mjs
+      - tests/test_v23_direct_scout.mjs
+permissions:
+  contents: read
+jobs:
+  real-outage-contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Real Bitget outage cannot disable healthy Bithumb and vice versa
+        run: |
+          node --check deployment/v23_direct_market_scout.mjs
+          node --test tests/test_v23_direct_scout.mjs
