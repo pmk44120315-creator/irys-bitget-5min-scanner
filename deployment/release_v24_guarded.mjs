@@ -116,13 +116,13 @@ async function main(){
    "bitget_github_official",
    "const V24_FAST_URL=", 
    "output.venue_availability=availability;",
-   "if(!availability.bithumb&&!availability.bitget)",
+   "if(!availability.bithumb&&!availability.bitget&&fallback.status!=='PASS')",
    "spot_at_ms:spotReady?now:spotOld",
    "futures_at_ms:futuresReady?now:futuresOld",
    "v23DirectFastScout:v23Fast",
    "const MAX_ALERTS=2;",
  ]){
-   assert(source.includes(marker),'REVIEWED_SOURCE_MARKER_MISSING');
+   assert(source.includes(marker),'REVIEWED_SOURCE_MARKER_MISSING_'+marker.slice(0,50));
  }
  const [old,settings]=await Promise.all([workerSource(),config()]);
  if(old.sha===NEW_SHA){
