@@ -6,7 +6,7 @@
  * Uses prior actual observations stored in the ORIGINAL IRYS_KV state.
  * No orders, accounts, WebSocket leases, secrets, new cron or AI dependence.
  */
-const V23_VER='IRYS_V23_1_VENUE_ISOLATED_SCOUT_V1';
+const V23_VER='IRYS_V24_GITHUB_OFFICIAL_BITGET_FALLBACK_V1';
 const V23_MAX_HOURLY_NOTICES=2;  // transport anti-spam, never a candidate selection gate
 const V23_NOTICE_COOLDOWN_MS=90*60000;
 const V23_RECENT_MARKET_MS=150000;
@@ -170,7 +170,10 @@ function v23Message(row,taker,now){
       '% · 최근 표본 '+taker.trades+'건'+
       '\n※ 일부 체결 표본이며 전체 CVD·세력 매집 증거는 아님';
  }
- return '🔎 [V23 빠른 급등 초입 포착 · 방향 예측 아님]\n'+body+extra+
+ const provenance=row.source==='BITGET_OFFICIAL_GITHUB_RUNNER_PUBLIC_FAST'?
+   '\n비트겟 공식 시세 GitHub 경유 · '+v23PlainNumber(row.source_age_min,1)+
+   '분 전 자료 (현재 직접 체결·미래 방향 확인 아님)':'';
+ return '🔎 [V23 빠른 급등 초입 포착 · 방향 예측 아님]\n'+body+extra+provenance+
   '\n⚠️ 현재 거래소 가격·체결 관측입니다. 매수·롱·숏 진입 신호나 미래 수익 보장은 아닙니다. 자동매매 없음.';
 }
 function v23SampleTaker(raw,venue,now){
@@ -238,6 +241,65 @@ async function v23ReadFeeds(read){
    !failures.some(x=>x.startsWith('bitget_')||x.startsWith('BITGET_'));
  return {feeds,failures,availability:{bithumb:bithumbOk,bitget:bitgetOk}};
 }
+/** Read GitHub's actually recorded Bitget V2/V3 public data ONLY when
+ * Cloudflare's direct Bitget official API returns HTTP 403.
+ * Never fabricate a current Bitget price or a confirmed future direction.
+ */
+function v24N(x){
+ if(x===null||x===undefined||x===''||typeof x==='boolean')return null;
+ const v=Number(x);return Number.isFinite(v)?v:null;
+}
+function v24Code(s){
+ return typeof s==='string'&&/^[A-Z0-9]{2,25}USDT$/.test(s);
+}
+const V24_FAST_URL='https://raw.githubusercontent.com/pmk44120315-creator/irys-bitget-5min-scanner/main/data/v24_bitget_fast_latest.json';
+function v24FastFallback(doc,now){
+ const unavailable=(reason)=>({status:reason,age_min:null,candidates:[],observed:0});
+ if(doc?.version!=='IRYS_V24_BITGET_GITHUB_FAST_PUBLIC_V1'||
+    doc.venue!=='bitget'||doc.source_identity!=='V2_ACTIVE_PERPETUAL_AND_V3_VERIFIED_CRYPTO'||
+    doc.not_full_orderbook_or_marketwide_cvd!==true||
+    doc.not_profitable_future_direction_proof!==true||
+    doc.trade_data_included!==false||
+    !Array.isArray(doc.candidates)||
+    !Number.isInteger(doc.active_verified_crypto_count)||doc.active_verified_crypto_count<100||
+    !Number.isInteger(doc.actual_official_tickers_count)||doc.actual_official_tickers_count<100){
+   return unavailable('UNTRUSTED_SOURCE_SCHEMA');
+ }
+ if(doc.status!=='MARKET_COMPARISON_PASS'){
+   return unavailable('BASELINE_WARMUP_NOT_READY');
+ }
+ const at=v24N(doc.at_ms);
+ if(at===null||!Number.isSafeInteger(at)||Date.parse(doc.at_utc||'')!==at||
+    at>now+60000||now-at>8*60000||now-at<0)return unavailable('STALE_FAST_SOURCE');
+ const bySym=new Map();
+ for(const c of doc.candidates.slice(0,20)){
+   if(!v24Code(c?.symbol)||c.venue!=='bitget'||
+      c.identity_verified_v3_crypto!==true||
+      c.active_contract_verified_v2!==true||
+      c.price_only_not_future_direction!==true||
+      c.source!=='BITGET_OFFICIAL_GITHUB_RUNNER_PUBLIC_FAST')continue;
+   const p=v24N(c.price),delta=v24N(c.move_pct),spread=v24N(c.spread_pct),
+      priceAt=v24N(c.price_timestamp_ms),rank=v24N(c.priority),
+      quote24=v24N(c.quote_24h_usdt);
+   if(p===null||p<=0||delta===null||delta<.7||
+      spread===null||spread<0||spread>1.5||
+      priceAt===null||!Number.isSafeInteger(priceAt)||
+      priceAt>at+60000||at-priceAt>120000||rank===null)continue;
+   const obs={venue:'bitget',symbol:c.symbol,price:p,
+     side_observed:'UP',move_pct:delta,spread_pct:spread,
+     priority:rank,price_timestamp_ms:priceAt,quote_24h_usdt:quote24,
+     price_acceleration_pct:v24N(c.price_acceleration_pct),
+     turnover5_est_krw:null,turnover_ratio:null,warning_checked:true,
+     identity_verified:true,price_only_not_future_direction:true,
+     source:'BITGET_OFFICIAL_GITHUB_RUNNER_PUBLIC_FAST',
+     source_age_min:Number(((now-at)/60000).toFixed(2)),
+     direct_current_Bitget_API_verified:false};
+   if(!bySym.has(c.symbol))bySym.set(c.symbol,obs);
+ }
+ const rows=[...bySym.values()].sort((a,b)=>b.priority-a.priority);
+ return {status:'PASS',age_min:Number(((now-at)/60000).toFixed(2)),
+   observed:doc.actual_official_tickers_count,candidates:rows};
+}
 async function v23ScoutTick(env,state,now,options={}){
  const output={version:V23_VER,status:'INITIAL',market_status:'UNKNOWN',observed:0,
   candidate_count:0,sent:0,chosen:[],reasons:[],send_error:null,read_errors:[],
@@ -247,22 +309,49 @@ async function v23ScoutTick(env,state,now,options={}){
    const {feeds,failures,availability}=await v23ReadFeeds(read);
    output.read_errors=failures;
    output.venue_availability=availability;
-   // A single exchange outage must NOT disable the other exchange.
-   // Both failed = do not mutate either venue's previous valid baseline.
-   if(!availability.bithumb&&!availability.bitget){
+   // Official Bitget API blocks Cloudflare egress (HTTP 403). Reuse only an
+   // actual fresh GitHub-runner Bitget V2 normal perpetual AND V3 crypto source.
+   let fallback={status:'NOT_NEEDED',age_min:null,candidates:[],observed:0};
+   if(!availability.bitget&&options.fastBitgetFallbackEnabled!==false){
+     try{
+       const doc=await read(V24_FAST_URL+'?ts='+now,{headers:{accept:'application/json'}},8500);
+       fallback=v24FastFallback(doc,now);
+     }catch(_e){fallback={status:'GITHUB_OFFICIAL_FAST_SOURCE_UNAVAILABLE',
+       age_min:null,candidates:[],observed:0};}
+   }
+   output.bitget_fast_fallback={status:fallback.status,
+     source_age_min:fallback.age_min,candidate_count:fallback.candidates.length,
+     official_tickers_observed:fallback.observed};
+   // If both venues and fresh independent GitHub data are unavailable, never
+   // overwrite either exchange's real prior baseline with fake zeros.
+   if(!availability.bithumb&&!availability.bitget&&fallback.status!=='PASS'){
      output.status='BOTH_VENUES_UNAVAILABLE_NO_BASELINE_CHANGE';
      output.market_status='UNAVAILABLE';return output;
    }
    const result=v23TickerBundle(state.v23ScoutTape||{},feeds,now,availability);
    state.v23ScoutTape=result.next;
+   if(fallback.status==='PASS'){
+     const seen=new Set(result.observation.candidates.map(c=>c.venue+':'+c.symbol));
+     for(const candidate of fallback.candidates){
+       if(!seen.has('bitget:'+candidate.symbol)){
+         result.observation.candidates.push(candidate);seen.add('bitget:'+candidate.symbol);
+       }
+     }
+     result.observation.candidates.sort((a,b)=>b.priority-a.priority);
+     result.observation.candidates=result.observation.candidates.slice(0,12);
+     result.observation.status='MARKET_COMPARISON_PASS';
+     result.observation.compared_venues.push('bitget_github_official');
+   }
    output.market_status=result.observation.status;
    output.compared_venues=result.observation.compared_venues;
    output.partial_venue_outage=result.observation.partial_venue_outage;
    output.elapsed_min=result.observation.elapsed_min;
-   output.observed=result.observation.compared;
+   output.observed=result.observation.compared+fallback.observed;
    output.candidate_count=result.observation.candidates.length;
    output.chosen=result.observation.candidates.slice(0,3).map(c=>({
       venue:c.venue,symbol:c.symbol,move_pct:c.move_pct,
+      source:c.source||'CLOUDFLARE_DIRECT_OFFICIAL',
+      source_age_min:c.source_age_min??null,
       observed_direction:c.side_observed,has_future_direction_proof:false}));
    if(result.observation.status!=='MARKET_COMPARISON_PASS'){
      output.status='BASELINE_WARMING_OR_TIME_GAP';return output;
@@ -333,4 +422,4 @@ async function v23ScoutTick(env,state,now,options={}){
    return output;
  }
 }
-export {v23TickerBundle,v23SpotTradeMs,v23ReadFeeds,v23SampleTaker,v23Message,v23ScoutTick,V23_VER};
+export {v23TickerBundle,v23SpotTradeMs,v23ReadFeeds,v23SampleTaker,v23Message,v23ScoutTick,V23_VER,v24FastFallback,V24_FAST_URL};
