@@ -1,0 +1,20 @@
+name: IRYS V23 direct all-market fast scout regression
+on:
+  push:
+    branches:
+      - feature/irys-v23-direct-fast-scout-20261101
+    paths:
+      - '.github/workflows/v23-direct-scout-tests.yml'
+      - 'deployment/v23_direct_market_scout.mjs'
+      - 'tests/test_v23_direct_scout.mjs'
+permissions:
+  contents: read
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Syntax check and 9 real-time market/Telegram fake-ACK regression tests
+        run: |
+          node --check deployment/v23_direct_market_scout.mjs
+          node --test tests/test_v23_direct_scout.mjs
