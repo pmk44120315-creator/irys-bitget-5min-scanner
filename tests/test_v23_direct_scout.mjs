@@ -141,7 +141,7 @@ test('missing exchange read never sends or overwrites previous tape with fake ze
  const z=await v23ScoutTick({},state,NOW+300000,{
   read:async()=>{throw Error('EXCHANGE_OFFLINE')},
   send:async()=>{throw Error('SHOULD_NOT_SEND')}});
- assert.equal(z.status,'PUBLIC_TICKER_FEED_PARTIAL');
+ assert.equal(z.status,'BOTH_VENUES_UNAVAILABLE_NO_BASELINE_CHANGE');
  assert.equal(z.sent,0);
  assert.equal(JSON.stringify(state.v23ScoutTape),prior);
 });
@@ -165,4 +165,66 @@ test('no fraudulent LIVE prediction direction is promoted from ticker/volume onl
    assert.ok(!('signal' in c));
    assert.equal(c.warning_checked,true);
  }
+});
+
+test('one failed Bitget official feed never blocks healthy Bithumb WATCH delivery',async()=>{
+ const base=feeds(NOW),after=feeds(NOW+300000,true);
+ const previous=v23TickerBundle({},base,NOW).next;
+ const state={v23ScoutTape:previous,lastAlert:{}};
+ let sent=0;
+ const read=async url=>{
+  if(url.includes('api.bitget.com'))throw Error('HTTP_403_OFFICIAL_BITGET_FROM_CLOUDFLARE');
+  return mockReader(after)(url);
+ };
+ const result=await v23ScoutTick({},state,NOW+300000,{
+  read,send:async()=>{sent++;return {message_id:880}},
+  receipt:()=>({channel:'V23_DIRECT_FAST_MARKET_WATCH'}),
+  persistReceipt:async()=>true
+ });
+ assert.equal(result.status,'TELEGRAM_API_ACK');
+ assert.equal(result.sent,1);
+ assert.equal(result.sent_venue,'bithumb');
+ assert.equal(result.sent_symbol,'KRW-POP');
+ assert.equal(sent,1);
+ assert.ok(result.read_errors.some(x=>x.includes('bitget')));
+ assert.deepEqual(state.v23ScoutTape.futures,previous.futures,
+   'failed venue baseline cannot be overwritten with an empty object');
+});
+test('one failed Bithumb feed never blocks current verified crypto Bitget market WATCH',async()=>{
+ const base=feeds(NOW),after=feeds(NOW+300000,true);
+ const previous=v23TickerBundle({},base,NOW).next;
+ const state={v23ScoutTape:previous};
+ let calls=0;
+ const read=async url=>{
+   if(url.includes('api.bithumb.com'))throw Error('BITHUMB_CURRENT_SOURCE_OFFLINE');
+   return mockReader(after)(url);
+ };
+ const result=await v23ScoutTick({},state,NOW+300000,{
+  read,send:async()=>{calls++;return {message_id:881}},
+  receipt:()=>({channel:'V23_DIRECT_FAST_MARKET_WATCH'}),
+  persistReceipt:async()=>true
+ });
+ assert.equal(result.status,'TELEGRAM_API_ACK');
+ assert.equal(result.sent,1);
+ assert.equal(result.sent_venue,'bitget');
+ assert.equal(result.sent_symbol,'POPUSDT');
+ assert.equal(calls,1);
+ assert.deepEqual(state.v23ScoutTape.spot,previous.spot,
+   'failed spot source must not destroy its most recent good baseline');
+});
+test('partial venue outage without a measurable move persists valid side and never sends',async()=>{
+ const first=feeds(NOW),after=feeds(NOW+300000,false);
+ const previous=v23TickerBundle({},first,NOW).next;
+ const state={v23ScoutTape:previous};
+ const result=await v23ScoutTick({},state,NOW+300000,{
+  read:async url=>{
+    if(url.includes('api.bitget.com'))throw Error('HTTP_503_BITGET');
+    return mockReader(after)(url);
+  },
+  send:async()=>{throw Error('NO_MOVER_MUST_NOT_SEND')}
+ });
+ assert.equal(result.status,'NO_SIGNIFICANT_FIRST_IMPULSE');
+ assert.ok(result.observed>0);
+ assert.equal(result.sent,0);
+ assert.equal(state.v23ScoutTape.at_ms,NOW+300000);
 });
