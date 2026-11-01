@@ -1,0 +1,29 @@
+name: IRYS V23.1 confirmed independent exchange outage repair
+on:
+  push:
+    branches:
+      - fix/irys-v23-isolate-venue-failures-20261101
+    paths:
+      - .github/workflows/v23-1-full-worker-tests.yml
+      - deployment/IRYS_V23_1_VENUE_ISOLATED_WORKER.mjs
+      - deployment/v23_direct_market_scout.mjs
+      - tests/test_v23_1_isolated_worker.mjs
+      - tests/test_v23_direct_scout.mjs
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Full Worker parse and venue-level failure proof
+        run: |
+          node --check deployment/IRYS_V23_1_VENUE_ISOLATED_WORKER.mjs
+          node --check deployment/v23_direct_market_scout.mjs
+          node --test tests/test_v23_direct_scout.mjs tests/test_v23_1_isolated_worker.mjs
+          node --test tests/test_v21_delivery.mjs tests/test_v21_report_timing.mjs tests/test_v21_forecast_expiry.mjs
+          python -m unittest discover -s tests -v
+          sha256sum deployment/IRYS_V23_1_VENUE_ISOLATED_WORKER.mjs
