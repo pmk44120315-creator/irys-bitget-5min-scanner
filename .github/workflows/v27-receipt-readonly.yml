@@ -1,0 +1,94 @@
+name: IRYS V27 actual Telegram receipt inventory (READ ONLY)
+on:
+  push:
+    branches: [feature/irys-v27-actual-alert-audit-20261102]
+    paths: ['.github/workflows/v27-receipt-readonly.yml']
+permissions:
+  contents: read
+jobs:
+  evidence:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Read authorized Cloudflare receipts without messages or changes
+        env:
+          CF_ACCOUNT: ${{ secrets.IRYS_REALTIME_CF_ACCOUNT_ID }}
+          CF_TOKEN: ${{ secrets.IRYS_V7_CF_API_TOKEN }}
+        run: |
+          mkdir -p v27_packet
+          python - <<'PY'
+          import os,json,re,time,pathlib,urllib.request,urllib.parse,concurrent.futures,hashlib,email,email.policy
+          root=pathlib.Path('v27_packet')
+          account=os.environ['CF_ACCOUNT']; token=os.environ['CF_TOKEN']
+          assert re.fullmatch('[a-f0-9]{32}',account) and len(token)>20,'AUTH_NOT_CONFIGURED'
+          api='https://api.cloudflare.com/client/v4/accounts/'+account
+          worker=api+'/workers/scripts/irys-surge-monitor'
+          def request(url,auth=True):
+              headers={'accept':'application/json','User-Agent':'IRYS-authorized-readonly-audit'}
+              if auth: headers['authorization']='Bearer '+token
+              try:
+                  with urllib.request.urlopen(urllib.request.Request(url,headers=headers),timeout=35) as r:
+                      return r.read(),r.headers.get('Content-Type','')
+              except Exception as e:
+                  raise RuntimeError('READ_FAILED_'+type(e).__name__+'_'+str(getattr(e,'code','UNKNOWN'))) from None
+          def get(url,auth=True): return json.loads(request(url,auth)[0])
+          def safe(x):
+              if isinstance(x,dict):return {k:safe(v) for k,v in x.items() if not re.search('secret|token|chat_id|account_id|email|authorization',k,re.I)}
+              if isinstance(x,list):return [safe(z) for z in x]
+              return x
+          def save(name,obj): (root/name).write_text(json.dumps(obj,ensure_ascii=False,indent=2),encoding='utf-8')
+          settings=get(worker+'/settings')
+          bindings=settings.get('result',{}).get('bindings',[])
+          ns=next(x['namespace_id'] for x in bindings if x.get('name')=='IRYS_KV' and x.get('type')=='kv_namespace')
+          kv=api+'/storage/kv/namespaces/'+ns
+          state=get(kv+'/values/'+urllib.parse.quote('irys:fast:state:v1',safe=''))
+          keep={k:v for k,v in state.items() if any(s in k.lower() for s in ('receipt','outcome','v23scout','v21last','acknowledgement')) or k=='last'}
+          save('state_market_only.json',safe(keep))
+          save('state_inventory.json',{k:{'type':type(v).__name__,'length':len(v) if isinstance(v,(dict,list,str)) else None} for k,v in state.items()})
+          prefix='irys:fast:delivery-receipt:v12:'
+          cursor=None; keys=[]; cursors=set()
+          while True:
+              params={'prefix':prefix,'limit':1000}
+              if cursor:params['cursor']=cursor
+              page=get(kv+'/keys?'+urllib.parse.urlencode(params))
+              assert page.get('success') is True,'KV_LIST_NOT_SUCCESSFUL'
+              keys.extend(x['name'] for x in page.get('result',[]))
+              cursor=(page.get('result_info') or {}).get('cursor')
+              if not cursor:break
+              assert cursor not in cursors,'REPEATED_KV_CURSOR'
+              cursors.add(cursor)
+          def read_receipt(key):
+              value=get(kv+'/values/'+urllib.parse.quote(key,safe=''))
+              assert isinstance(value,dict),'RECEIPT_SCHEMA'
+              return dict(safe(value),event_key=key,event_ms=int(key.rsplit(':',1)[1]))
+          with concurrent.futures.ThreadPoolExecutor(max_workers=4) as pool:
+              receipts=list(pool.map(read_receipt,keys))
+          receipts.sort(key=lambda r:r['event_ms'])
+          save('telegram_receipts.json',{'read_at_ms':int(time.time()*1000),'receipt_prefix':prefix,'pagination_exhausted':True,'count':len(receipts),'receipts':receipts})
+          health=get('https://irys-surge-monitor.vhehwpfl.workers.dev/',False)
+          save('health.json',safe(health))
+          raw,ct=request(worker)
+          if ct.lower().startswith('multipart/'):
+              msg=email.message_from_bytes(('Content-Type: '+ct+'\r\nMIME-Version: 1.0\r\n\r\n').encode()+raw,policy=email.policy.default)
+              parts={p.get_param('name',header='content-disposition'):p.get_payload(decode=True) for p in msg.iter_parts()}
+              meta=json.loads(parts.get('metadata',b'{}'))
+              name=meta.get('main_module') or meta.get('body_part') or 'worker.js'
+              raw=parts[name]
+          assert b'async function' in raw and len(raw)>10000,'WORKER_SOURCE_INVALID'
+          (root/'live_worker.mjs').write_bytes(raw)
+          save('source_receipt.json',{'sha256':hashlib.sha256(raw).hexdigest(),'bytes':len(raw),'read_only':True})
+          print('V27_RECEIPT_INVENTORY',json.dumps({'count':len(receipts),'state_receipts':len(state.get('deliveryReceiptsV12') or []),'state_keys':list(state),'worker_sha256':hashlib.sha256(raw).hexdigest(),'latest_tick':health.get('last',{}).get('time'),'code_version':health.get('last',{}).get('codeVersion')},ensure_ascii=False))
+          for r in receipts[-35:]:print('V27_ACTUAL_RECEIPT',json.dumps(r,ensure_ascii=False))
+          print('V27_READONLY_NO_TELEGRAM_NO_ORDERS_NO_KV_WRITE_NO_DEPLOY')
+          PY
+      - name: Package exact public source without checkout credentials
+        run: git archive --format=zip --output=v27_packet/public_source.zip HEAD
+      - uses: actions/upload-artifact@v4
+        with:
+          name: v27-sanitized-actual-alert-evidence
+          path: v27_packet/
+          if-no-files-found: error
+          retention-days: 7
