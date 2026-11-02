@@ -31,7 +31,7 @@ function v28Discover(old={},feeds,now,priorTape={}){
  const empty=(status)=>({next:old,rows:[],candidates:[],leaders:[],summary:{version:V28_VERSION,status,tracked:Object.keys(old.assets||{}).length}});
  const markets=feeds?.bithumb_markets,tickers=feeds?.bithumb_tickers,warnings=feeds?.bithumb_warnings;
  if(!Array.isArray(markets)||!Array.isArray(tickers)||!Array.isArray(warnings)||!Number.isSafeInteger(now))return empty('SOURCE_UNAVAILABLE');
- const known=new Map(markets.filter(x=>/^KRW-[A-Z0-9]{2,25}$/.test(x?.market||'')).map(x=>[x.market,x]));
+ const known=new Map(markets.filter(x=>/^KRW-[A-Z0-9]{1,25}$/.test(x?.market||'')).map(x=>[x.market,x]));
  const validTicks=new Map(tickers.filter(x=>known.has(x?.market)).map(x=>[x.market,x]));
  if(known.size<100||validTicks.size<known.size*.95)return empty('SOURCE_UNAVAILABLE');
  if(Number.isSafeInteger(old.at_ms)&&now-old.at_ms<V28_MIN_GAP)return empty('DUPLICATE_UNCHANGED');

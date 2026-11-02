@@ -16,4 +16,7 @@ class BundleReceiptTests(unittest.TestCase):
   p=self.receipt();del p['receipt']['market_snapshot'];self.assertEqual(len(self.expand([p])),1)
   bad=self.receipt();bad['receipt']['market_snapshot']['bundle'][1]['symbol']='INVALID?'
   with self.assertRaises(ValueError):self.expand([bad])
+ def test_official_one_character_symbols_do_not_disappear_from_real_alert_audit(self):
+  p=self.receipt();p['receipt']['market_snapshot']['bundle'][0]['symbol']='KRW-A';p['receipt']['market_snapshot']['bundle'][1]['symbol']='AUSDT'
+  rows=self.expand([p]);self.assertEqual({r['symbol'] for r in rows},{'KRW-A','AUSDT'})
 if __name__=='__main__':unittest.main()

@@ -84,3 +84,8 @@ test('cumulative relative gain uses true elapsed interval, not a normalized 5m s
  const r=v28Discover(old,feed(T+360000,{'KRW-C0':{price:101.2,cum:1010000}}),T+360000);
  const row=r.rows.find(x=>x.symbol==='KRW-C0');assert.ok(Math.abs(row.relative_run_pct-1.2)<1e-6);
 });
+
+test('official one-character Bithumb symbols are covered exactly like all other listed markets',async()=>{
+ const {v28Discover}=await engine();const f=feed(T);f.bithumb_markets[0].market='KRW-A';f.bithumb_tickers[0].market='KRW-A';
+ const r=v28Discover({},f,T);assert.equal(r.rows.length,105);assert.ok(r.rows.some(x=>x.symbol==='KRW-A'));
+});

@@ -20,7 +20,7 @@ def expand_receipts(envelopes: list[dict]) -> list[dict]:
             if not isinstance(entry,dict):raise ValueError('INVALID_ACK_ITEM')
             symbol=entry.get('symbol')
             if not isinstance(symbol,str):raise ValueError('INVALID_ACK_SYMBOL')
-            venue='bithumb' if re.fullmatch(r'KRW-[A-Z0-9]{2,25}',symbol) else 'bitget' if re.fullmatch(r'[A-Z0-9]{2,25}USDT',symbol) else None
+            venue='bithumb' if re.fullmatch(r'KRW-[A-Z0-9]{1,25}',symbol) else 'bitget' if re.fullmatch(r'[A-Z0-9]{1,25}USDT',symbol) else None
             if venue is None or entry.get('venue',venue)!=venue:raise ValueError('INVALID_ACK_MARKET')
             direction=None if 'WATCH' in channel else entry.get('forecast_direction')
             if direction not in (None,'LONG','SHORT','BUY','UP','DOWN'):raise ValueError('INVALID_ACK_DIRECTION')
