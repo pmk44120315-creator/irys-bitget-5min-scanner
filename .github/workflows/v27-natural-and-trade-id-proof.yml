@@ -1,0 +1,44 @@
+name: IRYS V27 natural production and raw trade-ID evidence READ ONLY
+on:
+  push:
+    branches: [deploy/irys-v27-reviewed-worker-20261102]
+    paths: ['.github/workflows/v27-natural-and-trade-id-proof.yml']
+permissions:
+  contents: read
+jobs:
+  proof:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Read current production and untouched raw trade identifiers
+        run: |
+          mkdir -p v27_natural
+          node --input-type=module <<'JS'
+          import {writeFileSync} from 'node:fs';
+          import assert from 'node:assert/strict';
+          const get=async u=>{const r=await fetch(u,{signal:AbortSignal.timeout(20000)});assert(r.ok,'HTTP_'+r.status);return r.text();};
+          const h=JSON.parse(await get('https://irys-surge-monitor.vhehwpfl.workers.dev/'));
+          writeFileSync('v27_natural/health.json',JSON.stringify(h,null,2));
+          console.log('V27_NATURAL_TICK',JSON.stringify({read_at_utc:new Date().toISOString(),last:h.last}));
+          const text=await get('https://api.bithumb.com/v1/trades/ticks?market=KRW-BTC&count=500');
+          writeFileSync('v27_natural/bithumb_trade_raw.json',text);
+          const native=JSON.parse(text),rawIds=[...text.matchAll(/"sequential_id"\s*:\s*(\d+)/g)].map(x=>x[1]);
+          const numberIds=native.map(x=>String(x.sequential_id));
+          const collisions={};
+          native.forEach((r,i)=>{const k=String(r.sequential_id);(collisions[k]??=[]).push({raw_id:rawIds[i],timestamp:r.timestamp,price:r.trade_price,volume:r.trade_volume,side:r.ask_bid});});
+          const examples=Object.values(collisions).filter(v=>v.length>1&&new Set(v.map(x=>JSON.stringify(x))).size>1).slice(0,4);
+          const facts={rows:native.length,raw_id_tokens:rawIds.length,distinct_raw_ids:new Set(rawIds).size,distinct_JS_ids:new Set(numberIds).size,unsafe_JS_ids:native.filter(x=>!Number.isSafeInteger(x.sequential_id)).length,collision_examples:examples};
+          writeFileSync('v27_natural/id_fidelity.json',JSON.stringify(facts,null,2));
+          console.log('V27_RAW_ID_FIDELITY',JSON.stringify(facts));
+          const d=JSON.parse(await get('https://raw.githubusercontent.com/pmk44120315-creator/irys-bitget-5min-scanner/main/data/v27_bitget_response_latest.json?proof='+Date.now()));
+          console.log('V27_LATEST_RESPONSE',JSON.stringify({at_ms:d.at_ms,parent_at_ms:d.parent_at_ms,source_status:d.source.status,quotes:Object.keys(d.quotes).length,candidates:d.source.candidates.length,responses:Object.values(d.responses).reduce((a,x)=>(a[x.state||x.status]=(a[x.state||x.status]||0)+1,a),{})}));
+          writeFileSync('v27_natural/latest_response.json',JSON.stringify(d));
+          assert(h.last?.codeVersion==='IRYS-V27-EXECUTABLE-RESPONSE-20261102','NEW_NATURAL_TICK_NOT_YET_VERIFIED');
+          assert(h.last?.status==='PASS','NATURAL_TICK_NOT_PASS');
+          JS
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: v27-natural-and-exact-trade-id-proof
+          path: v27_natural/
+          if-no-files-found: error
+          retention-days: 7
