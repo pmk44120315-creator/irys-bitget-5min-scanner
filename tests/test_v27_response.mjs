@@ -59,3 +59,13 @@ test('fresh generation rendezvous waits for the same scan rather than using prio
  const x=await v27ReadFresh(read,NOW,{clock:()=>t,sleep:async ms=>{t+=ms},maxWaitMs:10000});
  assert.equal(x.status,'FRESH');assert.equal(calls,2);assert.equal(x.doc.parent_at_ms,NOW);
 });
+
+test('observed 60-second producer publication is awaited without accepting the previous generation',async()=>{
+ const {v27ReadFresh}=await engine();let t=NOW,seen=0;
+ const read=async()=>{seen++;return t<NOW+60000?
+  {version:'IRYS_V27_EXECUTABLE_RESPONSE_V1',at_ms:NOW-300000,parent_at_ms:NOW-300000,source:{at_ms:NOW-300000}}:
+  {version:'IRYS_V27_EXECUTABLE_RESPONSE_V1',at_ms:NOW+60000,parent_at_ms:NOW+55000,source:{at_ms:NOW+55000}};};
+ const x=await v27ReadFresh(read,NOW,{clock:()=>t,sleep:async ms=>{t+=ms}});
+ assert.equal(x.status,'FRESH');assert.equal(x.doc.parent_at_ms,NOW+55000);
+ assert.equal(x.wait_ms,60000);assert.ok(seen>10);
+});
