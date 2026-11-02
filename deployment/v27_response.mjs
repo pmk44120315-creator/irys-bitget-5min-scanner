@@ -84,7 +84,7 @@ function v27DirectionCheck(proof,rawQuote,now){
 }
 async function v27ReadFresh(read,requestedAt,options={}){
  const clock=options.clock||Date.now,sleep=options.sleep||(ms=>new Promise(r=>setTimeout(r,ms)));
- const start=clock(),deadline=start+(options.maxWaitMs??45000);let reads=0,lastReason='NO_GENERATION';
+ const start=clock(),deadline=start+(options.maxWaitMs??90000);let reads=0,lastReason='NO_GENERATION';
  while(true){
   try{
    const doc=await read(V27_URL+'?v27='+clock(),{headers:{accept:'application/json'}},8500);reads++;
