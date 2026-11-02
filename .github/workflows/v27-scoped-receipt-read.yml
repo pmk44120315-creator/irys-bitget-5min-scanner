@@ -1,0 +1,34 @@
+name: IRYS V27 authorized receipt audit and exact V24 restore
+on:
+  push:
+    branches: [feature/irys-v27-actual-alert-audit-20261102]
+    paths: ['.github/workflows/v27-scoped-receipt-read.yml','diagnostics/v27_scoped_receipt_read.mjs']
+permissions:
+  contents: read
+concurrency:
+  group: irys-v27-guarded-worker-source
+  cancel-in-progress: false
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate JS syntax
+        run: node --check diagnostics/v27_scoped_receipt_read.mjs
+      - name: Authorized market receipt read and exact-source restore (no orders/messages)
+        env:
+          CF_ACCOUNT: ${{ secrets.IRYS_REALTIME_CF_ACCOUNT_ID }}
+          CF_TOKEN: ${{ secrets.IRYS_V7_CF_API_TOKEN }}
+        run: node diagnostics/v27_scoped_receipt_read.mjs
+      - name: Package only public source plus sanitized receipt evidence
+        if: always()
+        run: |
+          mkdir -p v27_packet
+          git archive --format=zip --output=v27_packet/public_source.zip HEAD
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: v27-complete-receipt-evidence
+          path: v27_packet/
+          if-no-files-found: error
+          retention-days: 7
