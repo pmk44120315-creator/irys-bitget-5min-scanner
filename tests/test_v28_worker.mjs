@@ -38,3 +38,21 @@ test('all original directional proofs, schedule and maximum message count unchan
  assert.equal(s.split('  async scheduled(_controller,env){')[1].split('\nexport {v28Discover')[0],original.split('  async scheduled(_controller,env){')[1]);
  assert.ok(s.includes('const V23_MAX_HOURLY_NOTICES=2;'));assert.ok(s.includes('const V20_EXPERIMENTAL_DIRECTIONAL_DELIVERY_APPROVED=false;'));
 });
+
+test('actual ticker request includes one-character listed assets, not only downstream ledger parser',async()=>{
+ const {v23ScoutTick}=await engine();const s=state();s.v23ScoutHourly={hour:Math.floor(T/3600000),count:2};
+ const m=market(T,true);m.markets[0].market='KRW-A';m.ticks[0].market='KRW-A';let requested=[];
+ const exactRead=async url=>{if(url.includes('/v1/market/all'))return m.markets;if(url.includes('virtual_asset_warning'))return [];
+  if(url.includes('/v1/ticker')){requested.push(...new URL(url).searchParams.get('markets').split(','));return m.ticks.filter(t=>requested.includes(t.market));}throw Error('HTTP_403');};
+ const r=await v23ScoutTick({},s,T,{read:exactRead,clock:()=>T,maxWaitMs:0});
+ assert(requested.includes('KRW-A'),'official one-letter market never requested from ticker API');
+ assert.equal(r.v28Discovery.tracked,105);assert.equal(r.v28Discovery.tickers,105);
+});
+test('genuinely recovered direct Bitget quotes are measured as direct source, not a forced fallback failure',async()=>{
+ const {v23ScoutTick}=await engine();const s=state();s.v23ScoutHourly={hour:Math.floor(T/3600000),count:2};
+ const normal=read(T),instruments=Array.from({length:120},(_,i)=>({symbol:'X'+i+'USDT',symbolType:'crypto',instrumentType:'crypto'}));
+ const current=instruments.map(x=>({symbol:x.symbol,lastPr:1,bidPr:.999,askPr:1.001,ts:T-1000}));
+ const r=await v23ScoutTick({},s,T,{read:async url=>url.includes('/v3/market/instruments')?{code:'00000',data:instruments}:url.includes('/v2/mix/market/tickers')?{code:'00000',data:current}:normal(url),clock:()=>T,maxWaitMs:0});
+ assert.equal(r.venue_availability.bitget,true);assert.equal(r.v28DirectFutures.valid_quotes,120);
+ assert.equal(r.v28DirectFutures.source,'BITGET_DIRECT_OFFICIAL');assert.equal(r.bitget_fast_fallback.status,'NOT_NEEDED');
+});

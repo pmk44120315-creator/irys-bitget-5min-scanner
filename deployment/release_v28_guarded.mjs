@@ -1,9 +1,9 @@
 /** Code-only exact-source release, current source lease, config preservation and rollback. */
 import {readFileSync,writeFileSync,mkdirSync} from 'node:fs';
 import {createHash} from 'node:crypto';import {pathToFileURL} from 'node:url';import assert from 'node:assert/strict';
-const OLD='f9213445d95a1c52e4d72eb47961e8d63188d3d99ed7876894d69907b3e00b1f';
-const NEW='e3fa2f1da6151ceb419fe5f21bf5fae8afd3db5a2d8068425f0986e64692c19d';
-const VERSION='IRYS-V28-MARKET-RELATIVE-BUILDUP-20261102';
+const OLD='e3fa2f1da6151ceb419fe5f21bf5fae8afd3db5a2d8068425f0986e64692c19d';
+const NEW='932845cb6cf1949e453e52bbf6c75387820c6981fdb91ebc45b2e086a6fe176d';
+const VERSION='IRYS-V28.1-MARKET-RELATIVE-BUILDUP-20261102';
 const hash=x=>createHash('sha256').update(x).digest('hex');
 async function guardedRelease(io,candidate){
  assert.equal(hash(candidate),NEW,'NOT_EXACT_TESTED_V28');

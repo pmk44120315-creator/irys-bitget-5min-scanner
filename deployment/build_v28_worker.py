@@ -9,8 +9,12 @@ def rep(a,b,name):
  global s
  assert s.count(a)==1,(name,s.count(a))
  s=s.replace(a,b);changes.append(name)
-rep('IRYS-V27.2-EXECUTABLE-RESPONSE-AUTHFRESH-20261102','IRYS-V28-MARKET-RELATIVE-BUILDUP-20261102','version')
-rep("const V23_VER='IRYS_V27_2_EXECUTABLE_RESPONSE_V1';","const V23_VER='IRYS_V28_BUILDUP_V1';",'scout-version')
+rep('IRYS-V27.2-EXECUTABLE-RESPONSE-AUTHFRESH-20261102','IRYS-V28.1-MARKET-RELATIVE-BUILDUP-20261102','version')
+rep("const V23_VER='IRYS_V27_2_EXECUTABLE_RESPONSE_V1';","const V23_VER='IRYS_V28_1_BUILDUP_V1';",'scout-version')
+rep("(venue==='bithumb'?/^KRW-[A-Z0-9]{2,25}$/:/^[A-Z0-9]{2,25}USDT$/).test(sym);",
+    "(venue==='bithumb'?/^KRW-[A-Z0-9]{1,25}$/:/^[A-Z0-9]{2,25}USDT$/).test(sym);",'official-one-letter-request-path')
+rep("     if(Object.keys(quotes).length>=100){state.v27Quotes=quotes;state.v27QuoteSourceMs=clock();}",
+    "     if(Object.keys(quotes).length>=100){state.v27Quotes=quotes;state.v27QuoteSourceMs=clock();}\n     output.v28DirectFutures={source:'BITGET_DIRECT_OFFICIAL',valid_quotes:Object.keys(quotes).length,observed_at_ms:clock()};",'honest-direct-futures-proof')
 rep('   const {feeds,failures,availability}=await v23ReadFeeds(read);', '''   const {feeds,failures,availability}=await v23ReadFeeds(read);
    const v28Scan=availability.bithumb?
      v28Discover(state.v28Ledger||{},feeds,clock(),state.v23ScoutTape||{}):
