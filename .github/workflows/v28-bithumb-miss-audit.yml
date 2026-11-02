@@ -1,0 +1,114 @@
+name: IRYS V28 Bithumb missed-mover evidence and exact restore
+on:
+  push:
+    branches: [feature/irys-v28-bithumb-coverage-20261102]
+    paths: ['.github/workflows/v28-bithumb-miss-audit.yml']
+permissions:
+  contents: read
+concurrency:
+  group: irys-v27-guarded-worker-source
+  cancel-in-progress: false
+jobs:
+  evidence:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Read scoped actual state and receipts via authenticated route; restore exact original
+        env:
+          CF_ACCOUNT: ${{ secrets.IRYS_REALTIME_CF_ACCOUNT_ID }}
+          CF_TOKEN: ${{ secrets.IRYS_V7_CF_API_TOKEN }}
+        run: |
+          mkdir -p v28_evidence
+          node --input-type=module <<'JS'
+          import {writeFileSync} from 'node:fs';import {createHash,randomBytes} from 'node:crypto';import assert from 'node:assert/strict';
+          const OLD='f9213445d95a1c52e4d72eb47961e8d63188d3d99ed7876894d69907b3e00b1f';
+          const base='https://api.cloudflare.com/client/v4/accounts/'+process.env.CF_ACCOUNT+'/workers/scripts/irys-surge-monitor';
+          const auth={authorization:'Bearer '+process.env.CF_TOKEN},hash=x=>createHash('sha256').update(x).digest('hex');
+          const req=(u,o={})=>fetch(u,{...o,signal:AbortSignal.timeout(35000)});
+          const save=(n,x)=>writeFileSync('v28_evidence/'+n,JSON.stringify(x,null,2));
+          async function source(){const r=await req(base,{headers:auth});assert(r.ok,'SOURCE_'+r.status);if((r.headers.get('content-type')||'').startsWith('multipart/')){const f=await r.formData(),m=f.get('metadata');const j=m?JSON.parse(typeof m==='string'?m:await m.text()):{};const p=f.get(j.main_module||j.body_part||'worker.js');return Buffer.from(typeof p==='string'?p:await p.arrayBuffer())}return Buffer.from(await r.arrayBuffer())}
+          async function config(){return Promise.all(['/settings','/schedules'].map(async p=>{const r=await req(base+p,{headers:auth});assert(r.ok);const j=await r.json();assert(j.success);return j.result}))}
+          async function upload(s){const f=new FormData();f.set('metadata',JSON.stringify({main_module:'worker.js'}));f.set('worker.js',new Blob([s],{type:'application/javascript+module'}),'worker.js');const r=await req(base+'/content',{method:'PUT',headers:auth,body:f});const j=await r.json();assert(r.ok&&j.success,'UPLOAD_'+r.status)}
+          const original=await source();assert.equal(hash(original),OLD,'LIVE_SOURCE_CHANGED');const settings=await config();writeFileSync('v28_evidence/live_v27_2.mjs',original);
+          const nonce=randomBytes(32).toString('hex'),marker='V28_READONLY_'+process.env.GITHUB_RUN_ID;
+          const helper=`async function __v28audit(request,env){
+           if(request.headers.get('authorization')!==${JSON.stringify('Bearer '+nonce)})return new Response('Not found',{status:404});
+           const u=new URL(request.url),prefix='irys:fast:delivery-receipt:v12:';let data;
+           if(u.pathname==='/__v28/state'){
+            const s=JSON.parse(await env.IRYS_KV.get('irys:fast:state:v1')||'{}');
+            data={at_ms:Date.now(),state:Object.fromEntries(Object.entries(s).filter(([k])=>/^v23Scout|^v27|Outcomes|Receipts/.test(k)||k==='last')),inventory:Object.fromEntries(Object.entries(s).map(([k,v])=>[k,{type:typeof v,length:Array.isArray(v)?v.length:undefined}]))};
+           }else if(u.pathname==='/__v28/keys')data=await env.IRYS_KV.list({prefix,limit:1000,...(u.searchParams.get('cursor')?{cursor:u.searchParams.get('cursor')}:{})});
+           else if(u.pathname==='/__v28/values'&&request.method==='POST'){
+            const keys=(await request.json()).keys;if(!Array.isArray(keys)||keys.length>20||keys.some(k=>typeof k!=='string'||!k.startsWith(prefix)))return new Response('Invalid',{status:400});
+            data=await Promise.all(keys.map(async key=>({key,event_ms:Number(key.split(':').at(-1)),receipt:JSON.parse(await env.IRYS_KV.get(key)||'null')})));
+           }else return new Response('Not found',{status:404});
+           return new Response(JSON.stringify({marker:${JSON.stringify(marker)},data},(k,v)=>/secret|token|chat_id|account_id|authorization|email|message_text/i.test(k)?undefined:v),{headers:{'content-type':'application/json','cache-control':'no-store'}});
+          }\n`;
+          const text=original.toString('utf8'),needle='  async fetch(_request,env){';assert.equal(text.split(needle).length,2);
+          const patch=helper+text.replace(needle,needle+'\n    if(new URL(_request.url).pathname.startsWith("/__v28/"))return __v28audit(_request,env);');
+          assert.equal(patch.split('  async scheduled(_controller,env){')[1],text.split('  async scheduled(_controller,env){')[1]);
+          const mod=await import('data:text/javascript;base64,'+Buffer.from(patch).toString('base64'));let reads=0;
+          assert.equal((await mod.default.fetch(new Request('https://example.test/__v28/state'),{IRYS_KV:{get:()=>{reads++;throw Error('unauthorized')}}})).status,404);assert.equal(reads,0);
+          const patchedHash=hash(patch);let count=0;
+          try{
+           assert.equal(hash(await source()),OLD);await upload(patch);assert.equal(hash(await source()),patchedHash);assert.deepEqual(await config(),settings);
+           async function read(path,opts={}){const r=await req('https://irys-surge-monitor.vhehwpfl.workers.dev/__v28/'+path,{...opts,headers:{authorization:'Bearer '+nonce,'content-type':'application/json'}});assert(r.ok);const x=await r.json();assert.equal(x.marker,marker);return x.data}
+           save('state.json',await read('state'));
+           const keys=[],seen=new Set();let cursor;
+           do{const p=await read('keys'+(cursor?'?cursor='+encodeURIComponent(cursor):''));keys.push(...p.keys.map(k=>k.name));if(p.list_complete)break;cursor=p.cursor;assert(cursor&&!seen.has(cursor));seen.add(cursor)}while(cursor);
+           const dayStart=Math.floor((Date.now()+9*3600000)/86400000)*86400000-9*3600000;
+           const today=keys.filter(k=>Number(k.split(':').at(-1))>=dayStart),receipts=[];
+           for(let i=0;i<today.length;i+=20)receipts.push(...await read('values',{method:'POST',body:JSON.stringify({keys:today.slice(i,i+20)})}));
+           count=receipts.length;save('today_receipts.json',{at_ms:Date.now(),day_start_ms:dayStart,pagination_exhausted:true,all_keys_listed:keys.length,receipts});
+           console.log('V28_SCOPED_RECEIPT_COUNT',count);
+          }finally{
+           const active=await source();if(hash(active)===patchedHash)await upload(original);else assert.equal(hash(active),OLD,'EXTERNAL_CHANGE_NO_OVERWRITE');
+           assert.equal(hash(await source()),OLD,'EXACT_RESTORE_NOT_VERIFIED');assert.deepEqual(await config(),settings);
+           save('restore.json',{restored:true,sha256:OLD,cron_and_bindings_unchanged:true,no_manual_scan_or_telegram:true});
+          }
+          const h=await(await req('https://irys-surge-monitor.vhehwpfl.workers.dev/')).json();save('health.json',h);
+          console.log('V28_LIVE_SCOUT',JSON.stringify({time:h.last?.time,version:h.last?.codeVersion,scout:h.last?.v23DirectFastScout,last_ack:h.last?.telegramLastApiReceipt}));
+          JS
+      - name: Collect official all-market snapshots and photographed movers histories, read only
+        run: |
+          python - <<'PY'
+          import json,time,pathlib,urllib.request,urllib.parse,datetime,concurrent.futures,threading
+          root=pathlib.Path('v28_evidence');lock=threading.Lock();last=[0.]
+          def get(path,params=None):
+           with lock:
+            wait=max(0,last[0]-time.monotonic())
+            if wait:time.sleep(wait)
+            last[0]=time.monotonic()+.22
+           url='https://api.bithumb.com'+path+('?' + urllib.parse.urlencode(params) if params else '')
+           with urllib.request.urlopen(urllib.request.Request(url,headers={'accept':'application/json','User-Agent':'IRYS-authorized-coverage-audit'}),timeout=25) as r:return json.load(r)
+          def save(name,x):(root/name).write_text(json.dumps(x,ensure_ascii=False,indent=2),encoding='utf8')
+          markets=get('/v1/market/all',{'isDetails':'true'});warnings=get('/v1/market/virtual_asset_warning');tickers=[]
+          symbols=[x['market'] for x in markets if x['market'].startswith('KRW-')]
+          for i in range(0,len(symbols),100):tickers+=get('/v1/ticker',{'markets':','.join(symbols[i:i+100])})
+          now=int(time.time()*1000);save('snapshot.json',{'at_ms':now,'bithumb_markets':markets,'bithumb_warnings':warnings,'bithumb_tickers':tickers})
+          targets=['SOPH','OGN','MPLX','BIRB','DEBIT','HAEDAL','TRUST','CAP','POD','BEAM','DKA','UOS']
+          def detail(sym):
+           market='KRW-'+sym;out={'market':market,'fetched_at_ms':int(time.time()*1000)}
+           for key,path,args in [('candles5','/v1/candles/minutes/5',{'market':market,'count':200}),('candles1','/v1/candles/minutes/1',{'market':market,'count':200}),('tape','/v1/trades/ticks',{'market':market,'count':500})]:
+            try:out[key]=get(path,args)
+            except Exception as e:out[key]={'error':type(e).__name__,'code':getattr(e,'code',None)}
+           return out
+          with concurrent.futures.ThreadPoolExecutor(max_workers=3) as p:details=list(p.map(detail,targets))
+          books=get('/v1/orderbook',{'markets':','.join('KRW-'+x for x in targets)})
+          save('target_details.json',details);save('target_books.json',books)
+          photo=set('KRW-'+x for x in targets);risk={x['market'] for x in warnings}
+          print('V28_PHOTO_CURRENT',json.dumps([{'market':x['market'],'price':x['trade_price'],'day_pct':100*x['signed_change_rate'],'trade_date':x.get('trade_date'),'trade_time':x.get('trade_time'),'risk':x['market'] in risk,'warning':next((m.get('market_warning') for m in markets if m['market']==x['market']),None)} for x in tickers if x['market'] in photo],ensure_ascii=False))
+          print('V28_ACTUAL_COVERAGE',len(symbols),len(tickers))
+          PY
+      - name: Freeze current checked-out source for reproducible local inspection
+        if: always()
+        run: |
+          mkdir -p v28_evidence
+          git archive --format=zip --output=v28_evidence/source.zip HEAD
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: v28-bithumb-missed-mover-evidence
+          path: v28_evidence/
+          retention-days: 7
+          if-no-files-found: error
