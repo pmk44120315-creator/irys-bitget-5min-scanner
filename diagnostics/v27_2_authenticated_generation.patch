@@ -1,0 +1,100 @@
+--- a/deployment/v27_response.mjs
++++ b/deployment/v27_response.mjs
+@@ -84,21 +84,40 @@
+ }
+ async function v27ReadFresh(read,requestedAt,options={}){
+  const clock=options.clock||Date.now,sleep=options.sleep||(ms=>new Promise(r=>setTimeout(r,ms)));
+- const start=clock(),deadline=start+(options.maxWaitMs??90000);let reads=0,lastReason='NO_GENERATION';
++ const start=clock(),deadline=start+(options.maxWaitMs??90000);
++ const token=typeof options.githubToken==='string'&&options.githubToken?options.githubToken:null;
++ let reads=0,lastReason='NO_GENERATION',lastObservation=null;
+  while(true){
+   try{
+-   const doc=await read(V27_URL+'?v27='+clock(),{headers:{accept:'application/json'}},8500);reads++;
++   let doc,transport='PUBLIC_RAW';
++   if(token){
++    try{
++     const url='https://api.github.com/repos/pmk44120315-creator/irys-bitget-5min-scanner/contents/data/v27_bitget_response_latest.json?ref=main&v27='+clock();
++     doc=await read(url,{headers:{authorization:'Bearer '+token,accept:'application/vnd.github.raw+json','User-Agent':'IRYS-verified-public-market-reader','cache-control':'no-cache'},cf:{cacheTtl:0}},8500);
++     reads++;transport='GITHUB_AUTHENTICATED_CONTENTS';
++    }catch(_e){
++     reads++;
++     doc=await read(V27_URL+'?v27='+clock(),{headers:{accept:'application/json','cache-control':'no-cache'},cf:{cacheTtl:0}},8500);
++     reads++;transport='PUBLIC_RAW_FALLBACK';
++    }
++   }else{
++    doc=await read(V27_URL+'?v27='+clock(),{headers:{accept:'application/json','cache-control':'no-cache'},cf:{cacheTtl:0}},8500);reads++;
++   }
+    const now=clock(),at=v27N(doc?.at_ms),parent=v27N(doc?.parent_at_ms);
++   lastObservation={source_transport:transport,at_ms:at,parent_at_ms:parent,requested_at_ms:requestedAt,
++     now_ms:now,age_ms:at===null?null:now-at,same_generation:parent!==null&&parent>=requestedAt-15000,
++     lineage:doc?.source?.at_ms===parent};
+    if(doc?.version==='IRYS_V27_EXECUTABLE_RESPONSE_V1'&&Number.isSafeInteger(at)&&Number.isSafeInteger(parent)&&
+       doc.source?.at_ms===parent&&at>=parent&&at<=now+1000&&now-at<=V27_FRESH_MS&&now-parent<=V27_FRESH_MS&&
+-      parent>=requestedAt-15000){return {status:'FRESH',doc,reads,wait_ms:now-start};}
++      parent>=requestedAt-15000){return {status:'FRESH',doc,reads,wait_ms:now-start,source_transport:transport};}
+    lastReason='OLD_OR_UNTRUSTED_GENERATION';
+-  }catch(e){reads++;lastReason='FRESH_SOURCE_READ_FAILED';}
++  }catch(_e){reads++;lastReason='FRESH_SOURCE_READ_FAILED';lastObservation={source_transport:'UNAVAILABLE',now_ms:clock(),requested_at_ms:requestedAt};}
+   const remaining=deadline-clock();if(remaining<=0)break;
+   await sleep(Math.min(5000,remaining));
+  }
+- return {status:'FRESH_GENERATION_UNAVAILABLE',reason:lastReason,reads,wait_ms:clock()-start};
++ return {status:'FRESH_GENERATION_UNAVAILABLE',reason:lastReason,reads,wait_ms:clock()-start,last_observation:lastObservation};
+ }
++
+ function v27ResponseText(response){
+  const labels={BUY_PRESSURE_ADVANCES:'매수 체결이 실제 가격 상승으로 연결',SELL_PRESSURE_ADVANCES:'매도 체결이 실제 가격 하락으로 연결',BUY_PRESSURE_FAILED:'매수 체결 우세에도 가격 하락 · 매수 압력 실패',SELL_PRESSURE_FAILED:'매도 체결 우세에도 가격 상승 · 매도 압력 실패',BUY_PRESSURE_STALLED:'매수 우세이나 스프레드를 넘는 상승 미확인',SELL_PRESSURE_STALLED:'매도 우세이나 스프레드를 넘는 하락 미확인',BALANCED_EFFORT:'표본 매수·매도 균형'};
+  if(response?.status!=='SAMPLED_RESPONSE')return '최근 체결-가격 반응: 자료 부족';
+--- a/deployment/build_v27_worker.py
++++ b/deployment/build_v27_worker.py
+@@ -10,8 +10,8 @@
+  global s
+  assert s.count(a)==1,(label,s.count(a))
+  s=s.replace(a,b);changes.append(label)
+-replace("IRYS-V24-BITGET-GITHUB-FAST-FALLBACK-20261101","IRYS-V27.1-EXECUTABLE-RESPONSE-IDSAFE-20261102",'version')
+-replace("const V23_VER='IRYS_V24_GITHUB_OFFICIAL_BITGET_FALLBACK_V1';","const V23_VER='IRYS_V27_1_EXECUTABLE_RESPONSE_V1';",'scout-version')
++replace("IRYS-V24-BITGET-GITHUB-FAST-FALLBACK-20261101","IRYS-V27.2-EXECUTABLE-RESPONSE-AUTHFRESH-20261102",'version')
++replace("const V23_VER='IRYS_V24_GITHUB_OFFICIAL_BITGET_FALLBACK_V1';","const V23_VER='IRYS_V27_2_EXECUTABLE_RESPONSE_V1';",'scout-version')
+ replace("price,move_pct:v23Round(change),turnover5_est_krw:Math.round(turn),","price,baseline_price:lastPrice,move_pct:v23Round(change),turnover5_est_krw:Math.round(turn),",'spot-baseline')
+ replace("price,move_pct:v23Round(change),turnover5_est_krw:null,turnover_ratio:null,","price,baseline_price:prior,current_quote:{bid,ask,at_ms:stamp},move_pct:v23Round(change),turnover5_est_krw:null,turnover_ratio:null,",'futures-baseline')
+ replace(' const read=options.read||requestJson;\n try{\n   const {feeds,failures,availability}=await v23ReadFeeds(read);',
+@@ -20,8 +20,8 @@
+  try{
+    const {feeds,failures,availability}=await v23ReadFeeds(read);''','clock')
+ replace("       const doc=await read(V24_FAST_URL+'?ts='+now,{headers:{accept:'application/json'}},8500);\n       fallback=v24FastFallback(doc,now);",
+-'''       const loaded=await v27ReadFresh(read,now,{clock,sleep:options.sleep,maxWaitMs:options.maxWaitMs});
+-       output.v27FreshSource={status:loaded.status,reads:loaded.reads,wait_ms:loaded.wait_ms};
++'''       const loaded=await v27ReadFresh(read,now,{clock,sleep:options.sleep,maxWaitMs:options.maxWaitMs,githubToken:env.GITHUB_DISPATCH_TOKEN});
++       output.v27FreshSource={status:loaded.status,reads:loaded.reads,wait_ms:loaded.wait_ms,source_transport:loaded.source_transport,reason:loaded.reason,last_observation:loaded.last_observation};
+        now=clock();
+        if(loaded.status==='FRESH'){
+          fallback=v27EnrichFallback(v24FastFallback(loaded.doc.source,now),loaded.doc,state,now);
+--- /dev/null
++++ b/tests/test_v27_authenticated_generation.mjs
+@@ -0,0 +1,25 @@
++import test from 'node:test';import assert from 'node:assert/strict';
++import {v27ReadFresh} from '../deployment/v27_response.mjs';
++const T=1793588700000;
++function doc(at=T){return {version:'IRYS_V27_EXECUTABLE_RESPONSE_V1',at_ms:at,parent_at_ms:at-1000,source:{at_ms:at-1000}};}
++test('actual stale raw branch case prefers authorized content with same-generation clock',async()=>{
++ const calls=[];const x=await v27ReadFresh(async(url,opts)=>{calls.push({url,opts});return url.startsWith('https://api.github.com/')?doc():doc(T-300000)},T,{clock:()=>T,maxWaitMs:0,githubToken:'MOCK_ONLY'});
++ assert.equal(x.status,'FRESH');assert.equal(x.source_transport,'GITHUB_AUTHENTICATED_CONTENTS');
++ assert.equal(calls.length,1);assert.equal(calls[0].opts.headers.authorization,'Bearer MOCK_ONLY');
++ assert.equal(calls[0].opts.headers.accept,'application/vnd.github.raw+json');
++ assert.ok(!JSON.stringify(x).includes('MOCK_ONLY'));
++});
++test('expired auth falls back to raw without forwarding secret to raw host',async()=>{
++ const calls=[];const x=await v27ReadFresh(async(url,opts)=>{calls.push({url,opts});if(url.startsWith('https://api.github.com/'))throw Error('HTTP_401');return doc();},T,{clock:()=>T,maxWaitMs:0,githubToken:'MOCK_SECRET'});
++ assert.equal(x.status,'FRESH');assert.equal(x.source_transport,'PUBLIC_RAW_FALLBACK');assert.equal(calls.length,2);
++ assert.equal(calls[1].opts.headers.authorization,undefined);assert.ok(!JSON.stringify(x).includes('MOCK_SECRET'));
++});
++test('authorized HTTP success still cannot turn old generation into fresh quotes',async()=>{
++ const x=await v27ReadFresh(async()=>doc(T-300000),T,{clock:()=>T,maxWaitMs:0,githubToken:'MOCK_ONLY'});
++ assert.equal(x.status,'FRESH_GENERATION_UNAVAILABLE');assert.equal(x.last_observation.same_generation,false);
++ assert.ok(!JSON.stringify(x).includes('MOCK_ONLY'));
++});
++test('primary error diagnostics never echo token text in provider exceptions',async()=>{
++ const x=await v27ReadFresh(async()=>{throw Error('leaked MOCK_SECRET must never be in telemetry')},T,{clock:()=>T,maxWaitMs:0,githubToken:'MOCK_SECRET'});
++ assert.equal(x.status,'FRESH_GENERATION_UNAVAILABLE');assert.ok(!JSON.stringify(x).includes('MOCK_SECRET'));
++});
