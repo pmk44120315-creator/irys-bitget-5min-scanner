@@ -1,0 +1,60 @@
+name: IRYS V27.1 natural reader trace and exact restore
+on:
+  push:
+    branches: [deploy/irys-v27-reviewed-worker-20261102]
+    paths: ['.github/workflows/v27-1-natural-read-trace.yml']
+permissions:
+  contents: read
+concurrency:
+  group: irys-v27-guarded-worker-source
+  cancel-in-progress: false
+jobs:
+  trace:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Add only non-secret reader diagnostics for next natural tick and restore exact source
+        env:
+          CF_ACCOUNT: ${{ secrets.IRYS_REALTIME_CF_ACCOUNT_ID }}
+          CF_TOKEN: ${{ secrets.IRYS_V7_CF_API_TOKEN }}
+        run: |
+          mkdir -p v27_trace
+          node --input-type=module <<'JS'
+          import {writeFileSync} from 'node:fs';import {createHash} from 'node:crypto';import assert from 'node:assert/strict';
+          const oldHash='081baf77fd14b62594dd41bc0df7caa026bcaf9ffd128d6a2f61e49c5173fbc5';
+          const base='https://api.cloudflare.com/client/v4/accounts/'+process.env.CF_ACCOUNT+'/workers/scripts/irys-surge-monitor';
+          const auth={authorization:'Bearer '+process.env.CF_TOKEN},hash=x=>createHash('sha256').update(x).digest('hex');
+          const req=(u,o={})=>fetch(u,{...o,signal:AbortSignal.timeout(35000)});
+          async function source(){const r=await req(base,{headers:auth});assert(r.ok);if((r.headers.get('content-type')||'').startsWith('multipart/')){const f=await r.formData(),m=f.get('metadata');const j=m?JSON.parse(typeof m==='string'?m:await m.text()):{};const p=f.get(j.main_module||j.body_part||'worker.js');return Buffer.from(typeof p==='string'?p:await p.arrayBuffer())}return Buffer.from(await r.arrayBuffer())}
+          async function config(){return Promise.all(['/settings','/schedules'].map(async p=>{const r=await req(base+p,{headers:auth});assert(r.ok);const j=await r.json();assert(j.success);return j.result}))}
+          async function upload(s){const f=new FormData();f.set('metadata',JSON.stringify({main_module:'worker.js'}));f.set('worker.js',new Blob([s],{type:'application/javascript+module'}),'worker.js');const r=await req(base+'/content',{method:'PUT',headers:auth,body:f});const j=await r.json();assert(r.ok&&j.success)}
+          const original=await source();assert.equal(hash(original),oldHash);const settings=await config();let patched=original.toString('utf8');
+          function change(a,b){assert.equal(patched.split(a).length,2,'TRACE_ANCHOR');patched=patched.replace(a,b)}
+          change("let reads=0,lastReason='NO_GENERATION';","let reads=0,lastReason='NO_GENERATION',lastObservation=null;");
+          change("const now=clock(),at=v27N(doc?.at_ms),parent=v27N(doc?.parent_at_ms);","const now=clock(),at=v27N(doc?.at_ms),parent=v27N(doc?.parent_at_ms);lastObservation={now_ms:now,requested_at_ms:requestedAt,at_ms:at,parent_at_ms:parent,embedded_at_ms:doc?.source?.at_ms,version:doc?.version,age_ms:now-at,parent_age_ms:now-parent,same_generation:parent>=requestedAt-15000,lineage:doc?.source?.at_ms===parent};");
+          change("catch(e){reads++;lastReason='FRESH_SOURCE_READ_FAILED';}","catch(e){reads++;lastReason='FRESH_SOURCE_READ_FAILED';lastObservation={error:String(e.message||e).slice(0,140),now_ms:clock(),requested_at_ms:requestedAt};}");
+          change("return {status:'FRESH_GENERATION_UNAVAILABLE',reason:lastReason,reads,wait_ms:clock()-start};","return {status:'FRESH_GENERATION_UNAVAILABLE',reason:lastReason,reads,wait_ms:clock()-start,lastObservation};");
+          change("output.v27FreshSource={status:loaded.status,reads:loaded.reads,wait_ms:loaded.wait_ms};","output.v27FreshSource={status:loaded.status,reads:loaded.reads,wait_ms:loaded.wait_ms,trace_v27:true,reason:loaded.reason,lastObservation:loaded.lastObservation};");
+          assert.equal(patched.split('  async scheduled(_controller,env){')[1],original.toString().split('  async scheduled(_controller,env){')[1]);
+          const patchedHash=hash(patched);let done=false;
+          try{
+            assert.equal(hash(await source()),oldHash);await upload(patched);assert.equal(hash(await source()),patchedHash);assert.deepEqual(await config(),settings);
+            const deadline=Math.ceil(Date.now()/300000)*300000+240000;
+            while(Date.now()<deadline){
+              const r=await req('https://irys-surge-monitor.vhehwpfl.workers.dev/?trace='+Date.now());assert(r.ok);const health=await r.json();
+              if(health.last?.v23DirectFastScout?.v27FreshSource?.trace_v27){writeFileSync('v27_trace/health.json',JSON.stringify(health,null,2));console.log('V27_NATURAL_SOURCE_TRACE',JSON.stringify({time:health.last.time,status:health.last.status,source:health.last.v23DirectFastScout.v27FreshSource}));done=true;break;}
+              await new Promise(r=>setTimeout(r,10000));
+            }
+            assert(done,'NATURAL_TRACE_NOT_OBSERVED');
+          }finally{
+            const current=await source();if(hash(current)===patchedHash)await upload(original);else assert.equal(hash(current),oldHash,'EXTERNAL_CHANGE');
+            assert.equal(hash(await source()),oldHash,'RESTORE_FAILED');assert.deepEqual(await config(),settings);
+            writeFileSync('v27_trace/restore.json',JSON.stringify({restored:true,original_sha256:oldHash,diagnostics_only:true,no_manual_scan_or_test_telegram:true},null,2));console.log('V27_TRACE_RESTORED');
+          }
+          JS
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: v27-natural-reader-trace
+          path: v27_trace/
+          retention-days: 7
+          if-no-files-found: error
