@@ -1,0 +1,63 @@
+name: IRYS V27.1 Cloudflare source clock and cache diagnosis exact restore
+on:
+  push:
+    branches: [deploy/irys-v27-reviewed-worker-20261102]
+    paths: ['.github/workflows/v27-1-egress-diagnose.yml']
+permissions:
+  contents: read
+concurrency:
+  group: irys-v27-guarded-worker-source
+  cancel-in-progress: false
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Exact-source temporary authenticated read-only probe; always restore prior Worker
+        env:
+          CF_ACCOUNT: ${{ secrets.IRYS_REALTIME_CF_ACCOUNT_ID }}
+          CF_TOKEN: ${{ secrets.IRYS_V7_CF_API_TOKEN }}
+        run: |
+          mkdir -p v27_egress
+          node --input-type=module <<'JS'
+          import {writeFileSync} from 'node:fs';import {createHash,randomBytes} from 'node:crypto';import assert from 'node:assert/strict';
+          const oldHash='081baf77fd14b62594dd41bc0df7caa026bcaf9ffd128d6a2f61e49c5173fbc5';
+          const base='https://api.cloudflare.com/client/v4/accounts/'+process.env.CF_ACCOUNT+'/workers/scripts/irys-surge-monitor';
+          const auth={authorization:'Bearer '+process.env.CF_TOKEN},hash=x=>createHash('sha256').update(x).digest('hex');
+          const req=(u,o={})=>fetch(u,{...o,signal:AbortSignal.timeout(35000)});
+          async function source(){const r=await req(base,{headers:auth});assert(r.ok,'SOURCE_'+r.status);if((r.headers.get('content-type')||'').startsWith('multipart/')){const f=await r.formData(),m=f.get('metadata');const j=m?JSON.parse(typeof m==='string'?m:await m.text()):{};const p=f.get(j.main_module||j.body_part||'worker.js');return Buffer.from(typeof p==='string'?p:await p.arrayBuffer())}return Buffer.from(await r.arrayBuffer())}
+          async function config(){return Promise.all(['/settings','/schedules'].map(async p=>{const r=await req(base+p,{headers:auth});assert(r.ok);const j=await r.json();assert(j.success);return j.result}))}
+          async function upload(s){const f=new FormData();f.set('metadata',JSON.stringify({main_module:'worker.js'}));f.set('worker.js',new Blob([s],{type:'application/javascript+module'}),'worker.js');const r=await req(base+'/content',{method:'PUT',headers:auth,body:f});const j=await r.json();assert(r.ok&&j.success,'UPLOAD_'+r.status)}
+          const original=await source();assert.equal(hash(original),oldHash);const settings=await config(),nonce=randomBytes(32).toString('hex');
+          const helper=`async function __v27Probe(request,env){
+          if(request.headers.get('authorization')!==${JSON.stringify('Bearer '+nonce)})return new Response('Not found',{status:404});
+          const start=Date.now(),out=[];
+          const urls=[['raw',V27_URL+'?v27='+Date.now(),{accept:'application/json'}],['contents','https://api.github.com/repos/pmk44120315-creator/irys-bitget-5min-scanner/contents/data/v27_bitget_response_latest.json?ref=main&v27='+Date.now(),{authorization:'Bearer '+env.GITHUB_DISPATCH_TOKEN,accept:'application/vnd.github.raw+json','User-Agent':'IRYS-verified-public-market-reader'}]];
+          for(const [kind,url,headers] of urls){try{
+            const res=await fetch(url,{headers,signal:AbortSignal.timeout(12000)});const raw=await res.text();let d=null;try{d=JSON.parse(raw)}catch{}
+            const now=Date.now(),parent=v27N(d?.parent_at_ms),at=v27N(d?.at_ms);
+            out.push({kind,http:res.status,raw_bytes:raw.length,age_header:res.headers.get('age'),cache_control:res.headers.get('cache-control'),cache:res.headers.get('x-cache'),cf_cache:res.headers.get('cf-cache-status'),date_header:res.headers.get('date'),at_ms:at,parent_at_ms:parent,embedded_at_ms:d?.source?.at_ms,version:d?.version,now_ms:now,requested_start_ms:start,source_age_ms:now-at,parent_age_ms:now-parent,at_integer:Number.isSafeInteger(at),parent_integer:Number.isSafeInteger(parent),lineage:d?.source?.at_ms===parent,at_after_parent:at>=parent,within_future:at<=now+1000,same_generation:parent>=start-15000,source_status:d?.source?.status});
+          }catch(e){out.push({kind,error:String(e.message).slice(0,180)})}}
+          return new Response(JSON.stringify({start_ms:start,results:out}),{headers:{'content-type':'application/json','cache-control':'no-store'}});
+          }\n`;
+          const text=original.toString('utf8'),needle='  async fetch(_request,env){';assert.equal(text.split(needle).length,2);
+          const patched=helper+text.replace(needle,needle+'\n    if(new URL(_request.url).pathname==="/__v27_source_probe")return __v27Probe(_request,env);');
+          assert.equal(patched.split('  async scheduled(_controller,env){')[1],text.split('  async scheduled(_controller,env){')[1]);
+          const newHash=hash(patched);let changed=false;
+          try{
+            assert.equal(hash(await source()),oldHash);changed=true;await upload(patched);assert.equal(hash(await source()),newHash);assert.deepEqual(await config(),settings);
+            const r=await req('https://irys-surge-monitor.vhehwpfl.workers.dev/__v27_source_probe',{headers:{authorization:'Bearer '+nonce}});assert(r.ok,'PROBE_'+r.status);const result=await r.json();
+            writeFileSync('v27_egress/source_probe.json',JSON.stringify(result,null,2));console.log('V27_ACTUAL_CF_EGRESS_PROBE',JSON.stringify(result));
+          }finally{
+            const active=await source();if(hash(active)===newHash)await upload(original);else assert.equal(hash(active),oldHash,'EXTERNAL_CODE_CHANGED_NO_OVERWRITE');
+            assert.equal(hash(await source()),oldHash,'RESTORE_NOT_VERIFIED');assert.deepEqual(await config(),settings);
+            const receipt={original_sha256:oldHash,restored:true,scheduled_body_unchanged:true,no_scans_or_orders_or_messages:true};
+            writeFileSync('v27_egress/restore.json',JSON.stringify(receipt,null,2));console.log('V27_EGRESS_PROBE_RESTORED',JSON.stringify(receipt));
+          }
+          JS
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: v27-actual-cloudflare-source-diagnosis
+          path: v27_egress/
+          retention-days: 7
+          if-no-files-found: error
