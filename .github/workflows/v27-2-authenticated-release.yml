@@ -1,0 +1,112 @@
+name: IRYS V27.2 authenticated fresh-generation guarded repair
+on:
+  push:
+    branches: [deploy/irys-v27-reviewed-worker-20261102]
+    paths: ['.github/workflows/v27-2-authenticated-release.yml','diagnostics/v27_2_authenticated_generation.patch']
+permissions:
+  contents: write
+  actions: read
+concurrency:
+  group: irys-v27-guarded-worker-source
+  cancel-in-progress: false
+jobs:
+  repair:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/download-artifact@v4
+        with:
+          name: v27-1-guarded-production-release-proof
+          run-id: 41379407919
+          github-token: ${{ github.token }}
+          path: /tmp/prior_v27_1
+      - name: Apply focused cache-path repair and prepare exact prior-source rollback
+        run: |
+          git apply --check diagnostics/v27_2_authenticated_generation.patch
+          git apply diagnostics/v27_2_authenticated_generation.patch
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('deployment/release_v27_guarded.mjs');s=p.read_text()
+          changes={"const OLD='a23035b6e36a61622424e5046e40d5fda85d76389ed778c9c954d175ea0454cd';":"const OLD='081baf77fd14b62594dd41bc0df7caa026bcaf9ffd128d6a2f61e49c5173fbc5';",
+          "const NEW='081baf77fd14b62594dd41bc0df7caa026bcaf9ffd128d6a2f61e49c5173fbc5';":"const NEW='f9213445d95a1c52e4d72eb47961e8d63188d3d99ed7876894d69907b3e00b1f';",
+          "const VERSION='IRYS-V27.1-EXECUTABLE-RESPONSE-IDSAFE-20261102';":"const VERSION='IRYS-V27.2-EXECUTABLE-RESPONSE-AUTHFRESH-20261102';"}
+          for a,b in changes.items():
+              assert s.count(a)==1
+              s=s.replace(a,b)
+          p.write_text(s)
+          PY
+          git fetch --quiet --depth=1 origin release/irys-v24-bitget-fallback-20261101
+          git show FETCH_HEAD:deployment/IRYS_V24_BITGET_FALLBACK_WORKER.mjs > /tmp/v24.mjs
+          python deployment/build_v27_worker.py /tmp/v24.mjs deployment/IRYS_V27_RESPONSE_WORKER.mjs
+          echo 'f9213445d95a1c52e4d72eb47961e8d63188d3d99ed7876894d69907b3e00b1f  deployment/IRYS_V27_RESPONSE_WORKER.mjs' | sha256sum -c -
+          echo '081baf77fd14b62594dd41bc0df7caa026bcaf9ffd128d6a2f61e49c5173fbc5  /tmp/prior_v27_1/IRYS_V27_RESPONSE_WORKER.mjs' | sha256sum -c -
+      - name: All original tests, stale-raw reproduction, secret isolation, real source leases and rollback
+        env:
+          V27_BASE_WORKER: /tmp/v24.mjs
+          V27_RELEASE_BASE_WORKER: /tmp/prior_v27_1/IRYS_V27_RESPONSE_WORKER.mjs
+        run: |
+          python -m unittest discover -s tests -v
+          node --test tests/*.mjs
+      - name: Publish only tested ordinary files on same deploy ref, not main data or workflows
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git fetch --quiet origin deploy/irys-v27-reviewed-worker-20261102
+          test "$(git rev-parse FETCH_HEAD)" = "$GITHUB_SHA"
+          git add deployment/v27_response.mjs deployment/build_v27_worker.py tests/test_v27_authenticated_generation.mjs deployment/release_v27_guarded.mjs
+          git commit -m 'fix(v27.2): tested authenticated same-generation read; never relax original freshness'
+          git push origin HEAD:deploy/irys-v27-reviewed-worker-20261102
+          echo "V27_2_REVIEWED_COMMIT=$(git rev-parse HEAD)"
+          git ls-tree HEAD deployment/v27_response.mjs deployment/build_v27_worker.py tests/test_v27_authenticated_generation.mjs
+      - name: Guarded exact-source code-only release without manual scan or Telegram test
+        env:
+          CF_ACCOUNT: ${{ secrets.IRYS_REALTIME_CF_ACCOUNT_ID }}
+          CF_TOKEN: ${{ secrets.IRYS_V7_CF_API_TOKEN }}
+        run: node deployment/release_v27_guarded.mjs
+      - name: Observe first full natural Cron after deployment, strict fresh source required
+        run: |
+          node --input-type=module <<'JS'
+          import {readFileSync,writeFileSync} from 'node:fs';import assert from 'node:assert/strict';
+          const receipt=JSON.parse(readFileSync('v27_deployment_receipt/deployment.json','utf8'));
+          const minTick=Math.ceil(Date.parse(receipt.deployed_at_utc)/300000)*300000;
+          const deadline=minTick+180000;let h=null;const observations=[];
+          const ms=s=>typeof s==='string'?Date.parse(s.replace(' KST','+09:00').replace(' ','T')):NaN;
+          do{
+            const r=await fetch('https://irys-surge-monitor.vhehwpfl.workers.dev/?finalProof='+Date.now(),{signal:AbortSignal.timeout(20000)});assert(r.ok);h=await r.json();
+            const l=h.last||{};observations.push({at_ms:Date.now(),time:l.time,version:l.codeVersion,fresh:l.v23DirectFastScout?.v27FreshSource});
+            if(l.codeVersion===receipt.worker_version&&ms(l.time)>=minTick)break;
+            if(Date.now()>=deadline)break;
+            await new Promise(r=>setTimeout(r,10000));
+          }while(Date.now()<=deadline);
+          writeFileSync('v27_deployment_receipt/natural_health.json',JSON.stringify(h,null,2));
+          writeFileSync('v27_deployment_receipt/natural_observations.json',JSON.stringify(observations,null,2));
+          const l=h.last||{},s=l.v23DirectFastScout||{};
+          const proof={at_utc:new Date().toISOString(),version:l.codeVersion,time:l.time,status:l.status,dispatch:l.githubDispatchStatus,
+            source:s.v27FreshSource,fallback:s.bitget_fast_fallback,compared:s.compared_venues,candidates:s.candidate_count,
+            watch_status:s.status,watch_sent:s.sent,watch_error:s.send_error,quote_audit:s.v27ExecutableAudit||null,
+            last_ack:l.telegramLastApiReceipt,ack_this_tick:l.telegramApiAckedThisRun,
+            no_manual_scan_or_test_messages:true,predictive_accuracy_improvement_proven:false};
+          writeFileSync('v27_deployment_receipt/natural_proof.json',JSON.stringify(proof,null,2));
+          console.log('V27_2_NATURAL_PROOF',JSON.stringify(proof));
+          assert.equal(l.codeVersion,receipt.worker_version);assert(ms(l.time)>=minTick,'POST_DEPLOY_TICK_NOT_OBSERVED');
+          assert.equal(l.status,'PASS');assert.equal(l.githubDispatchStatus,'ACCEPTED');
+          assert.equal(s.v27FreshSource?.status,'FRESH','FRESH_GENERATION_STILL_FAILING');
+          assert.equal(s.v27FreshSource?.source_transport,'GITHUB_AUTHENTICATED_CONTENTS');
+          assert.equal(s.bitget_fast_fallback?.status,'PASS');assert(!s.send_error,'TELEGRAM_SEND_ERROR');
+          JS
+      - name: Preserve tested source, actual release and natural evidence regardless of result
+        if: always()
+        run: |
+          mkdir -p v27_deployment_receipt
+          test ! -f deployment/IRYS_V27_RESPONSE_WORKER.mjs || cp deployment/IRYS_V27_RESPONSE_WORKER.mjs v27_deployment_receipt/
+          git archive --format=zip --output=v27_deployment_receipt/tested_source.zip HEAD
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: v27-2-authenticated-production-and-natural-proof
+          path: v27_deployment_receipt/
+          retention-days: 7
+          if-no-files-found: error
