@@ -5,6 +5,7 @@ on:
     paths: ['.github/workflows/v27-guarded-release.yml','deployment/release_v27_guarded.mjs','tests/test_v27_release_guard.mjs']
 permissions:
   contents: read
+  actions: read
 concurrency:
   group: irys-v27-guarded-worker-source
   cancel-in-progress: false
@@ -16,20 +17,28 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Build exact previously tested Worker source
+      - uses: actions/download-artifact@v4
+        with:
+          name: v27-guarded-production-release-proof
+          run-id: 41377404651
+          github-token: ${{ github.token }}
+          path: /tmp/v27_prior
+      - name: Build exact previously tested Worker and confirm prior release rollback bytes
         run: |
           git fetch --quiet --depth=1 origin release/irys-v24-bitget-fallback-20261101
           git show FETCH_HEAD:deployment/IRYS_V24_BITGET_FALLBACK_WORKER.mjs > /tmp/v24.mjs
           python deployment/build_v27_worker.py /tmp/v24.mjs deployment/IRYS_V27_RESPONSE_WORKER.mjs
           node --check deployment/release_v27_guarded.mjs
-          echo 'a23035b6e36a61622424e5046e40d5fda85d76389ed778c9c954d175ea0454cd  deployment/IRYS_V27_RESPONSE_WORKER.mjs' | sha256sum -c -
+          echo '081baf77fd14b62594dd41bc0df7caa026bcaf9ffd128d6a2f61e49c5173fbc5  deployment/IRYS_V27_RESPONSE_WORKER.mjs' | sha256sum -c -
+          echo 'a23035b6e36a61622424e5046e40d5fda85d76389ed778c9c954d175ea0454cd  /tmp/v27_prior/IRYS_V27_RESPONSE_WORKER.mjs' | sha256sum -c -
       - name: Full regression plus source-lease and rollback fault tests before live changes
         env:
           V27_BASE_WORKER: /tmp/v24.mjs
+          V27_RELEASE_BASE_WORKER: /tmp/v27_prior/IRYS_V27_RESPONSE_WORKER.mjs
         run: |
           python -m unittest discover -s tests -v
           node --test tests/*.mjs
-      - name: Exact V24 lease, original bindings/Cron preservation, tested V27 upload and rollback guard
+      - name: Exact prior lease, original bindings/Cron preservation, tested V27.1 upload and rollback guard
         env:
           CF_ACCOUNT: ${{ secrets.IRYS_REALTIME_CF_ACCOUNT_ID }}
           CF_TOKEN: ${{ secrets.IRYS_V7_CF_API_TOKEN }}
@@ -43,7 +52,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: v27-guarded-production-release-proof
+          name: v27-1-guarded-production-release-proof
           path: v27_deployment_receipt/
           if-no-files-found: error
           retention-days: 7

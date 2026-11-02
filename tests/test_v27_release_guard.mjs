@@ -5,7 +5,7 @@ const root=new URL('../',import.meta.url);
 function run(mode){
  const dir=mkdtempSync(join(tmpdir(),'v27-release-test-'));mkdirSync(join(dir,'deployment'));
  for(const p of ['release_v27_guarded.mjs','v27_response.mjs','IRYS_V27_RESPONSE_WORKER.mjs'])copyFileSync(new URL('deployment/'+p,root),join(dir,'deployment',p));
- copyFileSync(process.env.V27_BASE_WORKER||'/mnt/data/v27_receipts/live_worker.mjs',join(dir,'original.mjs'));
+ copyFileSync(process.env.V27_RELEASE_BASE_WORKER||'/mnt/data/v27_deployed/IRYS_V27_RESPONSE_WORKER.mjs',join(dir,'original.mjs'));
  const mock=`import {readFileSync,writeFileSync} from 'node:fs';
  const old=readFileSync('original.mjs');let active=old,puts=0,badConfig=false;
  const needed=['AI','IRYS_KV','TELEGRAM_BOT_TOKEN','TELEGRAM_CHAT_ID','GITHUB_DISPATCH_TOKEN'];
