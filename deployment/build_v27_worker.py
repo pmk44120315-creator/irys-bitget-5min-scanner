@@ -10,8 +10,8 @@ def replace(a,b,label):
  global s
  assert s.count(a)==1,(label,s.count(a))
  s=s.replace(a,b);changes.append(label)
-replace("IRYS-V24-BITGET-GITHUB-FAST-FALLBACK-20261101","IRYS-V27-EXECUTABLE-RESPONSE-20261102",'version')
-replace("const V23_VER='IRYS_V24_GITHUB_OFFICIAL_BITGET_FALLBACK_V1';","const V23_VER='IRYS_V27_EXECUTABLE_RESPONSE_V1';",'scout-version')
+replace("IRYS-V24-BITGET-GITHUB-FAST-FALLBACK-20261101","IRYS-V27.1-EXECUTABLE-RESPONSE-IDSAFE-20261102",'version')
+replace("const V23_VER='IRYS_V24_GITHUB_OFFICIAL_BITGET_FALLBACK_V1';","const V23_VER='IRYS_V27_1_EXECUTABLE_RESPONSE_V1';",'scout-version')
 replace("price,move_pct:v23Round(change),turnover5_est_krw:Math.round(turn),","price,baseline_price:lastPrice,move_pct:v23Round(change),turnover5_est_krw:Math.round(turn),",'spot-baseline')
 replace("price,move_pct:v23Round(change),turnover5_est_krw:null,turnover_ratio:null,","price,baseline_price:prior,current_quote:{bid,ask,at_ms:stamp},move_pct:v23Round(change),turnover5_est_krw:null,turnover_ratio:null,",'futures-baseline')
 replace(' const read=options.read||requestJson;\n try{\n   const {feeds,failures,availability}=await v23ReadFeeds(read);',
