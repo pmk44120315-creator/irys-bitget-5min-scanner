@@ -2,7 +2,7 @@ name: IRYS V28 resume actual-alert outcomes and missed-mover evidence
 on:
   push:
     branches: [feature/irys-v28-bithumb-coverage-20261102]
-    paths: ['.github/workflows/v28-resume-evidence.yml']
+    paths: ['.github/workflows/v28-resume-evidence.yml','diagnostics/v28_outcomes.py']
 permissions:
   contents: read
 concurrency:
@@ -16,7 +16,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Reuse exact existing authorized state audit with mandatory source restore
+      - name: Exact scoped source read with propagation check and mandatory restore
         env:
           CF_ACCOUNT: ${{ secrets.IRYS_REALTIME_CF_ACCOUNT_ID }}
           CF_TOKEN: ${{ secrets.IRYS_V7_CF_API_TOKEN }}
@@ -26,78 +26,29 @@ jobs:
           from pathlib import Path
           import textwrap
           s=Path('.github/workflows/v28-bithumb-miss-audit.yml').read_text()
-          part=s.split("node --input-type=module <<'JS'\n",1)[1].split('\n          JS',1)[0]
+          part=textwrap.dedent(s.split("node --input-type=module <<'JS'\n",1)[1].split('\n          JS',1)[0])
           assert "const OLD='f9213445d95a1c52e4d72eb47961e8d63188d3d99ed7876894d69907b3e00b1f'" in part
-          assert 'EXACT_RESTORE_NOT_VERIFIED' in part
-          Path('/tmp/v28_state_audit.mjs').write_text(textwrap.dedent(part))
+          a="async function read(path,opts={}){const r=await req('https://irys-surge-monitor.vhehwpfl.workers.dev/__v28/'+path,{...opts,headers:{authorization:'Bearer '+nonce,'content-type':'application/json'}});assert(r.ok);const x=await r.json();assert.equal(x.marker,marker);return x.data}"
+          b="""async function read(path,opts={}){
+           const end=Date.now()+60000;let reason='NOT_VISIBLE';
+           do{
+            const r=await req('https://irys-surge-monitor.vhehwpfl.workers.dev/__v28/'+path+(path.includes('?')?'&':'?')+'audit='+Date.now(),{...opts,headers:{authorization:'Bearer '+nonce,'content-type':'application/json','cache-control':'no-cache'}});
+            if(r.ok){const x=await r.json();if(x.marker===marker)return x.data;reason='ROUTE_PROPAGATION_NOT_READY'}else reason='AUDIT_HTTP_'+r.status;
+            if(Date.now()>=end)throw Error(reason);
+            await new Promise(resolve=>setTimeout(resolve,1500));
+           }while(Date.now()<=end);
+           throw Error(reason);
+          }"""
+          assert part.count(a)==1
+          part=part.replace(a,b)
+          Path('/tmp/v28_state_audit.mjs').write_text(part)
           part=s.split("python - <<'PY'\n",1)[1].split('\n          PY',1)[0]
           Path('/tmp/v28_public_audit.py').write_text(textwrap.dedent(part))
           PY
           node /tmp/v28_state_audit.mjs
           python /tmp/v28_public_audit.py
-      - name: Evaluate today's actual acknowledged messages, not unissued shadow models
-        run: |
-          python - <<'PY'
-          import json,pathlib,datetime as dt,time,urllib.request,urllib.parse,csv,collections
-          from v27_alert_audit import parse_bars,evaluate,HORIZONS,MIN
-          p=pathlib.Path('v28_evidence');doc=json.loads((p/'today_receipts.json').read_text());s=json.loads((p/'state.json').read_text())['state'];now=int(time.time()*1000)
-          known={}
-          for key in ('aiV16Outcomes','spotOutcomesV13','futuresOutcomesV13'):
-           for r in s.get(key,[]):
-            if not isinstance(r,dict):continue
-            known[(r.get('telegram_message_id'),r.get('symbol') or r.get('market'))]=r.get('original_direction') or r.get('direction')
-          results=[]
-          def http(url):
-           for attempt in range(4):
-            try:
-             with urllib.request.urlopen(urllib.request.Request(url,headers={'User-Agent':'IRYS-public-outcome-audit'}),timeout=20) as r:return json.load(r)
-            except Exception:
-             if attempt==3:raise
-             time.sleep(attempt+1)
-          for envelope in doc['receipts']:
-           r=envelope.get('receipt') or {};ch=r.get('channel','');sym=r.get('symbol','')
-           if '_OUTCOME_' in ch:continue
-           venue='bithumb' if sym.startswith('KRW-') else 'bitget' if sym.endswith('USDT') else None
-           if venue is None:continue
-           stamp=r.get('ack_received_at_ms') or envelope['event_ms'];snap=r.get('market_snapshot') or {}
-           side=snap.get('forecast_direction') or known.get((r.get('telegram_message_id'),sym))
-           if 'WATCH' in ch:side=None
-           receipt=dict(r,event_ms=stamp,direction=side,venue=venue)
-           ref=(stamp//MIN+1)*MIN;end=min(now//MIN*MIN,ref+61*MIN)
-           if venue=='bithumb':
-            until=dt.datetime.fromtimestamp(end/1000,dt.timezone(dt.timedelta(hours=9))).strftime('%Y-%m-%dT%H:%M:%S')
-            url='https://api.bithumb.com/v1/candles/minutes/1?'+urllib.parse.urlencode({'market':sym,'to':until,'count':200})
-           else:url='https://api.bitget.com/api/v2/mix/market/history-candles?'+urllib.parse.urlencode({'symbol':sym,'productType':'USDT-FUTURES','granularity':'1m','endTime':end,'limit':200})
-           error=None;raw=[]
-           try:
-            raw=http(url)
-            if venue=='bitget':
-             assert raw.get('code')=='00000'
-             raw=raw['data']
-            bars=parse_bars(raw,venue,now);h={str(h):evaluate(receipt,bars,h,now) for h in HORIZONS}
-           except Exception as exc:error=type(exc).__name__;h={str(h):{'status':'SOURCE_UNAVAILABLE'} for h in HORIZONS}
-           results.append({'receipt':receipt,'source_url':url,'raw':raw,'horizons':h,'error':error});time.sleep(.21)
-          summary={}
-          for key,rows in [('all_today',results),('v27_since_deployment',[x for x in results if x['receipt']['event_ms']>=1793579287000]),('since_user_screenshot',[x for x in results if x['receipt']['event_ms']>=1793592360000])]:
-           summary[key]={}
-           for h in HORIZONS:
-            a=[r['horizons'][str(h)] for r in rows];m=[x for x in a if x['status']=='MEASURED'];direction=[x for x in m if x['direction_right'] is not None]
-            summary[key][str(h)]={'events':len(rows),'statuses':dict(collections.Counter(x['status'] for x in a)),'up':sum(x['actual_direction']=='UP' for x in m),'down':sum(x['actual_direction']=='DOWN' for x in m),'flat':sum(x['actual_direction']=='FLAT' for x in m),'known_direction_correct':sum(x['direction_right'] for x in direction),'known_direction_wrong':sum(not x['direction_right'] for x in direction),'mean_raw_return_pct':sum(x['return_pct'] for x in m)/len(m) if m else None}
-          report={'observed_at_utc':dt.datetime.now(dt.timezone.utc).isoformat(),'receipt_count':len(doc['receipts']),'events':len(results),'method':'first full post-ACK minute open; official same-venue candles; not fills or profit','summary':summary,'records':results}
-          (p/'actual_today_outcomes.json').write_text(json.dumps(report,ensure_ascii=False,indent=2))
-          rows=[]
-          for x in results:
-           r=x['receipt'];row={'time_kst':r['accepted_at'],'symbol':r['symbol'],'channel':r['channel'],'direction':r.get('direction') or 'WATCH_OR_UNKNOWN','message_id':r['telegram_message_id']}
-           for h in HORIZONS:
-            z=x['horizons'][str(h)]
-            for k in ('status','return_pct','direction_right','up_excursion_pct','down_excursion_pct'):row[f'{h}m_{k}']=z.get(k)
-           rows.append(row)
-          if rows:
-           with (p/'actual_today_outcomes.csv').open('w',encoding='utf-8-sig',newline='') as f:
-            w=csv.DictWriter(f,fieldnames=list(rows[0]));w.writeheader();w.writerows(rows)
-          print('V28_TODAY_OUTCOME_SUMMARY',json.dumps(summary,ensure_ascii=False))
-          for row in rows[-20:]:print('V28_LAST_ACTUAL_ALERT',json.dumps(row,ensure_ascii=False))
-          PY
+      - name: Evaluate today's actual ACK messages using official 5/15/30/60 minute outcomes
+        run: python diagnostics/v28_outcomes.py
       - uses: actions/upload-artifact@v4
         if: always()
         with:
