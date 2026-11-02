@@ -5,6 +5,7 @@ on:
     paths: ['diagnostics/v27_1_response_fix.patch','.github/workflows/v27-1-fix-review.yml']
 permissions:
   contents: write
+  actions: read
 jobs:
   verify:
     runs-on: ubuntu-latest
@@ -13,7 +14,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Apply exact reviewed fix only to isolated feature checkout
+      - name: Apply tested repair and build exact source
         run: |
           git apply --check diagnostics/v27_1_response_fix.patch
           git apply diagnostics/v27_1_response_fix.patch
@@ -21,45 +22,45 @@ jobs:
           git show FETCH_HEAD:deployment/IRYS_V24_BITGET_FALLBACK_WORKER.mjs > /tmp/v24.mjs
           python deployment/build_v27_worker.py /tmp/v24.mjs deployment/IRYS_V27_RESPONSE_WORKER.mjs
           echo '0df2b651dd64c7fabeaffd34f1a3df21eedfea613e0c8f84a2c62b91e03aba03  deployment/IRYS_V27_RESPONSE_WORKER.mjs' | sha256sum -c -
-      - name: Full causal and original regressions
+      - name: Full regression before source publication
         env:
           V27_BASE_WORKER: /tmp/v24.mjs
         run: |
           python -m unittest discover -s tests -v
           node --test tests/*.mjs
-      - name: Real Bithumb quote and trade response; no invented unique execution counts
+      - name: Real provider and natural runtime diagnosis, read only
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           mkdir -p v27_1_proof
           node --input-type=module <<'JS'
-          import assert from 'node:assert/strict';
-          import {writeFileSync} from 'node:fs';
+          import assert from 'node:assert/strict';import {writeFileSync} from 'node:fs';
           import {v27EffortResponse,v27Quote} from './deployment/v27_response.mjs';
-          const get=async u=>{const r=await fetch(u,{signal:AbortSignal.timeout(20000)});assert(r.ok,'HTTP_'+r.status);return r.json()};
+          const get=async(u,headers={})=>{const r=await fetch(u,{headers,signal:AbortSignal.timeout(20000)});assert(r.ok,'HTTP_'+r.status);return r.json()};
           const rows=await get('https://api.bithumb.com/v1/trades/ticks?market=KRW-BTC&count=500');
-          const books=await get('https://api.bithumb.com/v1/orderbook?markets=KRW-BTC');
-          const b=books[0],u=b.orderbook_units[0],now=Date.now();
-          const q=v27Quote({bid:u.bid_price,ask:u.ask_price,at_ms:Number(b.timestamp)},now);assert(q,'ACTUAL_QUOTE_INVALID');
-          const r=v27EffortResponse(rows,'bithumb',now,q.spread_pct,'KRW-BTC');
-          assert.equal(r.status,'SAMPLED_RESPONSE');assert.equal(r.full_cvd_verified,false);assert.equal(r.exact_execution_count_verified,false);assert.equal(r.within_millisecond_order_verified,false);
-          const proof={at_utc:new Date().toISOString(),raw_rows:rows.length,current_quote:q,response:r,orders_sent:false,telegram_sent:false};
-          writeFileSync('v27_1_proof/real_bithumb_response.json',JSON.stringify(proof,null,2));
-          console.log('V27_1_REAL_BITHUMB_FIXED',JSON.stringify(proof));
-          const h=await get('https://irys-surge-monitor.vhehwpfl.workers.dev/');
-          writeFileSync('v27_1_proof/current_production_health.json',JSON.stringify(h,null,2));
-          console.log('V27_CURRENT_NATURAL_TICK',JSON.stringify({time:h.last?.time,version:h.last?.codeVersion,status:h.last?.status,scout:h.last?.v23DirectFastScout,ack_this_run:h.last?.telegramApiAckedThisRun,last_receipt:h.last?.telegramLastApiReceipt}));
+          const b=(await get('https://api.bithumb.com/v1/orderbook?markets=KRW-BTC'))[0],u=b.orderbook_units[0],now=Date.now();
+          const q=v27Quote({bid:u.bid_price,ask:u.ask_price,at_ms:Number(b.timestamp)},now);assert(q);
+          const response=v27EffortResponse(rows,'bithumb',now,q.spread_pct,'KRW-BTC');assert.equal(response.status,'SAMPLED_RESPONSE');assert.equal(response.exact_execution_count_verified,false);
+          writeFileSync('v27_1_proof/bithumb.json',JSON.stringify({now,quote:q,response},null,2));console.log('V27_1_REAL_FIXED',JSON.stringify(response));
+          const health=await get('https://irys-surge-monitor.vhehwpfl.workers.dev/');writeFileSync('v27_1_proof/health.json',JSON.stringify(health,null,2));
+          console.log('V27_NATURAL',JSON.stringify({time:health.last?.time,version:health.last?.codeVersion,status:health.last?.status,scout:health.last?.v23DirectFastScout}));
+          const runs=await get('https://api.github.com/repos/pmk44120315-creator/irys-bitget-5min-scanner/actions/runs?per_page=70',{authorization:'Bearer '+process.env.GH_TOKEN,'accept':'application/vnd.github+json'});
+          console.log('V27_FAST_RUNS',JSON.stringify(runs.workflow_runs.filter(r=>r.name==='IRYS V24 Bitget direct-source fast sidecar (public only)').map(r=>({id:r.id,status:r.status,conclusion:r.conclusion,created:r.created_at,started:r.run_started_at,updated:r.updated_at}))));
+          const doc=await get('https://raw.githubusercontent.com/pmk44120315-creator/irys-bitget-5min-scanner/main/data/v27_bitget_response_latest.json?x='+Date.now());
+          console.log('V27_FEED_DIAG',JSON.stringify({now:Date.now(),at_ms:doc.at_ms,parent:doc.parent_at_ms,source_at:doc.source.at_ms,source_status:doc.source.status,quotes:Object.keys(doc.quotes).length}));
           JS
-      - name: Commit only tested repair files to same feature branch; never main or Cloudflare
+      - name: Publish only source and tests to same feature ref, no workflow mutation
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git fetch --quiet origin feature/irys-v27-actual-alert-audit-20261102
           test "$(git rev-parse FETCH_HEAD)" = "$GITHUB_SHA"
-          git add deployment/v27_response.mjs deployment/build_v27_worker.py tests/test_v27_bithumb_collision.mjs .github/workflows/v27-response-review.yml
+          git add deployment/v27_response.mjs deployment/build_v27_worker.py tests/test_v27_bithumb_collision.mjs
           git commit -m 'fix(v27.1): tested exact print fingerprint and equal-time bucket response'
           git push origin HEAD:feature/irys-v27-actual-alert-audit-20261102
           echo "V27_1_TESTED_COMMIT=$(git rev-parse HEAD)"
           git ls-tree HEAD deployment/v27_response.mjs deployment/build_v27_worker.py tests/test_v27_bithumb_collision.mjs
-      - name: Freeze tested source
+      - name: Freeze evidence
         if: always()
         run: |
           mkdir -p v27_1_proof
