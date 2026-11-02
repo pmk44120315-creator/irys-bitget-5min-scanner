@@ -1,0 +1,75 @@
+name: IRYS V28 causal buildup and actual-ACK complete review
+on:
+  push:
+    branches: [feature/irys-v28-bithumb-coverage-20261102]
+    paths:
+      - 'deployment/v28*.mjs'
+      - 'deployment/build_v28_worker.py'
+      - 'v28_alert_events.py'
+      - 'tests/test_v28*'
+      - '.github/workflows/v28-buildup-review.yml'
+permissions:
+  contents: read
+  actions: read
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/download-artifact@v4
+        with:
+          name: v28-resumed-actual-alert-evidence
+          run-id: 41446205533
+          github-token: ${{ github.token }}
+          path: /tmp/v28_evidence
+      - name: Build exact V27.2 and V28 source, never from guessed release file
+        run: |
+          git fetch --quiet --depth=1 origin release/irys-v24-bitget-fallback-20261101
+          git show FETCH_HEAD:deployment/IRYS_V24_BITGET_FALLBACK_WORKER.mjs > /tmp/v24.mjs
+          echo 'f9213445d95a1c52e4d72eb47961e8d63188d3d99ed7876894d69907b3e00b1f  /tmp/v28_evidence/live_v27_2.mjs' | sha256sum -c -
+          python deployment/build_v27_worker.py /tmp/v24.mjs deployment/IRYS_V27_RESPONSE_WORKER.mjs
+          python deployment/build_v28_worker.py /tmp/v28_evidence/live_v27_2.mjs deployment/IRYS_V28_BUILDUP_WORKER.mjs
+          node --check deployment/IRYS_V28_BUILDUP_WORKER.mjs
+          echo 'b0b8f001ac24493c1bdd2c5828cd151fb69970b246700a90fe266424a44a3dbb  deployment/IRYS_V28_BUILDUP_WORKER.mjs' | sha256sum -c -
+      - name: All original and new tests including quote guards, time gaps, money shares and one-ACK bundles
+        env:
+          V27_BASE_WORKER: /tmp/v24.mjs
+          V28_BASE_WORKER: /tmp/v28_evidence/live_v27_2.mjs
+        run: |
+          python -m unittest discover -s tests -v
+          node --test tests/*.mjs
+      - name: Real saved all-market snapshot coverage, warnings and causal baseline verification
+        run: |
+          mkdir -p v28_review
+          node --input-type=module <<'JS'
+          import {readFileSync,writeFileSync} from 'node:fs';import assert from 'node:assert/strict';
+          import {v28Discover,v28Brief} from './deployment/v28_discovery.mjs';
+          const snapshot=JSON.parse(readFileSync('/tmp/v28_evidence/snapshot.json','utf8'));
+          const restored=JSON.parse(readFileSync('/tmp/v28_evidence/restore.json','utf8'));
+          const state=JSON.parse(readFileSync('/tmp/v28_evidence/state.json','utf8')).state;
+          assert(restored.restored&&restored.cron_and_bindings_unchanged);
+          const r=v28Discover({},snapshot,snapshot.at_ms,state.v23ScoutTape||{});
+          const listed=snapshot.bithumb_markets.filter(x=>x.market.startsWith('KRW-')).length;
+          assert.equal(r.summary.status,'OBSERVED');assert.equal(r.rows.length,listed);
+          for(const symbol of ['SOPH','OGN','MPLX','BIRB','DEBIT','HAEDAL','TRUST','CAP','POD','BEAM','DKA','UOS'])assert(r.rows.some(x=>x.symbol==='KRW-'+symbol),'PHOTO_TARGET_MISSING_'+symbol);
+          assert(r.candidates.every(x=>x.forecast_direction===null&&x.future_direction_proven===false&&x.risks.length===0));
+          const proof={snapshot_at_ms:snapshot.at_ms,summary:r.summary,dayleaders:r.leaders.map(v28Brief),photo_targets:r.rows.filter(x=>['SOPH','OGN','MPLX','BIRB','DEBIT','HAEDAL','TRUST','CAP','POD','BEAM','DKA','UOS'].some(s=>x.symbol==='KRW-'+s)).map(v28Brief),old_snapshot_not_future_accuracy_proof:true,no_telegram_or_orders:true};
+          writeFileSync('v28_review/actual_market_coverage.json',JSON.stringify(proof,null,2));
+          console.log('V28_REAL_COVERAGE',JSON.stringify(proof));
+          JS
+      - name: Freeze independently tested source and no-side-effect evidence
+        if: always()
+        run: |
+          mkdir -p v28_review
+          test ! -f deployment/IRYS_V28_BUILDUP_WORKER.mjs || cp deployment/IRYS_V28_BUILDUP_WORKER.mjs v28_review/
+          git archive --format=zip --output=v28_review/tested_source.zip HEAD
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: v28-reviewed-buildup-source-and-coverage
+          path: v28_review/
+          retention-days: 7
+          if-no-files-found: error

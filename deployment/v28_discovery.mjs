@@ -38,7 +38,7 @@ function v28Discover(old={},feeds,now,priorTape={}){
  const assets={},rows=[],deltas=[];
  for(const [symbol,m] of known){
   const raw=validTicks.get(symbol),saved=old.assets?.[symbol]||{};
-  if(!raw){if(old.assets?.[symbol])assets[symbol]=saved;continue;}
+  if(!raw){if(old.assets?.[symbol])assets[symbol]=saved;rows.push({symbol,stage:'TICKER_UNAVAILABLE',alert_eligible:false,risks:[]});continue;}
   const price=v28N(raw.trade_price),cum=v28N(raw.acc_trade_price),trade=v28TradeMs(raw),day=v28N(raw.signed_change_rate);
   if(price===null||price<=0||cum===null||cum<0){if(old.assets?.[symbol])assets[symbol]=saved;rows.push({symbol,stage:'INVALID_TICKER',alert_eligible:false,risks:[]});continue;}
   let points=(Array.isArray(saved.points)?saved.points:[]).filter(p=>Array.isArray(p)&&p.length>=3&&Number.isSafeInteger(p[0])&&p[0]<now&&v28N(p[1])>0&&v28N(p[2])>=0).map(p=>p.slice(0,3));
@@ -60,21 +60,24 @@ function v28Discover(old={},feeds,now,priorTape={}){
   if(comparable){row._norm=100*Math.log(price/last[1])*300000/gap;deltas.push(row._norm);}
   rows.push(row);
  }
- const benchmark=v28Median(deltas),marketFlow=rows.reduce((s,r)=>s+(r.turnover_delta===null?0:r.turnover_delta*300000/r._gap),0);
+ const flowRows=rows.filter(r=>r._comparable&&Number.isFinite(r.turnover_delta));
+ const flowUniverse=flowRows.map(r=>r.symbol).sort().join(',');
+ const sameFlowUniverse=old.flow_universe===flowUniverse;
+ const benchmark=v28Median(deltas),marketFlow=flowRows.reduce((s,r)=>s+r.turnover_delta*300000/r._gap,0);
  for(const r of rows){
   if(!r._saved){continue;}
   const saved=r._saved;let points=r._points,run=null,episode=saved.episode?{...saved.episode}:null;
   if(r._comparable){
-   const last=points.at(-1);r.relative_step_pct=r._norm-benchmark;
+   const last=points.at(-1);r.relative_step_pct=(r._norm-benchmark)*r._gap/300000;
    const prevRun=saved.run&&Number.isFinite(saved.run.value)&&now-saved.run.anchor_at<=3*3600000?saved.run:null;
    const value=(prevRun?.value||0)+r.relative_step_pct;
    run=value>V28_EPS?{value,anchor_at:prevRun?.anchor_at??last[0],anchor_price:prevRun?.anchor_price??last[1]}:null;
-   r.relative_run_pct=run?.value||0;
+   r.relative_run_pct=run?100*Math.expm1(run.value/100):0;
    r.baseline_price=run?.anchor_price??last[1];r.build_gain_pct=100*(r.price/r.baseline_price-1);
    r.build_minutes=run?(now-run.anchor_at)/60000:0;
    const flow=r.turnover_delta===null?null:r.turnover_delta*300000/r._gap;
    r.money_share=flow!==null&&marketFlow>0?flow/marketFlow:null;
-   r.money_share_delta=r.money_share!==null&&v28N(saved.last_share)!==null?r.money_share-saved.last_share:null;
+   r.money_share_delta=sameFlowUniverse&&r.money_share!==null&&v28N(saved.last_share)!==null?r.money_share-saved.last_share:null;
    if(episode&&now-episode.first_at>3*3600000)episode=null;
    if(episode&&saved.last_stage==='ANCHOR_BROKEN'&&r.relative_step_pct>V28_EPS&&r.move_pct>0)episode=null;
    const high=Math.max(...points.map(p=>p[1])),low=Math.min(...points.map(p=>p[1]));
@@ -113,8 +116,8 @@ function v28Discover(old={},feeds,now,priorTape={}){
  const clean=r=>Object.fromEntries(Object.entries(r).filter(([k])=>!k.startsWith('_')));
  const visible=rows.map(clean),candidateRows=candidates.map(clean);
  const leaders=[...visible].filter(r=>Number.isFinite(r.day_pct)).sort((a,b)=>b.day_pct-a.day_pct||a.symbol.localeCompare(b.symbol)).slice(0,15).map((r,i)=>({...r,day_rank:i+1,discovery_selected:selected.has(r.symbol),nonselection_reason:selected.has(r.symbol)?null:r.risks?.length?'RISK_OBSERVATION_ONLY':r.stage==='STALE_TRADE'?'OLD_LAST_TRADE':r.move_pct===null?'NO_CONTIGUOUS_BASELINE':r.move_pct<0?'CURRENTLY_WEAKENING':'NOT_TOP_BUILDUP_CANDIDATE'}));
- const next={version:V28_VERSION,at_ms:now,assets};
- return {next,rows:visible,candidates:candidateRows,leaders,summary:{version:V28_VERSION,status:'OBSERVED',listed:known.size,tickers:validTicks.size,tracked:Object.keys(assets).length,compared:comp.length,market_median_log_return_pct:benchmark,warning_visible:rows.filter(r=>r.risks?.length).length,stale:rows.filter(r=>r.stage==='STALE_TRADE').length,candidates:candidates.length,sub_070_candidates:candidates.filter(r=>r.move_pct<.7).length,price_only_not_future_direction:true}};
+ const next={version:V28_VERSION,at_ms:now,assets,flow_universe:flowUniverse};
+ return {next,rows:visible,candidates:candidateRows,leaders,summary:{version:V28_VERSION,status:'OBSERVED',listed:known.size,tickers:validTicks.size,tracked:Object.keys(assets).length,compared:comp.length,flow_comparison_members:flowRows.length,flow_share_migration_comparable:sameFlowUniverse,market_median_log_return_pct:benchmark,warning_visible:rows.filter(r=>r.risks?.length).length,stale:rows.filter(r=>r.stage==='STALE_TRADE').length,candidates:candidates.length,sub_070_candidates:candidates.filter(r=>r.move_pct<.7).length,price_only_not_future_direction:true}};
 }
 function v28ChooseBundle(candidates,max=3){
  const sorted=[...candidates].sort((a,b)=>b.priority-a.priority),chosen=sorted.slice(0,max);
