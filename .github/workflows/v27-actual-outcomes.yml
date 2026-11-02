@@ -1,0 +1,38 @@
+name: IRYS V27 actual sent-alert 5-60 minute official outcome audit
+on:
+  push:
+    branches: [feature/irys-v27-actual-alert-audit-20261102]
+    paths: ['.github/workflows/v27-actual-outcomes.yml','v27_alert_audit.py','tests/test_v27_alert_audit.py','diagnostics/v27_fetch_alert_outcomes.py']
+permissions:
+  contents: read
+  actions: read
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Original regression and actual-delivery time/price invariants
+        run: python -m unittest discover -s tests -v
+      - uses: actions/download-artifact@v4
+        with:
+          name: v27-complete-receipt-evidence
+          run-id: 41374126784
+          github-token: ${{ github.token }}
+          path: v27_input
+      - name: Official venue-specific candle replay of every actual market notification
+        run: python diagnostics/v27_fetch_alert_outcomes.py --input v27_input --output v27_results
+      - name: Freeze tested source
+        if: always()
+        run: |
+          mkdir -p v27_results
+          git archive --format=zip --output=v27_results/tested_source.zip HEAD
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: v27-actual-telegram-price-audit
+          path: v27_results/
+          retention-days: 7
+          if-no-files-found: error
