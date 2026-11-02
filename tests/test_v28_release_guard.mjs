@@ -1,6 +1,6 @@
 import test from 'node:test';import assert from 'node:assert/strict';import {readFileSync,existsSync} from 'node:fs';
 const url=new URL('../deployment/release_v28_guarded.mjs',import.meta.url);
-const old=()=>readFileSync(process.env.V28_BASE_WORKER||'/mnt/data/v28_evidence_initial/live_v27_2.mjs');
+const old=()=>readFileSync(process.env.V28_RELEASE_BASE_WORKER||process.env.V28_BASE_WORKER||'/mnt/data/v28_first_natural/IRYS_V28_BUILDUP_WORKER.mjs');
 const candidate=()=>readFileSync(new URL('../deployment/IRYS_V28_BUILDUP_WORKER.mjs',import.meta.url));
 const config=()=>({bindings:['AI','IRYS_KV','TELEGRAM_BOT_TOKEN','TELEGRAM_CHAT_ID','GITHUB_DISPATCH_TOKEN'].map(name=>({name,type:'mock'})),schedules:[{cron:'*/5 * * * *'}]});
 async function execute(mode){assert(existsSync(url),'V28 guarded release missing');const {guardedRelease}=await import(url);
