@@ -1,6 +1,6 @@
 --- a/deployment/v27_response.mjs
 +++ b/deployment/v27_response.mjs
-@@ -83,7 +83,7 @@
+@@ -84,7 +84,7 @@
  }
  async function v27ReadFresh(read,requestedAt,options={}){
   const clock=options.clock||Date.now,sleep=options.sleep||(ms=>new Promise(r=>setTimeout(r,ms)));
@@ -11,7 +11,7 @@
     const doc=await read(V27_URL+'?v27='+clock(),{headers:{accept:'application/json'}},8500);reads++;
 --- a/tests/test_v27_response.mjs
 +++ b/tests/test_v27_response.mjs
-@@ -59,3 +59,14 @@
+@@ -59,3 +59,13 @@
   const x=await v27ReadFresh(read,NOW,{clock:()=>t,sleep:async ms=>{t+=ms},maxWaitMs:10000});
   assert.equal(x.status,'FRESH');assert.equal(calls,2);assert.equal(x.doc.parent_at_ms,NOW);
  });
