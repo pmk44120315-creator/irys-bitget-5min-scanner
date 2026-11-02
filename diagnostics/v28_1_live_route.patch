@@ -1,0 +1,66 @@
+--- a/deployment/build_v28_worker.py
++++ b/deployment/build_v28_worker.py
+@@ -9,8 +9,12 @@
+  global s
+  assert s.count(a)==1,(name,s.count(a))
+  s=s.replace(a,b);changes.append(name)
+-rep('IRYS-V27.2-EXECUTABLE-RESPONSE-AUTHFRESH-20261102','IRYS-V28-MARKET-RELATIVE-BUILDUP-20261102','version')
+-rep("const V23_VER='IRYS_V27_2_EXECUTABLE_RESPONSE_V1';","const V23_VER='IRYS_V28_BUILDUP_V1';",'scout-version')
++rep('IRYS-V27.2-EXECUTABLE-RESPONSE-AUTHFRESH-20261102','IRYS-V28.1-MARKET-RELATIVE-BUILDUP-20261102','version')
++rep("const V23_VER='IRYS_V27_2_EXECUTABLE_RESPONSE_V1';","const V23_VER='IRYS_V28_1_BUILDUP_V1';",'scout-version')
++rep("(venue==='bithumb'?/^KRW-[A-Z0-9]{2,25}$/:/^[A-Z0-9]{2,25}USDT$/).test(sym);",
++    "(venue==='bithumb'?/^KRW-[A-Z0-9]{1,25}$/:/^[A-Z0-9]{2,25}USDT$/).test(sym);",'official-one-letter-request-path')
++rep("     if(Object.keys(quotes).length>=100){state.v27Quotes=quotes;state.v27QuoteSourceMs=clock();}",
++    "     if(Object.keys(quotes).length>=100){state.v27Quotes=quotes;state.v27QuoteSourceMs=clock();}\n     output.v28DirectFutures={source:'BITGET_DIRECT_OFFICIAL',valid_quotes:Object.keys(quotes).length,observed_at_ms:clock()};",'honest-direct-futures-proof')
+ rep('   const {feeds,failures,availability}=await v23ReadFeeds(read);', '''   const {feeds,failures,availability}=await v23ReadFeeds(read);
+    const v28Scan=availability.bithumb?
+      v28Discover(state.v28Ledger||{},feeds,clock(),state.v23ScoutTape||{}):
+--- a/tests/test_v28_worker.mjs
++++ b/tests/test_v28_worker.mjs
+@@ -38,3 +38,21 @@
+  assert.equal(s.split('  async scheduled(_controller,env){')[1].split('\nexport {v28Discover')[0],original.split('  async scheduled(_controller,env){')[1]);
+  assert.ok(s.includes('const V23_MAX_HOURLY_NOTICES=2;'));assert.ok(s.includes('const V20_EXPERIMENTAL_DIRECTIONAL_DELIVERY_APPROVED=false;'));
+ });
++
++test('actual ticker request includes one-character listed assets, not only downstream ledger parser',async()=>{
++ const {v23ScoutTick}=await engine();const s=state();s.v23ScoutHourly={hour:Math.floor(T/3600000),count:2};
++ const m=market(T,true);m.markets[0].market='KRW-A';m.ticks[0].market='KRW-A';let requested=[];
++ const exactRead=async url=>{if(url.includes('/v1/market/all'))return m.markets;if(url.includes('virtual_asset_warning'))return [];
++  if(url.includes('/v1/ticker')){requested.push(...new URL(url).searchParams.get('markets').split(','));return m.ticks.filter(t=>requested.includes(t.market));}throw Error('HTTP_403');};
++ const r=await v23ScoutTick({},s,T,{read:exactRead,clock:()=>T,maxWaitMs:0});
++ assert(requested.includes('KRW-A'),'official one-letter market never requested from ticker API');
++ assert.equal(r.v28Discovery.tracked,105);assert.equal(r.v28Discovery.tickers,105);
++});
++test('genuinely recovered direct Bitget quotes are measured as direct source, not a forced fallback failure',async()=>{
++ const {v23ScoutTick}=await engine();const s=state();s.v23ScoutHourly={hour:Math.floor(T/3600000),count:2};
++ const normal=read(T),instruments=Array.from({length:120},(_,i)=>({symbol:'X'+i+'USDT',symbolType:'crypto',instrumentType:'crypto'}));
++ const current=instruments.map(x=>({symbol:x.symbol,lastPr:1,bidPr:.999,askPr:1.001,ts:T-1000}));
++ const r=await v23ScoutTick({},s,T,{read:async url=>url.includes('/v3/market/instruments')?{code:'00000',data:instruments}:url.includes('/v2/mix/market/tickers')?{code:'00000',data:current}:normal(url),clock:()=>T,maxWaitMs:0});
++ assert.equal(r.venue_availability.bitget,true);assert.equal(r.v28DirectFutures.valid_quotes,120);
++ assert.equal(r.v28DirectFutures.source,'BITGET_DIRECT_OFFICIAL');assert.equal(r.bitget_fast_fallback.status,'NOT_NEEDED');
++});
+--- a/deployment/release_v28_guarded.mjs
++++ b/deployment/release_v28_guarded.mjs
+@@ -1,9 +1,9 @@
+ /** Code-only exact-source release, current source lease, config preservation and rollback. */
+ import {readFileSync,writeFileSync,mkdirSync} from 'node:fs';
+ import {createHash} from 'node:crypto';import {pathToFileURL} from 'node:url';import assert from 'node:assert/strict';
+-const OLD='f9213445d95a1c52e4d72eb47961e8d63188d3d99ed7876894d69907b3e00b1f';
+-const NEW='e3fa2f1da6151ceb419fe5f21bf5fae8afd3db5a2d8068425f0986e64692c19d';
+-const VERSION='IRYS-V28-MARKET-RELATIVE-BUILDUP-20261102';
++const OLD='e3fa2f1da6151ceb419fe5f21bf5fae8afd3db5a2d8068425f0986e64692c19d';
++const NEW='932845cb6cf1949e453e52bbf6c75387820c6981fdb91ebc45b2e086a6fe176d';
++const VERSION='IRYS-V28.1-MARKET-RELATIVE-BUILDUP-20261102';
+ const hash=x=>createHash('sha256').update(x).digest('hex');
+ async function guardedRelease(io,candidate){
+  assert.equal(hash(candidate),NEW,'NOT_EXACT_TESTED_V28');
+--- a/tests/test_v28_release_guard.mjs
++++ b/tests/test_v28_release_guard.mjs
+@@ -1,6 +1,6 @@
+ import test from 'node:test';import assert from 'node:assert/strict';import {readFileSync,existsSync} from 'node:fs';
+ const url=new URL('../deployment/release_v28_guarded.mjs',import.meta.url);
+-const old=()=>readFileSync(process.env.V28_BASE_WORKER||'/mnt/data/v28_evidence_initial/live_v27_2.mjs');
++const old=()=>readFileSync(process.env.V28_RELEASE_BASE_WORKER||process.env.V28_BASE_WORKER||'/mnt/data/v28_first_natural/IRYS_V28_BUILDUP_WORKER.mjs');
+ const candidate=()=>readFileSync(new URL('../deployment/IRYS_V28_BUILDUP_WORKER.mjs',import.meta.url));
+ const config=()=>({bindings:['AI','IRYS_KV','TELEGRAM_BOT_TOKEN','TELEGRAM_CHAT_ID','GITHUB_DISPATCH_TOKEN'].map(name=>({name,type:'mock'})),schedules:[{cron:'*/5 * * * *'}]});
+ async function execute(mode){assert(existsSync(url),'V28 guarded release missing');const {guardedRelease}=await import(url);
