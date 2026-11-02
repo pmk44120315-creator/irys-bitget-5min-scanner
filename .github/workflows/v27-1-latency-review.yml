@@ -1,0 +1,53 @@
+name: IRYS V27.1 measured publication-latency repair verification
+on:
+  push:
+    branches: [feature/irys-v27-actual-alert-audit-20261102]
+    paths: ['diagnostics/v27_1_latency.patch','.github/workflows/v27-1-latency-review.yml']
+permissions:
+  contents: write
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Apply measured-latency correction without changing freshness requirements
+        run: |
+          git apply --check diagnostics/v27_1_latency.patch
+          git apply diagnostics/v27_1_latency.patch
+          git fetch --quiet --depth=1 origin release/irys-v24-bitget-fallback-20261101
+          git show FETCH_HEAD:deployment/IRYS_V24_BITGET_FALLBACK_WORKER.mjs > /tmp/v24.mjs
+          python deployment/build_v27_worker.py /tmp/v24.mjs deployment/IRYS_V27_RESPONSE_WORKER.mjs
+          echo '081baf77fd14b62594dd41bc0df7caa026bcaf9ffd128d6a2f61e49c5173fbc5  deployment/IRYS_V27_RESPONSE_WORKER.mjs' | sha256sum -c -
+      - name: Full original and new regression including 60-second production-delay replay
+        env:
+          V27_BASE_WORKER: /tmp/v24.mjs
+        run: |
+          python -m unittest discover -s tests -v
+          node --test tests/*.mjs
+      - name: Publish tested source only to feature branch with exact HEAD lease
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git fetch --quiet origin feature/irys-v27-actual-alert-audit-20261102
+          test "$(git rev-parse FETCH_HEAD)" = "$GITHUB_SHA"
+          git add deployment/v27_response.mjs tests/test_v27_response.mjs
+          git commit -m 'fix(v27.1): wait for measured 57-65s producer latency while rejecting stale source'
+          git push origin HEAD:feature/irys-v27-actual-alert-audit-20261102
+          echo "V27_1_FINAL_TESTED_COMMIT=$(git rev-parse HEAD)"
+          git ls-tree HEAD deployment/v27_response.mjs deployment/build_v27_worker.py tests/test_v27_response.mjs tests/test_v27_bithumb_collision.mjs
+      - name: Freeze final tested source
+        if: always()
+        run: |
+          mkdir -p v27_1_final
+          test ! -f deployment/IRYS_V27_RESPONSE_WORKER.mjs || cp deployment/IRYS_V27_RESPONSE_WORKER.mjs v27_1_final/
+          git archive --format=zip --output=v27_1_final/tested_source.zip HEAD
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: v27-1-final-tested-response
+          path: v27_1_final/
+          if-no-files-found: error
+          retention-days: 7
