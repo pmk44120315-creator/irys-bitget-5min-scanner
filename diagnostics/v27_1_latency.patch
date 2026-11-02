@@ -1,0 +1,27 @@
+--- a/deployment/v27_response.mjs
++++ b/deployment/v27_response.mjs
+@@ -83,7 +83,7 @@
+ }
+ async function v27ReadFresh(read,requestedAt,options={}){
+  const clock=options.clock||Date.now,sleep=options.sleep||(ms=>new Promise(r=>setTimeout(r,ms)));
+- const start=clock(),deadline=start+(options.maxWaitMs??45000);let reads=0,lastReason='NO_GENERATION';
++ const start=clock(),deadline=start+(options.maxWaitMs??90000);let reads=0,lastReason='NO_GENERATION';
+  while(true){
+   try{
+    const doc=await read(V27_URL+'?v27='+clock(),{headers:{accept:'application/json'}},8500);reads++;
+--- a/tests/test_v27_response.mjs
++++ b/tests/test_v27_response.mjs
+@@ -59,3 +59,14 @@
+  const x=await v27ReadFresh(read,NOW,{clock:()=>t,sleep:async ms=>{t+=ms},maxWaitMs:10000});
+  assert.equal(x.status,'FRESH');assert.equal(calls,2);assert.equal(x.doc.parent_at_ms,NOW);
+ });
++
++test('observed 60-second producer publication is awaited without accepting the previous generation',async()=>{
++ const {v27ReadFresh}=await engine();let t=NOW,seen=0;
++ const read=async()=>{seen++;return t<NOW+60000?
++  {version:'IRYS_V27_EXECUTABLE_RESPONSE_V1',at_ms:NOW-300000,parent_at_ms:NOW-300000,source:{at_ms:NOW-300000}}:
++  {version:'IRYS_V27_EXECUTABLE_RESPONSE_V1',at_ms:NOW+60000,parent_at_ms:NOW+55000,source:{at_ms:NOW+55000}};};
++ const x=await v27ReadFresh(read,NOW,{clock:()=>t,sleep:async ms=>{t+=ms}});
++ assert.equal(x.status,'FRESH');assert.equal(x.doc.parent_at_ms,NOW+55000);
++ assert.equal(x.wait_ms,60000);assert.ok(seen>10);
++});
