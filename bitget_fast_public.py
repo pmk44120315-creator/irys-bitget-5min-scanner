@@ -71,7 +71,7 @@ def digest(items,prev,now):
         if change>=.7:
             watch.append({
               'venue':'bitget','symbol':s,'move_pct':round(change,4),
-              'price':p,'spread_pct':round(spread_pct,5),
+              'price':p,'baseline_price':prior,'spread_pct':round(spread_pct,5),
               'price_acceleration_pct':round(acceleration,4),
               'quote_24h_usdt':v24,
               'price_timestamp_ms':int(at),
