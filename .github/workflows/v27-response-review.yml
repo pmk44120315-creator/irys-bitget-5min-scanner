@@ -1,0 +1,77 @@
+name: IRYS V27 executable quote and effort-response complete review
+on:
+  push:
+    branches: [feature/irys-v27-actual-alert-audit-20261102]
+    paths:
+      - 'deployment/v27*.mjs'
+      - 'deployment/build_v27_worker.py'
+      - 'tests/test_v27*.mjs'
+      - 'bitget_fast_public.py'
+      - '.github/workflows/v27-response-review.yml'
+      - '.github/workflows/v24-bitget-fast-sidecar.yml'
+permissions:
+  contents: read
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Reproducible build from exact prior V24 release bytes
+        run: |
+          git fetch --quiet --depth=1 origin release/irys-v24-bitget-fallback-20261101
+          git show FETCH_HEAD:deployment/IRYS_V24_BITGET_FALLBACK_WORKER.mjs > /tmp/v24.mjs
+          python deployment/build_v27_worker.py /tmp/v24.mjs deployment/IRYS_V27_RESPONSE_WORKER.mjs
+          node --check deployment/IRYS_V27_RESPONSE_WORKER.mjs
+          echo 'a23035b6e36a61622424e5046e40d5fda85d76389ed778c9c954d175ea0454cd  deployment/IRYS_V27_RESPONSE_WORKER.mjs' | sha256sum -c -
+      - name: All old and new Python / Node regression tests
+        env:
+          V27_BASE_WORKER: /tmp/v24.mjs
+        run: |
+          python -m unittest discover -s tests -v
+          node --test tests/*.mjs
+      - name: Official public-market real source and quote-response smoke (no messages)
+        run: |
+          git fetch --quiet --depth=1 origin main
+          git show origin/main:data/v24_bitget_fast_latest.json > data/v24_bitget_fast_latest.json
+          python bitget_fast_public.py
+          node deployment/v27_capture_response.mjs
+          node --input-type=module <<'JS'
+          import {readFileSync} from 'node:fs';
+          import assert from 'node:assert/strict';
+          import {v27Quote,v27EffortResponse} from './deployment/v27_response.mjs';
+          const d=JSON.parse(readFileSync('data/v27_bitget_response_latest.json','utf8'));
+          assert(Object.keys(d.quotes).length>=100);
+          assert(d.source.at_ms===d.parent_at_ms&&Date.now()-d.at_ms<90000);
+          assert(d.orders_sent===false&&d.telegram_sent===false);
+          // If the real comparison interval is warming, sample three genuine
+          // currently verified markets only as API/response smoke, not candidates.
+          const samples=[];
+          for(const symbol of Object.keys(d.quotes).slice(0,3)){
+            const q=d.quotes[symbol];
+            const res=await fetch('https://api.bitget.com/api/v2/mix/market/fills?'+new URLSearchParams({symbol,productType:'USDT-FUTURES',limit:100}));
+            assert(res.ok,'PUBLIC_TAPE_HTTP_'+res.status);
+            const raw=await res.json();assert(raw.code==='00000'&&Array.isArray(raw.data));
+            const response=v27EffortResponse(raw,'bitget',Date.now(),100*(q[1]/q[0]-1),symbol);
+            assert(response.future_direction_proven===false);
+            samples.push({symbol,state:response.state||response.status,trades:response.sample_trades||0});
+            await new Promise(r=>setTimeout(r,250));
+          }
+          console.log('V27_REAL_PUBLIC_SMOKE',JSON.stringify({at_ms:d.at_ms,quotes:Object.keys(d.quotes).length,candidates:d.source.candidates.length,sampled_responses:Object.keys(d.responses).length,independent_api_smoke:samples,comparison_status:d.source.status,no_messages:true,no_orders:true}));
+          JS
+      - name: Freeze tested release source and live proof
+        if: always()
+        run: |
+          mkdir -p v27_release
+          test ! -f deployment/IRYS_V27_RESPONSE_WORKER.mjs || cp deployment/IRYS_V27_RESPONSE_WORKER.mjs v27_release/
+          test ! -f data/v27_bitget_response_latest.json || cp data/v27_bitget_response_latest.json v27_release/
+          git archive --format=zip --output=v27_release/tested_source.zip HEAD
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: v27-tested-executable-response-release
+          path: v27_release/
+          if-no-files-found: error
+          retention-days: 7
