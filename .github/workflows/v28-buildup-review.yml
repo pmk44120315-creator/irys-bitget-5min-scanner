@@ -7,9 +7,10 @@ on:
       - 'deployment/build_v28_worker.py'
       - 'v28_alert_events.py'
       - 'tests/test_v28*'
+      - 'diagnostics/v28_symbol_fix.patch'
       - '.github/workflows/v28-buildup-review.yml'
 permissions:
-  contents: read
+  contents: write
   actions: read
 jobs:
   review:
@@ -25,25 +26,33 @@ jobs:
           run-id: 41446205533
           github-token: ${{ github.token }}
           path: /tmp/v28_evidence
-      - name: Build exact V27.2 and V28 source, never from guessed release file
+      - name: Apply reproduced official-symbol repair and build exact sources
         run: |
+          mkdir -p v28_review
+          if git apply --check diagnostics/v28_symbol_fix.patch; then
+            git apply diagnostics/v28_symbol_fix.patch
+          elif git apply --reverse --check diagnostics/v28_symbol_fix.patch; then
+            echo 'V28_SYMBOL_REPAIR_ALREADY_APPLIED'
+          else
+            exit 1
+          fi
           git fetch --quiet --depth=1 origin release/irys-v24-bitget-fallback-20261101
           git show FETCH_HEAD:deployment/IRYS_V24_BITGET_FALLBACK_WORKER.mjs > /tmp/v24.mjs
           echo 'f9213445d95a1c52e4d72eb47961e8d63188d3d99ed7876894d69907b3e00b1f  /tmp/v28_evidence/live_v27_2.mjs' | sha256sum -c -
           python deployment/build_v27_worker.py /tmp/v24.mjs deployment/IRYS_V27_RESPONSE_WORKER.mjs
           python deployment/build_v28_worker.py /tmp/v28_evidence/live_v27_2.mjs deployment/IRYS_V28_BUILDUP_WORKER.mjs
           node --check deployment/IRYS_V28_BUILDUP_WORKER.mjs
-          echo 'b0b8f001ac24493c1bdd2c5828cd151fb69970b246700a90fe266424a44a3dbb  deployment/IRYS_V28_BUILDUP_WORKER.mjs' | sha256sum -c -
+          echo 'e3fa2f1da6151ceb419fe5f21bf5fae8afd3db5a2d8068425f0986e64692c19d  deployment/IRYS_V28_BUILDUP_WORKER.mjs' | sha256sum -c -
       - name: All original and new tests including quote guards, time gaps, money shares and one-ACK bundles
         env:
           V27_BASE_WORKER: /tmp/v24.mjs
           V28_BASE_WORKER: /tmp/v28_evidence/live_v27_2.mjs
         run: |
-          python -m unittest discover -s tests -v
-          node --test tests/*.mjs
+          set -o pipefail
+          python -m unittest discover -s tests -v 2>&1 | tee v28_review/python_tests.log
+          node --test tests/*.mjs 2>&1 | tee v28_review/node_tests.log
       - name: Real saved all-market snapshot coverage, warnings and causal baseline verification
         run: |
-          mkdir -p v28_review
           node --input-type=module <<'JS'
           import {readFileSync,writeFileSync} from 'node:fs';import assert from 'node:assert/strict';
           import {v28Discover,v28Brief} from './deployment/v28_discovery.mjs';
@@ -54,12 +63,24 @@ jobs:
           const r=v28Discover({},snapshot,snapshot.at_ms,state.v23ScoutTape||{});
           const listed=snapshot.bithumb_markets.filter(x=>x.market.startsWith('KRW-')).length;
           assert.equal(r.summary.status,'OBSERVED');assert.equal(r.rows.length,listed);
-          for(const symbol of ['SOPH','OGN','MPLX','BIRB','DEBIT','HAEDAL','TRUST','CAP','POD','BEAM','DKA','UOS'])assert(r.rows.some(x=>x.symbol==='KRW-'+symbol),'PHOTO_TARGET_MISSING_'+symbol);
+          for(const symbol of ['A','T','S','W','G','F','C','Q','O','SOPH','OGN','MPLX','BIRB','DEBIT','HAEDAL','TRUST','CAP','POD','BEAM','DKA','UOS'])assert(r.rows.some(x=>x.symbol==='KRW-'+symbol),'ACTUAL_MARKET_MISSING_'+symbol);
           assert(r.candidates.every(x=>x.forecast_direction===null&&x.future_direction_proven===false&&x.risks.length===0));
           const proof={snapshot_at_ms:snapshot.at_ms,summary:r.summary,dayleaders:r.leaders.map(v28Brief),photo_targets:r.rows.filter(x=>['SOPH','OGN','MPLX','BIRB','DEBIT','HAEDAL','TRUST','CAP','POD','BEAM','DKA','UOS'].some(s=>x.symbol==='KRW-'+s)).map(v28Brief),old_snapshot_not_future_accuracy_proof:true,no_telegram_or_orders:true};
-          writeFileSync('v28_review/actual_market_coverage.json',JSON.stringify(proof,null,2));
-          console.log('V28_REAL_COVERAGE',JSON.stringify(proof));
+          writeFileSync('v28_review/actual_market_coverage.json',JSON.stringify(proof,null,2));console.log('V28_REAL_COVERAGE',JSON.stringify(proof));
           JS
+      - name: Publish only verified repair files to same feature branch, no workflow or production mutations
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add deployment/v28_discovery.mjs v28_alert_events.py tests/test_v28_discovery.mjs tests/test_v28_receipt_events.py
+          if ! git diff --staged --quiet; then
+            git fetch --quiet origin feature/irys-v28-bithumb-coverage-20261102
+            test "$(git rev-parse FETCH_HEAD)" = "$GITHUB_SHA"
+            git commit -m 'fix(v28): verified complete official one-letter market and ACK coverage'
+            git push origin HEAD:feature/irys-v28-bithumb-coverage-20261102
+          fi
+          echo "V28_VERIFIED_SOURCE_COMMIT=$(git rev-parse HEAD)"
+          git ls-tree HEAD deployment/v28_discovery.mjs deployment/v28_messages.mjs deployment/build_v28_worker.py v28_alert_events.py tests/test_v28_discovery.mjs tests/test_v28_worker.mjs tests/test_v28_receipt_events.py
       - name: Freeze independently tested source and no-side-effect evidence
         if: always()
         run: |
