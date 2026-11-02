@@ -84,21 +84,40 @@ function v27DirectionCheck(proof,rawQuote,now){
 }
 async function v27ReadFresh(read,requestedAt,options={}){
  const clock=options.clock||Date.now,sleep=options.sleep||(ms=>new Promise(r=>setTimeout(r,ms)));
- const start=clock(),deadline=start+(options.maxWaitMs??90000);let reads=0,lastReason='NO_GENERATION';
+ const start=clock(),deadline=start+(options.maxWaitMs??90000);
+ const token=typeof options.githubToken==='string'&&options.githubToken?options.githubToken:null;
+ let reads=0,lastReason='NO_GENERATION',lastObservation=null;
  while(true){
   try{
-   const doc=await read(V27_URL+'?v27='+clock(),{headers:{accept:'application/json'}},8500);reads++;
+   let doc,transport='PUBLIC_RAW';
+   if(token){
+    try{
+     const url='https://api.github.com/repos/pmk44120315-creator/irys-bitget-5min-scanner/contents/data/v27_bitget_response_latest.json?ref=main&v27='+clock();
+     doc=await read(url,{headers:{authorization:'Bearer '+token,accept:'application/vnd.github.raw+json','User-Agent':'IRYS-verified-public-market-reader','cache-control':'no-cache'},cf:{cacheTtl:0}},8500);
+     reads++;transport='GITHUB_AUTHENTICATED_CONTENTS';
+    }catch(_e){
+     reads++;
+     doc=await read(V27_URL+'?v27='+clock(),{headers:{accept:'application/json','cache-control':'no-cache'},cf:{cacheTtl:0}},8500);
+     reads++;transport='PUBLIC_RAW_FALLBACK';
+    }
+   }else{
+    doc=await read(V27_URL+'?v27='+clock(),{headers:{accept:'application/json','cache-control':'no-cache'},cf:{cacheTtl:0}},8500);reads++;
+   }
    const now=clock(),at=v27N(doc?.at_ms),parent=v27N(doc?.parent_at_ms);
+   lastObservation={source_transport:transport,at_ms:at,parent_at_ms:parent,requested_at_ms:requestedAt,
+     now_ms:now,age_ms:at===null?null:now-at,same_generation:parent!==null&&parent>=requestedAt-15000,
+     lineage:doc?.source?.at_ms===parent};
    if(doc?.version==='IRYS_V27_EXECUTABLE_RESPONSE_V1'&&Number.isSafeInteger(at)&&Number.isSafeInteger(parent)&&
       doc.source?.at_ms===parent&&at>=parent&&at<=now+1000&&now-at<=V27_FRESH_MS&&now-parent<=V27_FRESH_MS&&
-      parent>=requestedAt-15000){return {status:'FRESH',doc,reads,wait_ms:now-start};}
+      parent>=requestedAt-15000){return {status:'FRESH',doc,reads,wait_ms:now-start,source_transport:transport};}
    lastReason='OLD_OR_UNTRUSTED_GENERATION';
-  }catch(e){reads++;lastReason='FRESH_SOURCE_READ_FAILED';}
+  }catch(_e){reads++;lastReason='FRESH_SOURCE_READ_FAILED';lastObservation={source_transport:'UNAVAILABLE',now_ms:clock(),requested_at_ms:requestedAt};}
   const remaining=deadline-clock();if(remaining<=0)break;
   await sleep(Math.min(5000,remaining));
  }
- return {status:'FRESH_GENERATION_UNAVAILABLE',reason:lastReason,reads,wait_ms:clock()-start};
+ return {status:'FRESH_GENERATION_UNAVAILABLE',reason:lastReason,reads,wait_ms:clock()-start,last_observation:lastObservation};
 }
+
 function v27ResponseText(response){
  const labels={BUY_PRESSURE_ADVANCES:'매수 체결이 실제 가격 상승으로 연결',SELL_PRESSURE_ADVANCES:'매도 체결이 실제 가격 하락으로 연결',BUY_PRESSURE_FAILED:'매수 체결 우세에도 가격 하락 · 매수 압력 실패',SELL_PRESSURE_FAILED:'매도 체결 우세에도 가격 상승 · 매도 압력 실패',BUY_PRESSURE_STALLED:'매수 우세이나 스프레드를 넘는 상승 미확인',SELL_PRESSURE_STALLED:'매도 우세이나 스프레드를 넘는 하락 미확인',BALANCED_EFFORT:'표본 매수·매도 균형'};
  if(response?.status!=='SAMPLED_RESPONSE')return '최근 체결-가격 반응: 자료 부족';

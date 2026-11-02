@@ -10,8 +10,8 @@ def replace(a,b,label):
  global s
  assert s.count(a)==1,(label,s.count(a))
  s=s.replace(a,b);changes.append(label)
-replace("IRYS-V24-BITGET-GITHUB-FAST-FALLBACK-20261101","IRYS-V27.1-EXECUTABLE-RESPONSE-IDSAFE-20261102",'version')
-replace("const V23_VER='IRYS_V24_GITHUB_OFFICIAL_BITGET_FALLBACK_V1';","const V23_VER='IRYS_V27_1_EXECUTABLE_RESPONSE_V1';",'scout-version')
+replace("IRYS-V24-BITGET-GITHUB-FAST-FALLBACK-20261101","IRYS-V27.2-EXECUTABLE-RESPONSE-AUTHFRESH-20261102",'version')
+replace("const V23_VER='IRYS_V24_GITHUB_OFFICIAL_BITGET_FALLBACK_V1';","const V23_VER='IRYS_V27_2_EXECUTABLE_RESPONSE_V1';",'scout-version')
 replace("price,move_pct:v23Round(change),turnover5_est_krw:Math.round(turn),","price,baseline_price:lastPrice,move_pct:v23Round(change),turnover5_est_krw:Math.round(turn),",'spot-baseline')
 replace("price,move_pct:v23Round(change),turnover5_est_krw:null,turnover_ratio:null,","price,baseline_price:prior,current_quote:{bid,ask,at_ms:stamp},move_pct:v23Round(change),turnover5_est_krw:null,turnover_ratio:null,",'futures-baseline')
 replace(' const read=options.read||requestJson;\n try{\n   const {feeds,failures,availability}=await v23ReadFeeds(read);',
@@ -20,8 +20,8 @@ replace(' const read=options.read||requestJson;\n try{\n   const {feeds,failures
  try{
    const {feeds,failures,availability}=await v23ReadFeeds(read);''','clock')
 replace("       const doc=await read(V24_FAST_URL+'?ts='+now,{headers:{accept:'application/json'}},8500);\n       fallback=v24FastFallback(doc,now);",
-'''       const loaded=await v27ReadFresh(read,now,{clock,sleep:options.sleep,maxWaitMs:options.maxWaitMs});
-       output.v27FreshSource={status:loaded.status,reads:loaded.reads,wait_ms:loaded.wait_ms};
+'''       const loaded=await v27ReadFresh(read,now,{clock,sleep:options.sleep,maxWaitMs:options.maxWaitMs,githubToken:env.GITHUB_DISPATCH_TOKEN});
+       output.v27FreshSource={status:loaded.status,reads:loaded.reads,wait_ms:loaded.wait_ms,source_transport:loaded.source_transport,reason:loaded.reason,last_observation:loaded.last_observation};
        now=clock();
        if(loaded.status==='FRESH'){
          fallback=v27EnrichFallback(v24FastFallback(loaded.doc.source,now),loaded.doc,state,now);
