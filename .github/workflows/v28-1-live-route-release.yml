@@ -1,0 +1,111 @@
+name: IRYS V28.1 full upstream coverage repair and natural verification
+on:
+  push:
+    branches: [deploy/irys-v28-buildup-20261102]
+    paths: ['.github/workflows/v28-1-live-route-release.yml','diagnostics/v28_1_live_route.patch']
+permissions:
+  contents: write
+  actions: read
+concurrency:
+  group: irys-v27-guarded-worker-source
+  cancel-in-progress: false
+jobs:
+  repair:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/download-artifact@v4
+        with:
+          name: v28-resumed-actual-alert-evidence
+          run-id: 41446205533
+          github-token: ${{ github.token }}
+          path: /tmp/v28_evidence
+      - uses: actions/download-artifact@v4
+        with:
+          name: v28-production-and-natural-verification
+          run-id: 41450016477
+          github-token: ${{ github.token }}
+          path: /tmp/v28_prior
+      - name: Apply exact runtime-path repair and preserve old release for rollback
+        run: |
+          mkdir -p v28_release
+          git apply --check diagnostics/v28_1_live_route.patch
+          git apply diagnostics/v28_1_live_route.patch
+          git fetch --quiet --depth=1 origin release/irys-v24-bitget-fallback-20261101
+          git show FETCH_HEAD:deployment/IRYS_V24_BITGET_FALLBACK_WORKER.mjs > /tmp/v24.mjs
+          python deployment/build_v27_worker.py /tmp/v24.mjs deployment/IRYS_V27_RESPONSE_WORKER.mjs
+          python deployment/build_v28_worker.py /tmp/v28_evidence/live_v27_2.mjs deployment/IRYS_V28_BUILDUP_WORKER.mjs
+          echo '932845cb6cf1949e453e52bbf6c75387820c6981fdb91ebc45b2e086a6fe176d  deployment/IRYS_V28_BUILDUP_WORKER.mjs' | sha256sum -c -
+          echo 'e3fa2f1da6151ceb419fe5f21bf5fae8afd3db5a2d8068425f0986e64692c19d  /tmp/v28_prior/IRYS_V28_BUILDUP_WORKER.mjs' | sha256sum -c -
+      - name: Entire regression and live-path fault reproduction before release
+        env:
+          V27_BASE_WORKER: /tmp/v24.mjs
+          V28_BASE_WORKER: /tmp/v28_evidence/live_v27_2.mjs
+          V28_RELEASE_BASE_WORKER: /tmp/v28_prior/IRYS_V28_BUILDUP_WORKER.mjs
+        run: |
+          set -o pipefail
+          python -m unittest discover -s tests -v 2>&1 | tee v28_release/python_tests.log
+          node --test tests/*.mjs 2>&1 | tee v28_release/node_tests.log
+      - name: Commit only tested ordinary source files to exact current deployment branch
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git fetch --quiet origin deploy/irys-v28-buildup-20261102
+          test "$(git rev-parse FETCH_HEAD)" = "$GITHUB_SHA"
+          git add deployment/build_v28_worker.py deployment/release_v28_guarded.mjs tests/test_v28_worker.mjs tests/test_v28_release_guard.mjs
+          git commit -m 'fix(v28.1): tested official one-letter request coverage and direct-source telemetry'
+          git push origin HEAD:deploy/irys-v28-buildup-20261102
+          echo "V28_1_REVIEWED_COMMIT=$(git rev-parse HEAD)"
+          git ls-tree HEAD deployment/build_v28_worker.py deployment/release_v28_guarded.mjs tests/test_v28_worker.mjs tests/test_v28_release_guard.mjs
+      - name: Code-only exact prior source lease with settings preservation and verified rollback
+        env:
+          CF_ACCOUNT: ${{ secrets.IRYS_REALTIME_CF_ACCOUNT_ID }}
+          CF_TOKEN: ${{ secrets.IRYS_V7_CF_API_TOKEN }}
+        run: node deployment/release_v28_guarded.mjs
+      - name: Verify full-market natural Cron without invoking a scan or test message
+        run: |
+          node --input-type=module <<'JS'
+          import {readFileSync,writeFileSync} from 'node:fs';import assert from 'node:assert/strict';
+          const receipt=JSON.parse(readFileSync('v28_release/deployment.json','utf8'));
+          const target=Math.ceil(Date.parse(receipt.at_utc)/300000)*300000,deadline=target+180000,observations=[];let health;
+          const ms=s=>typeof s==='string'?Date.parse(s.replace(' KST','+09:00').replace(' ','T')):NaN;
+          do{
+            const r=await fetch('https://irys-surge-monitor.vhehwpfl.workers.dev/?v281proof='+Date.now(),{signal:AbortSignal.timeout(20000)});assert(r.ok,'HEALTH_HTTP_'+r.status);health=await r.json();
+            const l=health.last||{};observations.push({at_utc:new Date().toISOString(),time:l.time,version:l.codeVersion,status:l.status});
+            if(l.codeVersion===receipt.version&&ms(l.time)>=target)break;
+            if(Date.now()>=deadline)break;
+            await new Promise(r=>setTimeout(r,10000));
+          }while(Date.now()<=deadline);
+          const l=health?.last||{},s=l.v23DirectFastScout||{},d=s.v28Discovery||{};
+          const direct=s.venue_availability?.bitget===true&&s.v28DirectFutures?.valid_quotes>=100;
+          const fallback=s.v27FreshSource?.status==='FRESH'&&s.bitget_fast_fallback?.status==='PASS';
+          const proof={at_utc:new Date().toISOString(),version:l.codeVersion,natural_tick:l.time,status:l.status,dispatch:l.githubDispatchStatus,
+            source:s.v27FreshSource||null,direct_futures:s.v28DirectFutures||null,futures_fallback:s.bitget_fast_fallback,verified_futures_path:direct?'DIRECT_OFFICIAL':fallback?'AUTHENTICATED_FALLBACK':'UNVERIFIED',
+            discovery:d,watch_status:s.status,watch_sent:s.sent,watch_symbols:s.sent_symbols||[],watch_error:s.send_error,
+            quote_audit:s.v27ExecutableAudit||null,bundle:s.v28Bundle||null,ack_this_tick:l.telegramApiAckedThisRun,last_ack:l.telegramLastApiReceipt,
+            manual_scan_or_test_messages:false,device_receipt_verified:false,future_accuracy_improvement_proven:false};
+          writeFileSync('v28_release/natural_health.json',JSON.stringify(health,null,2));
+          writeFileSync('v28_release/natural_observations.json',JSON.stringify(observations,null,2));
+          writeFileSync('v28_release/natural_proof.json',JSON.stringify(proof,null,2));console.log('V28_1_NATURAL_PROOF',JSON.stringify(proof));
+          assert.equal(l.codeVersion,receipt.version);assert(ms(l.time)>=target,'NO_FULL_POST_DEPLOYMENT_TICK');
+          assert.equal(l.status,'PASS');assert.equal(l.githubDispatchStatus,'ACCEPTED');
+          assert.equal(d.status,'OBSERVED');assert(d.listed>=100&&d.tracked===d.listed&&d.tickers===d.listed,'ACTUAL_FULL_MARKET_COVERAGE_FAILED');
+          assert(d.day_leaders.length>0&&d.delivery_is_not_detection===true);assert(!s.send_error,'WATCH_DELIVERY_ERROR');
+          assert(direct||fallback,'NEITHER_VERIFIED_FUTURES_SOURCE_AVAILABLE');
+          JS
+      - name: Freeze exact tested source and honest verification results
+        if: always()
+        run: |
+          mkdir -p v28_release
+          test ! -f deployment/IRYS_V28_BUILDUP_WORKER.mjs || cp deployment/IRYS_V28_BUILDUP_WORKER.mjs v28_release/
+          git archive --format=zip --output=v28_release/tested_source.zip HEAD
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: v28-1-production-and-natural-verification
+          path: v28_release/
+          retention-days: 7
+          if-no-files-found: error
