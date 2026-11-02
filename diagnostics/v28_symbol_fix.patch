@@ -1,0 +1,43 @@
+--- a/deployment/v28_discovery.mjs
++++ b/deployment/v28_discovery.mjs
+@@ -31,7 +31,7 @@
+  const empty=(status)=>({next:old,rows:[],candidates:[],leaders:[],summary:{version:V28_VERSION,status,tracked:Object.keys(old.assets||{}).length}});
+  const markets=feeds?.bithumb_markets,tickers=feeds?.bithumb_tickers,warnings=feeds?.bithumb_warnings;
+  if(!Array.isArray(markets)||!Array.isArray(tickers)||!Array.isArray(warnings)||!Number.isSafeInteger(now))return empty('SOURCE_UNAVAILABLE');
+- const known=new Map(markets.filter(x=>/^KRW-[A-Z0-9]{2,25}$/.test(x?.market||'')).map(x=>[x.market,x]));
++ const known=new Map(markets.filter(x=>/^KRW-[A-Z0-9]{1,25}$/.test(x?.market||'')).map(x=>[x.market,x]));
+  const validTicks=new Map(tickers.filter(x=>known.has(x?.market)).map(x=>[x.market,x]));
+  if(known.size<100||validTicks.size<known.size*.95)return empty('SOURCE_UNAVAILABLE');
+  if(Number.isSafeInteger(old.at_ms)&&now-old.at_ms<V28_MIN_GAP)return empty('DUPLICATE_UNCHANGED');
+--- a/v28_alert_events.py
++++ b/v28_alert_events.py
+@@ -20,7 +20,7 @@
+             if not isinstance(entry,dict):raise ValueError('INVALID_ACK_ITEM')
+             symbol=entry.get('symbol')
+             if not isinstance(symbol,str):raise ValueError('INVALID_ACK_SYMBOL')
+-            venue='bithumb' if re.fullmatch(r'KRW-[A-Z0-9]{2,25}',symbol) else 'bitget' if re.fullmatch(r'[A-Z0-9]{2,25}USDT',symbol) else None
++            venue='bithumb' if re.fullmatch(r'KRW-[A-Z0-9]{1,25}',symbol) else 'bitget' if re.fullmatch(r'[A-Z0-9]{1,25}USDT',symbol) else None
+             if venue is None or entry.get('venue',venue)!=venue:raise ValueError('INVALID_ACK_MARKET')
+             direction=None if 'WATCH' in channel else entry.get('forecast_direction')
+             if direction not in (None,'LONG','SHORT','BUY','UP','DOWN'):raise ValueError('INVALID_ACK_DIRECTION')
+--- a/tests/test_v28_discovery.mjs
++++ b/tests/test_v28_discovery.mjs
+@@ -84,3 +84,8 @@
+  const r=v28Discover(old,feed(T+360000,{'KRW-C0':{price:101.2,cum:1010000}}),T+360000);
+  const row=r.rows.find(x=>x.symbol==='KRW-C0');assert.ok(Math.abs(row.relative_run_pct-1.2)<1e-6);
+ });
++
++test('official one-character Bithumb symbols are covered exactly like all other listed markets',async()=>{
++ const {v28Discover}=await engine();const f=feed(T);f.bithumb_markets[0].market='KRW-A';f.bithumb_tickers[0].market='KRW-A';
++ const r=v28Discover({},f,T);assert.equal(r.rows.length,105);assert.ok(r.rows.some(x=>x.symbol==='KRW-A'));
++});
+--- a/tests/test_v28_receipt_events.py
++++ b/tests/test_v28_receipt_events.py
+@@ -16,4 +16,7 @@
+   p=self.receipt();del p['receipt']['market_snapshot'];self.assertEqual(len(self.expand([p])),1)
+   bad=self.receipt();bad['receipt']['market_snapshot']['bundle'][1]['symbol']='INVALID?'
+   with self.assertRaises(ValueError):self.expand([bad])
++ def test_official_one_character_symbols_do_not_disappear_from_real_alert_audit(self):
++  p=self.receipt();p['receipt']['market_snapshot']['bundle'][0]['symbol']='KRW-A';p['receipt']['market_snapshot']['bundle'][1]['symbol']='AUSDT'
++  rows=self.expand([p]);self.assertEqual({r['symbol'] for r in rows},{'KRW-A','AUSDT'})
+ if __name__=='__main__':unittest.main()
