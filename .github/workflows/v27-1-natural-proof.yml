@@ -16,48 +16,46 @@ jobs:
           run-id: 41379407919
           github-token: ${{ github.token }}
           path: prior_release
-      - name: Observe next natural scheduled tick, not an artificial run
+      - name: Inspect natural fully post-deployment tick and actual feed clocks without mutation
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           mkdir -p v27_1_natural
           node --input-type=module <<'JS'
-          import {readFileSync,writeFileSync} from 'node:fs';
-          import assert from 'node:assert/strict';
+          import {readFileSync,writeFileSync} from 'node:fs';import assert from 'node:assert/strict';
           const deployed=JSON.parse(readFileSync('prior_release/deployment.json','utf8'));
-          const version='IRYS-V27.1-EXECUTABLE-RESPONSE-IDSAFE-20261102';
-          assert.equal(deployed.worker_version,version);
-          const deployment=Date.parse(deployed.deployed_at_utc);
-          const deadline=Math.max(Date.now(),Math.ceil(deployment/300000)*300000)+150000;
-          let health=null,reads=0;const samples=[];
-          const get=async u=>{const r=await fetch(u,{signal:AbortSignal.timeout(20000)});assert(r.ok,'READ_HTTP_'+r.status);return r.json()};
+          const version='IRYS-V27.1-EXECUTABLE-RESPONSE-IDSAFE-20261102';assert.equal(deployed.worker_version,version);
+          const deployment=Date.parse(deployed.deployed_at_utc),minTick=Math.ceil(deployment/300000)*300000;
+          const deadline=Math.max(Date.now(),minTick)+150000;let health=null,reads=0;const samples=[];
+          const get=async(u,headers={})=>{const r=await fetch(u,{headers,signal:AbortSignal.timeout(20000)});assert(r.ok,'READ_HTTP_'+r.status);return r.json()};
+          const tickMs=s=>typeof s==='string'?Date.parse(s.replace(' KST','+09:00').replace(' ','T')):NaN;
           do{
             health=await get('https://irys-surge-monitor.vhehwpfl.workers.dev/?v27proof='+Date.now());reads++;
             const last=health.last||{};
             samples.push({read_at_utc:new Date().toISOString(),time:last.time,version:last.codeVersion,status:last.status,fresh:last.v23DirectFastScout?.v27FreshSource?.status});
-            if(last.codeVersion===version&&last.status==='PASS')break;
+            if(last.codeVersion===version&&last.status==='PASS'&&tickMs(last.time)>=minTick)break;
             if(Date.now()>=deadline)break;
             await new Promise(r=>setTimeout(r,10000));
           }while(Date.now()<=deadline);
-          writeFileSync('v27_1_natural/health.json',JSON.stringify(health,null,2));
-          writeFileSync('v27_1_natural/reads.json',JSON.stringify(samples,null,2));
+          writeFileSync('v27_1_natural/health.json',JSON.stringify(health,null,2));writeFileSync('v27_1_natural/reads.json',JSON.stringify(samples,null,2));
           const last=health?.last||{},scout=last.v23DirectFastScout||{};
+          const doc=await get('https://raw.githubusercontent.com/pmk44120315-creator/irys-bitget-5min-scanner/main/data/v27_bitget_response_latest.json?diag='+Date.now());
+          const runs=await get('https://api.github.com/repos/pmk44120315-creator/irys-bitget-5min-scanner/actions/runs?per_page=50',{authorization:'Bearer '+process.env.GH_TOKEN,accept:'application/vnd.github+json'});
+          const fastRuns=runs.workflow_runs.filter(r=>r.name==='IRYS V24 Bitget direct-source fast sidecar (public only)').map(r=>({id:r.id,status:r.status,conclusion:r.conclusion,created:r.created_at,started:r.run_started_at,updated:r.updated_at}));
           const proof={verified_at_utc:new Date().toISOString(),deployment_at_utc:deployed.deployed_at_utc,
-            production_sha256:deployed.source_sha256,version:last.codeVersion,natural_tick_kst:last.time,
-            natural_status:last.status,original_dispatch:last.githubDispatchStatus,
-            reads,fresh_generation:scout.v27FreshSource,bitget_fallback:scout.bitget_fast_fallback,
-            compared_venues:scout.compared_venues,observed_markets:scout.observed,candidates:scout.candidate_count,
-            watch_status:scout.status,watch_sent:scout.sent,watch_error:scout.send_error,
-            current_quote_audit:scout.v27ExecutableAudit||null,
-            actual_taker:scout.actual_taker||null,telegram_ack_this_tick:last.telegramApiAckedThisRun,
-            last_ack:last.telegramLastApiReceipt,device_delivery_verified:false,
-            manual_scan_or_test_messages:false,predictive_accuracy_improvement_proven:false};
-          writeFileSync('v27_1_natural/natural_proof.json',JSON.stringify(proof,null,2));
-          console.log('V27_1_NATURAL_PROOF',JSON.stringify(proof));
-          assert.equal(last.codeVersion,version,'NEW_NATURAL_VERSION_NOT_VERIFIED');
-          assert.equal(last.status,'PASS','NATURAL_RUN_FAILED');
+            production_sha256:deployed.source_sha256,version:last.codeVersion,natural_tick_kst:last.time,natural_status:last.status,
+            original_dispatch:last.githubDispatchStatus,reads,fresh_generation:scout.v27FreshSource,bitget_fallback:scout.bitget_fast_fallback,
+            compared_venues:scout.compared_venues,observed_markets:scout.observed,candidates:scout.candidate_count,watch_status:scout.status,watch_sent:scout.sent,watch_error:scout.send_error,
+            current_quote_audit:scout.v27ExecutableAudit||null,actual_taker:scout.actual_taker||null,
+            telegram_ack_this_tick:last.telegramApiAckedThisRun,last_ack:last.telegramLastApiReceipt,
+            public_feed_diagnostics:{now:Date.now(),at_ms:doc.at_ms,parent_at_ms:doc.parent_at_ms,embedded_at_ms:doc.source?.at_ms,version:doc.version,source_status:doc.source?.status,quotes:Object.keys(doc.quotes||{}).length},fast_runs:fastRuns,
+            device_delivery_verified:false,manual_scan_or_test_messages:false,predictive_accuracy_improvement_proven:false};
+          writeFileSync('v27_1_natural/natural_proof.json',JSON.stringify(proof,null,2));console.log('V27_1_NATURAL_PROOF',JSON.stringify(proof));
+          assert.equal(last.codeVersion,version,'NEW_NATURAL_VERSION_NOT_VERIFIED');assert.equal(last.status,'PASS','NATURAL_RUN_FAILED');
+          assert(tickMs(last.time)>=minTick,'FULL_POST_DEPLOYMENT_TICK_NOT_OBSERVED');
           assert.equal(last.githubDispatchStatus,'ACCEPTED','ORIGINAL_DISPATCH_FAILED');
           assert.equal(scout.v27FreshSource?.status,'FRESH','SAME_GENERATION_FEED_NOT_VERIFIED');
-          assert.equal(scout.bitget_fast_fallback?.status,'PASS','OFFICIAL_FALLBACK_NOT_VERIFIED');
-          assert(!scout.send_error,'WATCH_SEND_ERROR');
+          assert.equal(scout.bitget_fast_fallback?.status,'PASS','OFFICIAL_FALLBACK_NOT_VERIFIED');assert(!scout.send_error,'WATCH_SEND_ERROR');
           JS
       - uses: actions/upload-artifact@v4
         if: always()
