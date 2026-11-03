@@ -1,0 +1,79 @@
+name: IRYS V30 selective current-direction evidence review (NO SEND)
+on:
+  push:
+    branches: [feature/irys-v30-selective-direction-20261104]
+    paths: ['deployment/v30*.mjs','deployment/build_v30_worker.py','tests/test_v30*.mjs','tests/fixtures/v30_pair.mjs','.github/workflows/v30-selective-review.yml']
+permissions:
+  contents: read
+  actions: read
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/download-artifact@v4
+        with:
+          name: v29-direction-quality-release-evidence
+          run-id: 41628696940
+          github-token: ${{ github.token }}
+          path: /tmp/v29_prior
+      - uses: actions/download-artifact@v4
+        with:
+          name: v28-production-and-natural-verification
+          run-id: 41450016477
+          github-token: ${{ github.token }}
+          path: /tmp/v28_prior
+      - name: Rebuild original fixtures and pinned V30 source
+        run: |
+          mkdir -p v30_review
+          git fetch --quiet --depth=1 origin release/irys-v24-bitget-fallback-20261101
+          git show FETCH_HEAD:deployment/IRYS_V24_BITGET_FALLBACK_WORKER.mjs > /tmp/v24.mjs
+          python deployment/build_v27_worker.py /tmp/v24.mjs deployment/IRYS_V27_RESPONSE_WORKER.mjs
+          python deployment/build_v28_worker.py deployment/IRYS_V27_RESPONSE_WORKER.mjs deployment/IRYS_V28_BUILDUP_WORKER.mjs
+          cp /tmp/v29_prior/IRYS_V29_DIRECTION_REVIEW_WORKER.mjs deployment/
+          python deployment/build_v30_worker.py /tmp/v29_prior/IRYS_V29_DIRECTION_REVIEW_WORKER.mjs deployment/IRYS_V30_SELECTIVE_DIRECTION_WORKER.mjs
+          echo 'c1b8722e5231d85aacbda04497128926817dcc38508a1249b2d637e3f145c89a  deployment/IRYS_V30_SELECTIVE_DIRECTION_WORKER.mjs' | sha256sum -c -
+      - name: All original and new regressions; sender mock only
+        env:
+          V27_BASE_WORKER: /tmp/v24.mjs
+          V28_BASE_WORKER: deployment/IRYS_V27_RESPONSE_WORKER.mjs
+          V28_RELEASE_BASE_WORKER: /tmp/v28_prior/IRYS_V28_BUILDUP_WORKER.mjs
+          V29_BASE_WORKER: deployment/IRYS_V28_BUILDUP_WORKER.mjs
+          V30_BASE_WORKER: /tmp/v29_prior/IRYS_V29_DIRECTION_REVIEW_WORKER.mjs
+        run: |
+          set -o pipefail
+          python -m unittest discover -s tests -v 2>&1 | tee v30_review/python_tests.log
+          node --test tests/*.mjs 2>&1 | tee v30_review/node_tests.log
+      - name: Real official source pairs from current public baseline; never Telegram or orders
+        run: |
+          git fetch --quiet --depth=1 origin main
+          git show origin/main:data/state.json > data/state.json
+          git show origin/main:data/v24_bitget_fast_latest.json > data/v24_bitget_fast_latest.json
+          node deployment/v30_producer.mjs | tee v30_review/public_producer.log
+          node --input-type=module <<'JS'
+          import {readFileSync} from 'node:fs';import assert from 'node:assert/strict';
+          import {v30ModelDigest} from './deployment/v30_producer.mjs';
+          const r=JSON.parse(readFileSync('data/v30_direction_latest.json','utf8'));
+          assert.equal(r.model_digest,v30ModelDigest());assert.equal(r.orders_sent,false);assert.equal(r.telegram_sent,false);
+          assert(r.summary.listed_spot>=100&&r.summary.listed_futures>=100,'LIVE_OFFICIAL_UNIVERSE_MISSING');
+          assert.equal(r.summary.evaluated,r.summary.selected,'UNREVIEWED_SHORTLIST');
+          console.log('V30_REAL_PUBLIC_SUMMARY',JSON.stringify(r.summary));
+          JS
+      - name: Freeze exact source and evidence, not proof of future performance
+        if: always()
+        run: |
+          mkdir -p v30_review
+          test ! -f deployment/IRYS_V30_SELECTIVE_DIRECTION_WORKER.mjs || cp deployment/IRYS_V30_SELECTIVE_DIRECTION_WORKER* v30_review/
+          test ! -f data/v30_direction_latest.json || cp data/v30_direction_latest.json v30_review/
+          test ! -f data/v30_state.json || cp data/v30_state.json v30_review/
+          git archive --format=zip --output=v30_review/reviewed_source.zip HEAD
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: v30-selective-evidence-review
+          path: v30_review/
+          retention-days: 7
+          if-no-files-found: error
