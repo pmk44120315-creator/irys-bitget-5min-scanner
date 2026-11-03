@@ -1,0 +1,56 @@
+name: IRYS V30 official paired directional evidence (NO MESSAGES)
+on:
+  workflow_run:
+    workflows: ['Bitget five-minute read-only snapshot']
+    types: [requested]
+permissions:
+  contents: read
+concurrency:
+  group: irys-v30-public-pair-main-writer
+  cancel-in-progress: false
+  queue: max
+jobs:
+  produce:
+    if: github.event_name == 'workflow_run' && github.event.workflow_run.head_branch == 'main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Resolve current producer code and previous own state at actual start
+        run: |
+          git fetch --quiet origin main
+          git reset --hard origin/main
+          echo "V30_SOURCE_SHA=$(git rev-parse HEAD)"
+      - name: Pure evidence, producer and delivery checks without live Telegram
+        run: node --test tests/test_v30_core.mjs tests/test_v30_producer.mjs tests/test_v30_delivery.mjs
+      - name: Official public first samples, disjoint new trades, final quotes and outcomes
+        id: producer
+        continue-on-error: true
+        run: node deployment/v30_producer.mjs
+      - name: Publish only V30 public market evidence, never overwrite original collectors or private state
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          test -f data/v30_direction_latest.json
+          test -f data/v30_state.json
+          git add data/v30_direction_latest.json data/v30_state.json
+          if git diff --staged --quiet; then exit 0; fi
+          git commit -m 'data(v30): original public paired evidence and frozen hypothesis outcomes'
+          for attempt in 1 2 3 4 5 6 7 8; do
+            git fetch --quiet origin main
+            if ! git rebase origin/main; then
+              git rebase --abort
+              echo '::error::V30 evidence collision: newer main preserved, no force push'
+              exit 1
+            fi
+            if git push origin HEAD:main; then exit 0; fi
+            sleep 2
+          done
+          echo '::error::V30 output not published; do not label prior generation fresh'
+          exit 1
+      - name: Never hide a failed provider collection behind successful commit
+        if: steps.producer.outcome == 'failure'
+        run: exit 1
