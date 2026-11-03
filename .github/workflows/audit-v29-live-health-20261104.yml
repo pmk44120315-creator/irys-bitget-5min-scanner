@@ -1,0 +1,61 @@
+name: IRYS V29 current public runtime health (READ ONLY)
+on:
+  push:
+    branches: [audit/irys-v29-live-health-20261104]
+    paths: [.github/workflows/audit-v29-live-health-20261104.yml]
+permissions:
+  contents: read
+jobs:
+  public-health:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify current deployed status, scheduled tick and notification policy without modifying production
+        run: |
+          python - <<'PY'
+          import urllib.request, json, datetime, time, collections
+          utc=datetime.timezone.utc
+          kst=datetime.timezone(datetime.timedelta(hours=9))
+          url='https://irys-surge-monitor.vhehwpfl.workers.dev/?public_v29_health='+str(time.time_ns())
+          req=urllib.request.Request(url,headers={'accept':'application/json','user-agent':'IRYS-readonly-health-inspection'})
+          with urllib.request.urlopen(req,timeout=30) as r:
+              status=r.status
+              raw=r.read()
+          obj=json.loads(raw.decode('utf-8'))
+          if not isinstance(obj,dict):raise RuntimeError('HEALTH_NOT_OBJECT')
+          last=obj.get('last') or {}
+          scout=last.get('v23DirectFastScout') or {}
+          v29=last.get('v29DirectionalReview') or {}
+          v28=scout.get('v28Discovery') or {}
+          reasons=collections.Counter()
+          for x in v29.get('results') or []:
+              if isinstance(x,dict):reasons[str(x.get('reason') or x.get('status') or 'UNKNOWN')]+=1
+          here=datetime.datetime.now(utc)
+          try:
+              tickstr=str(last.get('time') or '')
+              tick=datetime.datetime.fromisoformat(tickstr.replace(' KST','+09:00').replace(' ','T'))
+              age_min=round((here-tick.astimezone(utc)).total_seconds()/60,2)
+          except Exception:
+              age_min=None
+          keys=['kvConfigured','telegramSecretConfigured','githubDispatchConfigured','workersAIConfigured','marketNotificationsEnabled']
+          result={
+            'verified_at_kst':here.astimezone(kst).isoformat(timespec='seconds'),
+            'http_status':status,'runtime_version':last.get('codeVersion'),
+            'last_tick_kst':last.get('time'),'last_tick_status':last.get('status'),
+            'tick_age_min':age_min,'mode':obj.get('mode'),
+            'market_notifications_root':obj.get('marketNotificationsEnabled'),
+            'market_notifications_last':last.get('marketNotificationsEnabled'),
+            'direction_quality_status':last.get('directionalQualityStatus') or obj.get('directionalQualityStatus'),
+            'github_dispatch':last.get('githubDispatchStatus'),
+            'last_telegram_ack_count':last.get('telegramApiAckedThisRun'),
+            'last_ack_public':{k:v for k,v in (last.get('telegramLastApiReceipt') or {}).items() if k in ('symbol','channel','accepted_at','telegram_message_id','status')},
+            'readiness':{k:obj.get(k) for k in keys if k in obj},
+            'scout':{k:scout.get(k) for k in ('status','candidate_count','observed','sent','send_error','compared_venues','venue_availability')},
+            'bithumb_discovery':{k:v28.get(k) for k in ('status','listed','tickers','tracked','compared','stale','candidates','sub_070_candidates')},
+            'v29_direction_review':{k:v29.get(k) for k in ('status','policy','candidate_count','evaluated','deferred','double_checked','sent','telegram_enabled','future_accuracy_improvement_proven','elapsed_ms')},
+            'v29_reject_reasons':dict(reasons),
+            'source_read_only':True,'telegram_sent_by_check':False,
+            'production_code_modified':False,'worker_kv_modified':False,
+          }
+          print('IRYS_LIVE_PUBLIC_HEALTH_JSON '+json.dumps(result,ensure_ascii=False,separators=(',',':')))
+          print('IRYS_HEALTH_CHECK_READ_ONLY_SUCCESS')
+          PY
