@@ -1,0 +1,102 @@
+name: IRYS V30 guarded selective direction release and natural verification
+on:
+  push:
+    branches: [feature/irys-v30-selective-direction-20261104]
+    paths: ['.github/workflows/v30-guarded-selective-release.yml','deployment/release_v30_guarded.mjs','tests/test_v30_release_guard.mjs']
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: irys-v27-guarded-worker-source
+  cancel-in-progress: false
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/download-artifact@v4
+        with:
+          name: v29-direction-quality-release-evidence
+          run-id: 41628696940
+          github-token: ${{ github.token }}
+          path: /tmp/v29_prior
+      - uses: actions/download-artifact@v4
+        with:
+          name: v28-production-and-natural-verification
+          run-id: 41450016477
+          github-token: ${{ github.token }}
+          path: /tmp/v28_prior
+      - name: Exact source reconstruction before production writes
+        run: |
+          mkdir -p v30_release
+          git fetch --quiet --depth=1 origin release/irys-v24-bitget-fallback-20261101
+          git show FETCH_HEAD:deployment/IRYS_V24_BITGET_FALLBACK_WORKER.mjs > /tmp/v24.mjs
+          python deployment/build_v27_worker.py /tmp/v24.mjs deployment/IRYS_V27_RESPONSE_WORKER.mjs
+          python deployment/build_v28_worker.py deployment/IRYS_V27_RESPONSE_WORKER.mjs deployment/IRYS_V28_BUILDUP_WORKER.mjs
+          cp /tmp/v29_prior/IRYS_V29_DIRECTION_REVIEW_WORKER.mjs deployment/
+          python deployment/build_v30_worker.py /tmp/v29_prior/IRYS_V29_DIRECTION_REVIEW_WORKER.mjs deployment/IRYS_V30_SELECTIVE_DIRECTION_WORKER.mjs
+          echo 'c1b8722e5231d85aacbda04497128926817dcc38508a1249b2d637e3f145c89a  deployment/IRYS_V30_SELECTIVE_DIRECTION_WORKER.mjs' | sha256sum -c -
+          node --check deployment/release_v30_guarded.mjs
+      - name: Entire regression including wrong source, missing provider and rollback fault tests
+        env:
+          V27_BASE_WORKER: /tmp/v24.mjs
+          V28_BASE_WORKER: deployment/IRYS_V27_RESPONSE_WORKER.mjs
+          V28_RELEASE_BASE_WORKER: /tmp/v28_prior/IRYS_V28_BUILDUP_WORKER.mjs
+          V29_BASE_WORKER: deployment/IRYS_V28_BUILDUP_WORKER.mjs
+          V30_BASE_WORKER: /tmp/v29_prior/IRYS_V29_DIRECTION_REVIEW_WORKER.mjs
+        run: |
+          set -o pipefail
+          python -m unittest discover -s tests -v 2>&1 | tee v30_release/python_tests.log
+          node --test tests/*.mjs 2>&1 | tee v30_release/node_tests.log
+      - name: Ordinary exact-source Cloudflare code release; original bindings and Cron unchanged
+        env:
+          CF_ACCOUNT: ${{ secrets.IRYS_REALTIME_CF_ACCOUNT_ID }}
+          CF_TOKEN: ${{ secrets.IRYS_V7_CF_API_TOKEN }}
+        run: node deployment/release_v30_guarded.mjs
+      - name: Read-only natural schedule observation; no forced scan or test Telegram
+        run: |
+          node --input-type=module <<'JS'
+          import {readFileSync,writeFileSync} from 'node:fs';import assert from 'node:assert/strict';
+          const deployment=JSON.parse(readFileSync('v30_release/deployment.json','utf8'));
+          const target=Math.ceil(Date.parse(deployment.at_utc)/300000)*300000,deadline=target+210000;
+          const tick=s=>typeof s==='string'?Date.parse(s.replace(' KST','+09:00').replace(' ','T')):NaN;
+          const observations=[];let health;
+          do{
+            const r=await fetch('https://irys-surge-monitor.vhehwpfl.workers.dev/?v30proof='+Date.now(),{signal:AbortSignal.timeout(20000)});assert(r.ok,'PUBLIC_HEALTH_'+r.status);health=await r.json();
+            const l=health.last||{},d=l.v30DirectionalDelivery||{};
+            observations.push({read_at_utc:new Date().toISOString(),tick:l.time,version:l.codeVersion,status:l.status,delivery_status:d.status,source_ok:d.feed?.ok});
+            if(l.codeVersion===deployment.version&&tick(l.time)>=target)break;
+            if(Date.now()>=deadline)break;await new Promise(r=>setTimeout(r,10000));
+          }while(Date.now()<=deadline);
+          const l=health?.last||{},d=l.v30DirectionalDelivery||{};
+          const proof={verified_at_utc:new Date().toISOString(),version:l.codeVersion,tick_kst:l.time,status:l.status,dispatch:l.githubDispatchStatus,
+            selective_notifications_enabled:l.marketNotificationsEnabled===true&&health.marketNotificationsEnabled===true,
+            direction_quality_status:l.directionalQualityStatus,delivery:d,
+            discovery:l.v23DirectFastScout?.v28Discovery||null,telegram_ack_this_tick:l.telegramApiAckedThisRun,
+            latest_public_ack:l.telegramLastApiReceipt,device_delivery_verified:false,forecast_accuracy_improvement_proven:false,
+            no_manual_scan_or_test_messages:true};
+          writeFileSync('v30_release/natural_proof.json',JSON.stringify(proof,null,2));writeFileSync('v30_release/natural_health.json',JSON.stringify(health,null,2));writeFileSync('v30_release/natural_observations.json',JSON.stringify(observations,null,2));
+          console.log('V30_NATURAL_SELECTIVE_PROOF',JSON.stringify(proof));
+          assert.equal(l.codeVersion,deployment.version);assert(tick(l.time)>=target,'POST_DEPLOYMENT_TICK_NOT_OBSERVED');
+          assert.equal(l.status,'PASS');assert.equal(l.githubDispatchStatus,'ACCEPTED');assert(proof.selective_notifications_enabled);
+          assert.equal(d.feed?.ok,true,'NEW_EVIDENCE_FEED_NOT_WORKING');assert.equal(d.policy,'QUALIFIED_CURRENT_DIRECTION_ONLY');
+          assert(d.source_summary?.listed_spot>=100&&d.source_summary?.listed_futures>=100,'OFFICIAL_SOURCE_COVERAGE_MISSING');
+          assert(!['DIRECTION_DELIVERY_RUNTIME_ERROR','EVIDENCE_SOURCE_NOT_READY','DELIVERY_STATE_UNVERIFIED','DELIVERY_RESERVATION_FAILED','TELEGRAM_ACK_NOT_VERIFIED','DELIVERY_UNCERTAIN','ACK_RECEIPT_PERSISTENCE_PARTIAL'].includes(d.status),'LIVE_DELIVERY_PATH_ERROR');
+          if(d.sent){assert(Number.isSafeInteger(d.message_id)&&d.message_id>0);assert.equal(d.receipt_persistence_verified,true);}
+          JS
+      - name: Preserve success and failure facts plus exact source
+        if: always()
+        run: |
+          mkdir -p v30_release
+          test ! -f deployment/IRYS_V30_SELECTIVE_DIRECTION_WORKER.mjs || cp deployment/IRYS_V30_SELECTIVE_DIRECTION_WORKER* v30_release/
+          git archive --format=zip --output=v30_release/reviewed_source.zip HEAD
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: v30-selective-production-natural-proof
+          path: v30_release/
+          retention-days: 7
+          if-no-files-found: error
