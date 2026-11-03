@@ -1,0 +1,15 @@
+# V30: source-complete, selective directional evidence delivery
+
+User goal: sparse, relevant Bithumb BUY / Bitget LONG+SHORT direction alerts checked against NEW market evidence. Neither an unconditional notification ban nor a general WATCH spray meets it. User has delegated the implementation choices and requested execution; no renewed approval loop.
+
+Verified root problems: V29 telegram() throws unconditionally; V29 policy is always false; risk/quote checks repeat unavailable Cloudflare Bitget endpoints instead of the successful GitHub public-data route; only six candidates checked, and the main discovery pool is upward-biased. Current evidence vs future predictive quality are distinct and no implementation can certify future price certainty.
+
+Alternatives considered: (1) remove ban only: rejected, missing/opposing tape would be sent again; (2) keep ban waiting for an unspecified event: rejected, no useful operational path; (3) get independent official paired evidence where public APIs work, locally revalidate it at delivery, accept only explicit current-direction evidence and record future results. Implement (3), retaining the rigorous V29 pair checks and a fresh final quote rather than weakening failed-data checks.
+
+Architecture: new isolated GitHub public evidence producer invoked by the existing five-minute dispatcher, separate state/output files; normal Cloudflare code-only release retains Cron, bindings, other watchers, original collectors, and old disabled senders. Worker reads only an authenticated fixed repository content path, rejects old/wrong-source evidence, independently rechecks raw pair and official risk fields, then emits at most one qualified signal per tick and retains the existing two-market-messages/hour ceiling and per-symbol cooldown. No test messages or trading/account APIs. No private state extraction routes.
+
+Quality semantics: `READY_CURRENT_EVIDENCE` is a directional market hypothesis, NOT proven forecasting accuracy, a calibrated probability, an execution guarantee, or a trade instruction. Alert explicitly gives side, timestamp, reference prices, expiry and evidence invalidation reference. No fabricated confidence percentage. Only actual Bot ACK counts as sent. Timeout is uncertain delivery, not silently retried as a duplicate.
+
+Preservation: existing V28 all-market discovery remains; external provider failures isolated by venue; no synthetic trades, no changing exchange timestamps to fetch time; SHA of reviewed producer model pinned in report and Worker; frozen prior records never relabeled after seeing future outcomes. Candidate outcome logging is public market data only, never Telegram recipient IDs or private messages.
+
+Validation: red/green fixtures for positive per-signal delivery and absent/opposing/stale/duplicate samples; all original regressions, actual API read-only smoke and exact production source lease/rollback tests; genuine natural Cron evidence. Passing code tests is not future accuracy proof. Store all failed stages as well as final evidence.
