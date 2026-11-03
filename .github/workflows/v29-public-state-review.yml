@@ -1,0 +1,48 @@
+name: IRYS V29 public runtime and latest receipt evidence (READ ONLY)
+on:
+  push:
+    branches: [fix/irys-v29-direction-doublecheck-20261103]
+    paths: ['.github/workflows/v29-public-state-review.yml']
+permissions:
+  contents: read
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Public health and official exchange snapshots, no credentials or writes
+        run: |
+          mkdir -p v29_public
+          python - <<'PY'
+          import json,time,pathlib,urllib.request,urllib.parse,datetime as dt
+          out=pathlib.Path('v29_public')
+          def get(url):
+              with urllib.request.urlopen(urllib.request.Request(url,headers={'accept':'application/json','User-Agent':'IRYS-public-quality-audit'}),timeout=25) as r:return json.load(r)
+          h=get('https://irys-surge-monitor.vhehwpfl.workers.dev/?public_quality_audit='+str(time.time_ns()))
+          (out/'health.json').write_text(json.dumps(h,ensure_ascii=False,indent=2))
+          last=h.get('last') or {};scout=last.get('v23DirectFastScout') or {};ack=last.get('telegramLastApiReceipt')
+          summary={'read_at_utc':dt.datetime.now(dt.timezone.utc).isoformat(),'runtime_version':last.get('codeVersion'),'tick':last.get('time'),'status':last.get('status'),
+          'latest_public_receipt':ack,'ack_this_tick':last.get('telegramApiAckedThisRun'),'watch_status':scout.get('status'),'watch_sent_symbols':scout.get('sent_symbols'),
+          'current_candidate_count':scout.get('candidate_count'),'current_response':scout.get('actual_taker'),'private_receipt_inventory_accessed':False,'all_recent_messages_audited':False}
+          (out/'summary.json').write_text(json.dumps(summary,ensure_ascii=False,indent=2));print('V29_PUBLIC_STATE',json.dumps(summary,ensure_ascii=False))
+          if ack and ack.get('symbol'):
+              symbol=ack['symbol'];stamp=ack.get('ack_received_at_ms') or ack.get('recorded_send_ms')
+              if not isinstance(stamp,int):
+                  s=ack.get('accepted_at','').replace(' KST','+09:00').replace(' ','T');stamp=int(dt.datetime.fromisoformat(s).timestamp()*1000)
+              minute=60000;reference=(stamp//minute+1)*minute;now=int(time.time()*1000);end=min(now//minute*minute,reference+61*minute)
+              if symbol.startswith('KRW-'):
+                  to=dt.datetime.fromtimestamp(end/1000,dt.timezone(dt.timedelta(hours=9))).strftime('%Y-%m-%dT%H:%M:%S')
+                  url='https://api.bithumb.com/v1/candles/minutes/1?'+urllib.parse.urlencode({'market':symbol,'to':to,'count':200})
+              elif symbol.endswith('USDT'):
+                  url='https://api.bitget.com/api/v2/mix/market/history-candles?'+urllib.parse.urlencode({'symbol':symbol,'productType':'USDT-FUTURES','granularity':'1m','endTime':end,'limit':200})
+              else:raise ValueError('UNRESOLVED_LATEST_RECEIPT_SYMBOL')
+              data={'receipt':ack,'recorded_event_ms':stamp,'reference_ms':reference,'retrieved_at_ms':now,'source_url':url,'raw':get(url),'only_root_symbol_public':True}
+              (out/'latest_receipt_candles.json').write_text(json.dumps(data,ensure_ascii=False,indent=2))
+          print('V29_NO_DEPLOYMENT_NO_SECRETS_NO_KV_ACCESS_NO_TELEGRAM_NO_ORDERS')
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: v29-public-runtime-evidence
+          path: v29_public/
+          retention-days: 7
+          if-no-files-found: error
