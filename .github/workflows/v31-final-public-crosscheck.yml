@@ -1,0 +1,63 @@
+name: IRYS V31 final public ACK and next natural cycle cross-check (READ ONLY)
+on:
+  push:
+    branches: [fix/irys-v31-latency-quality-20261104]
+    paths: ['.github/workflows/v31-final-public-crosscheck.yml']
+permissions:
+  contents: read
+  actions: read
+jobs:
+  crosscheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: v30-selective-production-natural-proof
+          run-id: 41693577194
+          github-token: ${{ github.token }}
+          path: /tmp/original
+      - name: Native public source replay and current natural runtime, never send or modify
+        run: |
+          mkdir -p v31_crosscheck
+          node --input-type=module <<'JS'
+          import {writeFileSync} from 'node:fs';import assert from 'node:assert/strict';
+          import {v30Qualify as original} from '/tmp/original/IRYS_V30_SELECTIVE_DIRECTION_WORKER.mjs';
+          import {v30Qualify as improved} from './deployment/v30_core.mjs';
+          const get=async u=>{const r=await fetch(u,{signal:AbortSignal.timeout(20000)});assert(r.ok,'HTTP_'+r.status);return r.json()};
+          const commit='47bfca6df2066b7caebeed9bfd0f2ab2e6237854',ack=1793788019263,symbol='JCTUSDT';
+          const packet=await get('https://raw.githubusercontent.com/pmk44120315-creator/irys-bitget-5min-scanner/'+commit+'/data/v30_direction_latest.json');
+          const item=packet.items.find(x=>x.candidate.symbol===symbol);assert(item,'ACTUAL_ACK_SOURCE_ITEM_MISSING');
+          const old=original(item,ack),newer=improved(item,ack);
+          const now=Date.now(),ref=(Math.floor(ack/60000)+1)*60000,end=Math.min(Math.floor(now/60000)*60000,ref+61*60000);
+          const raw=await get('https://api.bitget.com/api/v2/mix/market/history-candles?'+new URLSearchParams({symbol,productType:'USDT-FUTURES',granularity:'1m',endTime:String(end),limit:'200'}));
+          assert.equal(raw.code,'00000');assert(Array.isArray(raw.data));const bars=new Map(raw.data.map(b=>[Number(b[0]),b]));
+          const outcomes={};for(const h of [5,15,30,60]){const target=ref+h*60000,a=bars.get(ref),b=bars.get(target-60000);
+            if(target>now){outcomes[h]={status:'NOT_YET_DUE'};continue}
+            if(!a||!b){outcomes[h]={status:'MISSING_REFERENCE_OR_TARGET_BAR'};continue}
+            const entry=Number(a[1]),exit=Number(b[4]),change=100*(exit/entry-1);
+            outcomes[h]={status:'MINUTE_PRICE_PROXY',reference:entry,close:exit,raw_return_pct:change,signed_return_pct:item.candidate.direction==='SHORT'?-change:change,actual_fill_verified:false};
+          }
+          const replay={symbol,public_ack_ms:ack,source_commit:commit,reconstructed_direction:item.candidate.direction,original_at_ack:old,improved_at_same_ack:newer,
+            source_started_to_ack_ms:ack-packet.started_at_ms,final_quote_to_ack_ms:ack-item.final.quote.at_ms,outcomes,
+            original_message_body_read:false,all_private_messages_accessed:false,not_independent_predictive_performance_proof:true};
+          writeFileSync('v31_crosscheck/latest_ack_replay.json',JSON.stringify(replay,null,2));writeFileSync('v31_crosscheck/original_item.json',JSON.stringify(item));writeFileSync('v31_crosscheck/native_candles.json',JSON.stringify(raw));
+          console.log('V31_LATEST_ACK_REPLAY',JSON.stringify(replay));
+          const ms=s=>typeof s==='string'?Date.parse(s.replace(' KST','+09:00').replace(' ','T')):NaN;
+          const target=Date.parse('2026-11-04T10:45:00Z'),deadline=Math.max(Date.now(),target)+180000;let health;
+          do{health=await get('https://irys-surge-monitor.vhehwpfl.workers.dev/?crosscheck='+Date.now());if(ms(health.last?.time)>=target)break;
+            if(Date.now()>=deadline)break;await new Promise(r=>setTimeout(r,10000));
+          }while(Date.now()<=deadline);
+          writeFileSync('v31_crosscheck/health.json',JSON.stringify(health,null,2));const l=health.last||{},d=l.v30DirectionalDelivery||{};
+          console.log('V31_ADDITIONAL_NATURAL',JSON.stringify({tick:l.time,status:l.status,version:l.codeVersion,dispatch:l.githubDispatchStatus,delivery_status:d.status,source_ok:d.feed?.ok,source_summary:d.source_summary,ack_this_tick:l.telegramApiAckedThisRun}));
+          assert.equal(l.codeVersion,'IRYS-V31-TIMELY-ENTRY-AND-OUTCOMES-20261104');assert.equal(l.status,'PASS');assert.equal(l.githubDispatchStatus,'ACCEPTED');assert.equal(d.feed?.ok,true);
+          const latest=await get('https://raw.githubusercontent.com/pmk44120315-creator/irys-bitget-5min-scanner/main/data/v30_direction_latest.json?crosscheck='+Date.now());
+          writeFileSync('v31_crosscheck/producer.json',JSON.stringify(latest));assert.equal(latest.model_digest,'0f5b9a9f4fff19d148901583c52d1b77b8f1b04be0512f778f4ee5c2f15526ec');
+          JS
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: v31-final-public-crosscheck
+          path: v31_crosscheck/
+          retention-days: 7
+          if-no-files-found: error
