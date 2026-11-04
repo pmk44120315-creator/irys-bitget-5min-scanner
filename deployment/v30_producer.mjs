@@ -7,7 +7,8 @@ import {v28Discover} from './v28_discovery.mjs';
 import {v29ReadSnapshot} from './v29_runtime.mjs';
 import {v29Quote} from './v29_direction_gate.mjs';
 import {V30_VERSION,V30_MODEL,v30ParsePublicJSON,v30Qualify,v30FuturesCandidates,v30Settle} from './v30_core.mjs';
-const PAIR_SEPARATION_MS=8500;
+import {v31ReadPairs,v31ShouldRecord} from './v31_quality.mjs';
+import {v31FetchHistory,v31SettleMinute,v31MinuteSummary} from './v31_outcomes.mjs';
 async function pooled(items,fn,concurrency=6){
  const out=new Array(items.length);let index=0;
  await Promise.all(Array.from({length:Math.min(concurrency,items.length)},async()=>{while(index<items.length){const i=index++;out[i]=await fn(items[i],i)}}));return out;
@@ -43,7 +44,8 @@ async function finalQuotes(candidates,u,read,clock){
  return {quotes,errors};
 }
 function summaryForward(rows){
- const result={scope:'ROLLING_2000_PUBLIC_HYPOTHESES_NOT_ALL_TIME',actual_execution_verified:false,forecast_accuracy_proven:false,groups:{}};
+ const result={scope:'ROLLING_2000_PUBLIC_HYPOTHESES_NOT_ALL_TIME',current_model:V30_MODEL,legacy_records:rows.filter(r=>r.model!==V30_MODEL).length,actual_execution_verified:false,forecast_accuracy_proven:false,groups:{}};
+ rows=rows.filter(r=>r.model===V30_MODEL);
  for(const venue of ['bithumb','bitget'])for(const direction of venue==='bithumb'?['BUY']:['LONG','SHORT'])for(const stage of ['READY_CURRENT_EVIDENCE','NOT_READY']){
   const group=rows.filter(r=>r.venue===venue&&r.direction===direction&&r.evidence_status===stage);const horizons={};
   for(const h of [5,15,30,60]){const a=group.map(r=>r.outcomes?.[String(h)]),measured=a.filter(x=>x?.status==='MEASURED_PUBLIC_QUOTE');horizons[h]={measured:measured.length,missing:a.filter(x=>x?.status==='UNMEASURED_TARGET_QUOTE').length,pending:a.filter(x=>!x).length,net_positive:measured.filter(x=>x.net_scenario_pct>0).length,mean_net_scenario_pct:measured.length?measured.reduce((s,x)=>s+x.net_scenario_pct,0)/measured.length:null};}
@@ -67,10 +69,11 @@ async function v30Produce({read,clock=Date.now,sleep=ms=>new Promise(r=>setTimeo
  if(spotScan?.summary.status==='OBSERVED')state.v28=spotScan.next;
  const spots=(spotScan?.candidates||[]).map(c=>({venue:'bithumb',symbol:c.symbol,direction:'BUY',anchor_price:c.baseline_price,discovery_price:c.price,change_pct:c.move_pct,priority:c.priority,discovery_is_signal:false}));
  const candidates=[...spots,...futures],errors=[];
- const first=await pooled(candidates,async c=>{try{return await v29ReadSnapshot(c,read,clock)}catch(e){return {error:briefError(e)}}});
- const validFirst=first.filter(x=>!x.error);
- if(validFirst.length){const newest=Math.max(...validFirst.map(x=>x.observed_at_ms));await sleep(Math.max(0,newest+PAIR_SEPARATION_MS-clock()));}
- const second=await pooled(candidates,async(c,i)=>{if(first[i].error)return {error:'FIRST_SAMPLE_UNAVAILABLE'};try{return await v29ReadSnapshot(c,read,clock)}catch(e){return {error:briefError(e)}}});
+ const pairs=await v31ReadPairs(candidates,c=>v29ReadSnapshot(c,read,clock),clock,sleep);
+ const first=pairs.map(x=>x.first),second=pairs.map(x=>x.second);
+ // History reads run before final quotes; they cannot age a just-validated entry.
+ const history=await v31FetchHistory(state.records||[],read,clock,state.minute_history||[]);
+ state.minute_history=history.pages;
  const finalRisk=await universes(read,clock);
  const oldRows=state.records||[],atBeforeFinal=clock();
  const due=oldRows.filter(r=>[5,15,30,60].some(h=>!r.outcomes?.[String(h)]&&Math.abs(atBeforeFinal-(r.issued_at_ms+h*60000))<=150000));
@@ -87,10 +90,11 @@ async function v30Produce({read,clock=Date.now,sleep=ms=>new Promise(r=>setTimeo
  // Freeze all evaluable hypotheses before their future horizons, including
  // rejections. No retrospective conversion of rejected rows to published alerts.
  let records=v30Settle(oldRows,end.quotes.map(x=>({...x.quote,venue:x.venue,symbol:x.symbol})),now);
+ records=v31SettleMinute(records,history.pages,now);
  for(const x of items){const c=x.candidate,q=v29Quote(x.final?.quote,now,45000);if(!q)continue;
   const recent=[...records].reverse().find(r=>r.venue===c.venue&&r.symbol===c.symbol&&r.direction===c.direction);
-  if(recent&&now-recent.issued_at_ms<15*60000)continue;
   const quality=v30Qualify(x,now);
+  if(!v31ShouldRecord(recent,quality,now))continue;
   records.push({id:[V30_MODEL,c.venue,c.symbol,c.direction,now].join(':'),model:V30_MODEL,model_digest:modelDigest,venue:c.venue,symbol:c.symbol,direction:c.direction,issued_at_ms:now,entry_quote:q,evidence_status:quality.status,reason:quality.reason,outcomes:{},telegram_status:'NOT_KNOWN_TO_PUBLIC_PRODUCER'});
  }
  state.records=records.slice(-2000);state.at_ms=now;state.version=V30_VERSION;
@@ -101,11 +105,15 @@ async function v30Produce({read,clock=Date.now,sleep=ms=>new Promise(r=>setTimeo
    selected:candidates.length,evaluated:checks.length,paired_complete:items.length,unreviewed:candidates.length-checks.length,ready:checks.filter(x=>x.allowed).length,
    selected_by_direction:{BUY:spots.length,LONG:futures.filter(x=>x.direction==='LONG').length,SHORT:futures.filter(x=>x.direction==='SHORT').length},
    rejection_reasons:reasons,provider_errors:providerErrors,spot_discovery:spotScan?.summary||{status:'SOURCE_UNAVAILABLE'},future_accuracy_proven:false},
-  checks,items,outcome_quotes:end.quotes.map(q=>({...q.quote,venue:q.venue,symbol:q.symbol})),forward:summaryForward(state.records),orders_sent:false,telegram_sent:false};
+  checks,items,outcome_quotes:end.quotes.map(q=>({...q.quote,venue:q.venue,symbol:q.symbol})),
+  outcome_candles:history.pages,history_errors:history.errors,
+  timing:{discovery_at_ms:snapshotAt,paired_completed_ms:Math.max(snapshotAt,...second.filter(x=>!x.error).map(x=>x.observed_at_ms)),finished_at_ms:now,
+   pair_separations_ms:pairs.filter(x=>!x.first.error&&!x.second.error).map(x=>x.second.observed_at_ms-x.first.observed_at_ms),cadence_ms:300000,barrier_removed:true},
+  forward:{...summaryForward(state.records),minute_close_proxies:v31MinuteSummary(state.records)},orders_sent:false,telegram_sent:false};
  return {report,state};
 }
 function v30ModelDigest(){
- const files=['v30_core.mjs','v30_producer.mjs','v29_direction_gate.mjs','v29_runtime.mjs','v28_discovery.mjs'];
+ const files=['v30_core.mjs','v30_producer.mjs','v29_direction_gate.mjs','v29_runtime.mjs','v28_discovery.mjs','v31_quality.mjs','v31_outcomes.mjs'];
  const h=createHash('sha256');for(const name of files){h.update(name+'\0');h.update(readFileSync(new URL(name,import.meta.url)));}return h.digest('hex');
 }
 function publicReader(clock=Date.now){

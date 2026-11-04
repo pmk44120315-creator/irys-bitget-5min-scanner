@@ -2,6 +2,7 @@
  * one-use in-process transport capability; legacy senders never obtain one.
  */
 import {V30_VERSION,v30Qualify,v30ValidatePacket,v30Settle,v30OutcomeSummary} from './v30_core.mjs';
+import {v31SettleMinute,v31MinuteSummary} from './v31_outcomes.mjs';
 const V30_FEED='https://api.github.com/repos/pmk44120315-creator/irys-bitget-5min-scanner/contents/data/v30_direction_latest.json';
 const V30_SEND_CAP=2,V30_SYMBOL_COOLDOWN_MS=90*60000;
 const v30Permits=new WeakSet();
@@ -13,7 +14,7 @@ function v30FormatSignal(p,now){
  const f=x=>Number(x).toLocaleString('ko-KR',{maximumFractionDigits:10}),q=p.final_quote;
  const kst=ms=>new Date(ms+9*3600000).toISOString().slice(0,19).replace('T',' ')+' KST';
  const dir=p.direction==='BUY'?'BUY · 현물 상승':p.direction==='LONG'?'LONG · 상승':'SHORT · 하락';
- return `🔎 [V30 방향 근거 확인]\n${p.venue==='bithumb'?'빗썸':'비트겟'} ${p.symbol} | ${dir}\n`+
+ return `🔎 [V31 방향·진입가격 재확인]\n${p.venue==='bithumb'?'빗썸':'비트겟'} ${p.symbol} | ${dir}\n`+
   `근거 시각 ${kst(p.observed_at_ms)}\n최우선 매수/매도호가 ${f(q.bid)} / ${f(q.ask)}\n`+
   `독립 신규 체결·호가 2회 확인 + 최종 호가 재확인\n`+
   `근거 이탈 참고선 ${f(p.invalidation_reference)} · 유효 ${kst(p.expires_at_ms)}까지\n`+
@@ -40,7 +41,8 @@ async function v30ReviewAndDeliver(env,state,requestedAt,options){
  if(!got.ok){output.status='EVIDENCE_SOURCE_NOT_READY';return output;}
  const doc=got.doc;output.source_at_ms=doc.at_ms;output.source_summary=doc.summary||{};output.forward=doc.forward||{};
  state.v30ActualForecasts=v30Settle(state.v30ActualForecasts||[],Array.isArray(doc.outcome_quotes)?doc.outcome_quotes:[],clock());
- output.actual_alert_outcomes=v30OutcomeSummary(state.v30ActualForecasts);
+ state.v30ActualForecasts=v31SettleMinute(state.v30ActualForecasts,Array.isArray(doc.outcome_candles)?doc.outcome_candles:[],clock());
+ output.actual_alert_outcomes={...v30OutcomeSummary(state.v30ActualForecasts),minute_close_proxies:v31MinuteSummary(state.v30ActualForecasts)};
  const approved=[],rejected={};
  for(const item of doc.items){const q=v30Qualify(item,clock());output.evaluated++;
   if(q.allowed)approved.push({item,proof:q});else rejected[q.reason]=(rejected[q.reason]||0)+1;
