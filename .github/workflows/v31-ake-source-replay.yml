@@ -1,0 +1,35 @@
+name: IRYS V31 last actual symbol causal source replay (NO SEND)
+on:
+  push:
+    branches: [fix/irys-v31-latency-quality-20261104]
+    paths: ['.github/workflows/v31-ake-source-replay.yml']
+permissions:
+  contents: read
+jobs:
+  replay:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Read exact publicly committed evidence before last actual ACK and native prices
+        run: |
+          mkdir -p v31_replay
+          node --input-type=module <<'JS'
+          import {writeFileSync} from 'node:fs';import assert from 'node:assert/strict';
+          import {v30Qualify} from './deployment/v30_core.mjs';
+          const at=1793774204546,sha='7688f51767c4c65e6fca27e555af79692c048bed';
+          const get=async u=>{const r=await fetch(u,{signal:AbortSignal.timeout(20000)});assert(r.ok,'PUBLIC_HTTP_'+r.status);return r.json()};
+          const doc=await get('https://raw.githubusercontent.com/pmk44120315-creator/irys-bitget-5min-scanner/'+sha+'/data/v30_direction_latest.json');
+          const items=doc.items.filter(i=>i.candidate.symbol==='AKEUSDT');
+          const rows=items.map(i=>({candidate:i.candidate,first_at:i.first.observed_at_ms,second_at:i.second.observed_at_ms,final_at:i.final?.quote?.at_ms,qualify_at_ack:v30Qualify(i,at),packet_to_ack_ms:at-doc.at_ms,final_quote_to_ack_ms:at-i.final.quote.at_ms}));
+          const bars=await get('https://api.bitget.com/api/v2/mix/market/history-candles?'+new URLSearchParams({symbol:'AKEUSDT',productType:'USDT-FUTURES',granularity:'1m',endTime:String((Math.floor(at/60000)+62)*60000),limit:'200'}));assert.equal(bars.code,'00000');
+          writeFileSync('v31_replay/prior_public_source.json',JSON.stringify(doc));writeFileSync('v31_replay/AKE_official_candles.json',JSON.stringify(bars));
+          const result={public_last_ack_symbol:'AKEUSDT',public_last_ack_ms:at,source_commit:sha,source_started_ms:doc.started_at_ms,source_published_ms:doc.at_ms,source_to_ack_ms:at-doc.started_at_ms,
+           matched_prior_hypotheses:rows,original_private_message_body_obtained:false,direction_is_source_reconstruction_not_body_read:true};
+          writeFileSync('v31_replay/reconstruction.json',JSON.stringify(result,null,2));console.log('V31_LAST_ACK_SOURCE_REPLAY',JSON.stringify(result));
+          JS
+      - uses: actions/upload-artifact@v4
+        with:
+          name: v31-last-ack-source-replay
+          path: v31_replay/
+          retention-days: 7
+          if-no-files-found: error
