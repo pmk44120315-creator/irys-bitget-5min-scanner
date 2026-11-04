@@ -1,0 +1,114 @@
+name: IRYS V31 guarded entry timing update and natural outcome verification
+on:
+  push:
+    branches: [fix/irys-v31-latency-quality-20261104]
+    paths: ['.github/workflows/v31-guarded-resume-release.yml']
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: irys-v27-guarded-worker-source
+  cancel-in-progress: false
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/download-artifact@v4
+        with:
+          name: v30-selective-production-natural-proof
+          run-id: 41693577194
+          github-token: ${{ github.token }}
+          path: /tmp/v30_prior
+      - uses: actions/download-artifact@v4
+        with:
+          name: v28-production-and-natural-verification
+          run-id: 41450016477
+          github-token: ${{ github.token }}
+          path: /tmp/v28_prior
+      - name: Rebuild tested source and exact previous rollback version
+        run: |
+          mkdir -p v31_release
+          git fetch --quiet --depth=1 origin release/irys-v24-bitget-fallback-20261101
+          git show FETCH_HEAD:deployment/IRYS_V24_BITGET_FALLBACK_WORKER.mjs > /tmp/v24.mjs
+          python deployment/build_v27_worker.py /tmp/v24.mjs deployment/IRYS_V27_RESPONSE_WORKER.mjs
+          python deployment/build_v28_worker.py deployment/IRYS_V27_RESPONSE_WORKER.mjs deployment/IRYS_V28_BUILDUP_WORKER.mjs
+          python deployment/build_v29_worker.py deployment/IRYS_V28_BUILDUP_WORKER.mjs deployment/IRYS_V29_DIRECTION_REVIEW_WORKER.mjs
+          cp /tmp/v30_prior/IRYS_V30_SELECTIVE_DIRECTION_WORKER.mjs deployment/
+          python deployment/build_v31_worker.py deployment/IRYS_V29_DIRECTION_REVIEW_WORKER.mjs deployment/IRYS_V31_TIMELY_WORKER.mjs
+          echo '20c730063705ffa9fdbafa000621bbd8db94a71e3e926fa915c88fa56db44a3a  deployment/IRYS_V31_TIMELY_WORKER.mjs' | sha256sum -c -
+          echo 'c1b8722e5231d85aacbda04497128926817dcc38508a1249b2d637e3f145c89a  deployment/IRYS_V30_SELECTIVE_DIRECTION_WORKER.mjs' | sha256sum -c -
+      - name: All regressions and exact old-source rollback failure injections, mock Telegram only
+        env:
+          V27_BASE_WORKER: /tmp/v24.mjs
+          V28_BASE_WORKER: deployment/IRYS_V27_RESPONSE_WORKER.mjs
+          V28_RELEASE_BASE_WORKER: /tmp/v28_prior/IRYS_V28_BUILDUP_WORKER.mjs
+          V29_BASE_WORKER: deployment/IRYS_V28_BUILDUP_WORKER.mjs
+          V30_BASE_WORKER: deployment/IRYS_V29_DIRECTION_REVIEW_WORKER.mjs
+        run: |
+          set -o pipefail
+          python -m unittest discover -s tests -v 2>&1 | tee v31_release/python_tests.log
+          node --test tests/*.mjs 2>&1 | tee v31_release/node_tests.log
+      - name: Observe normally scheduled producer publishing exact new model, never invoke a scan
+        run: |
+          node --input-type=module <<'JS'
+          import assert from 'node:assert/strict';import {writeFileSync} from 'node:fs';
+          const digest='0f5b9a9f4fff19d148901583c52d1b77b8f1b04be0512f778f4ee5c2f15526ec';
+          const deadline=Date.now()+390000;let latest,ok=false;const reads=[];
+          do{
+            try{const r=await fetch('https://raw.githubusercontent.com/pmk44120315-creator/irys-bitget-5min-scanner/main/data/v30_direction_latest.json?v31release='+Date.now(),{signal:AbortSignal.timeout(20000)});if(r.ok){latest=await r.json();reads.push({at_ms:Date.now(),model:latest.model_digest,source_at_ms:latest.at_ms});if(latest.model_digest===digest&&latest.at_ms<=Date.now()&&Date.now()-latest.at_ms<360000){ok=true;break}}}catch{}
+            if(Date.now()>=deadline)break;await new Promise(r=>setTimeout(r,10000));
+          }while(Date.now()<=deadline);
+          writeFileSync('v31_release/producer_readiness.json',JSON.stringify({ok,reads,summary:latest?.summary,timing:latest?.timing},null,2));
+          assert(ok,'NEW_PRODUCER_NOT_READY_NO_DEPLOYMENT');
+          JS
+      - name: Normal code-only deployment, preserve original Cron and bindings, verify exact code readback
+        env:
+          CF_ACCOUNT: ${{ secrets.IRYS_REALTIME_CF_ACCOUNT_ID }}
+          CF_TOKEN: ${{ secrets.IRYS_V7_CF_API_TOKEN }}
+        run: node deployment/release_v31_guarded.mjs
+      - name: Observe first natural full post-deployment tick and separate actual ACK price-proxy recovery
+        run: |
+          node --input-type=module <<'JS'
+          import {readFileSync,writeFileSync} from 'node:fs';import assert from 'node:assert/strict';
+          const deployment=JSON.parse(readFileSync('v31_release/deployment.json','utf8'));
+          const target=Math.ceil(Date.parse(deployment.at_utc)/300000)*300000,deadline=target+210000;
+          const tick=s=>typeof s==='string'?Date.parse(s.replace(' KST','+09:00').replace(' ','T')):NaN;
+          let h;const reads=[];
+          do{const r=await fetch('https://irys-surge-monitor.vhehwpfl.workers.dev/?v31natural='+Date.now(),{signal:AbortSignal.timeout(20000)});assert(r.ok,'HEALTH_HTTP_'+r.status);h=await r.json();const l=h.last||{};reads.push({read_at_ms:Date.now(),tick:l.time,version:l.codeVersion,status:l.status});
+            if(l.codeVersion===deployment.version&&tick(l.time)>=target)break;
+            if(Date.now()>=deadline)break;await new Promise(r=>setTimeout(r,10000));
+          }while(Date.now()<=deadline);
+          const l=h?.last||{},d=l.v30DirectionalDelivery||{},discovery=l.v23DirectFastScout?.v28Discovery||{};
+          const proof={verified_at_utc:new Date().toISOString(),version:l.codeVersion,tick_kst:l.time,status:l.status,dispatch:l.githubDispatchStatus,
+            selective_notifications_enabled:h.marketNotificationsEnabled===true&&l.marketNotificationsEnabled===true,
+            delivery:d,discovery:{listed:discovery.listed,tracked:discovery.tracked,tickers:discovery.tickers},
+            ack_this_tick:l.telegramApiAckedThisRun,last_public_ack:l.telegramLastApiReceipt,device_receipt_verified:false,
+            future_accuracy_improvement_proven:false,no_manual_scan_or_test_messages:true};
+          writeFileSync('v31_release/natural_proof.json',JSON.stringify(proof,null,2));writeFileSync('v31_release/natural_health.json',JSON.stringify(h,null,2));writeFileSync('v31_release/natural_reads.json',JSON.stringify(reads,null,2));
+          console.log('V31_NATURAL_PROOF',JSON.stringify(proof));
+          assert.equal(l.codeVersion,deployment.version);assert(tick(l.time)>=target,'POST_DEPLOY_TICK_MISSING');assert.equal(l.status,'PASS');assert.equal(l.githubDispatchStatus,'ACCEPTED');
+          assert(proof.selective_notifications_enabled);assert.equal(d.feed?.ok,true,'NEW_FEED_UNAVAILABLE');assert.equal(d.policy,'QUALIFIED_CURRENT_DIRECTION_ONLY');
+          assert(d.source_summary?.listed_spot>=100&&d.source_summary?.listed_futures>=100,'OFFICIAL_COVERAGE_MISSING');
+          assert(!['DIRECTION_DELIVERY_RUNTIME_ERROR','EVIDENCE_SOURCE_NOT_READY','DELIVERY_STATE_UNVERIFIED','DELIVERY_RESERVATION_FAILED','TELEGRAM_ACK_NOT_VERIFIED','DELIVERY_UNCERTAIN','ACK_RECEIPT_PERSISTENCE_PARTIAL'].includes(d.status),'LIVE_DELIVERY_ERROR');
+          assert(d.actual_alert_outcomes?.minute_close_proxies,'MINUTE_OUTCOME_RECOVERY_NOT_CONNECTED');
+          if(d.sent){assert(Number.isSafeInteger(d.message_id)&&d.message_id>0);assert.equal(d.receipt_persistence_verified,true)}
+          const p=await fetch('https://raw.githubusercontent.com/pmk44120315-creator/irys-bitget-5min-scanner/main/data/v30_direction_latest.json?timing='+Date.now());assert(p.ok);const doc=await p.json();writeFileSync('v31_release/public_producer.json',JSON.stringify(doc));
+          assert.equal(doc.model_digest,'0f5b9a9f4fff19d148901583c52d1b77b8f1b04be0512f778f4ee5c2f15526ec');assert.equal(doc.timing?.barrier_removed,true);
+          JS
+      - name: Preserve verified source and actual failure/success evidence
+        if: always()
+        run: |
+          mkdir -p v31_release
+          test ! -f deployment/IRYS_V31_TIMELY_WORKER.mjs || cp deployment/IRYS_V31_TIMELY_WORKER* v31_release/
+          git archive --format=zip --output=v31_release/verified_source.zip HEAD
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: v31-guarded-production-natural-proof
+          path: v31_release/
+          retention-days: 7
+          if-no-files-found: error
