@@ -7,7 +7,7 @@ function environment(failFutures=false){
  const direction=s=>Number(s.match(/\d+/)?.[0]||0)%2===0?'LONG':'SHORT';
  const price=s=>s.startsWith('KRW-')?(first()?100:101):(direction(s)==='LONG'?(first()?100:101):(first()?104:103));
  const quote=s=>({bid:price(s),ask:price(s)+.05,at_ms:now-10});
- const trades=s=>Array.from({length:4},(_,i)=>({id:(first()?'a':'b')+i,at_ms:now-6500+i*2000,price:direction(s)==='SHORT'&&!s.startsWith('KRW-')?price(s)+.6-i*.2:price(s)-.6+i*.2,size:10,side:direction(s)==='SHORT'&&!s.startsWith('KRW-')?'SELL':'BUY'}));
+ const trades=s=>Array.from({length:4},(_,i)=>({id:(first()?'a':'b')+i,at_ms:now-6500+i*2000,price:direction(s)==='SHORT'&&!s.startsWith('KRW-')?price(s)+(first()?1.2:.6)-i*(first()?.4:.2):price(s)-(first()?1.2:.6)+i*(first()?.4:.2),size:10,side:direction(s)==='SHORT'&&!s.startsWith('KRW-')?'SELL':'BUY'}));
  const seen=[];
  const read=async raw=>{
   const u=new URL(raw);seen.push(u.pathname);

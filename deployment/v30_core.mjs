@@ -3,8 +3,9 @@
  * No account API, private-state read, transport or secret is used here.
  */
 import {v29CheckPair,v29Quote} from './v29_direction_gate.mjs';
+import {v31EntryBudget} from './v31_quality.mjs';
 const V30_VERSION='IRYS_V30_PUBLIC_PAIRED_DIRECTION_V1';
-const V30_MODEL='V30_PAIRED_REVALIDATED_CURRENT_DIRECTION_V1';
+const V30_MODEL='V31_PAIRED_TIMELY_ENTRY_V1';
 const V30_PACKET_MAX_AGE_MS=90000,V30_FINAL_MAX_AGE_MS=45000;
 function v30N(x){if(x===null||x===undefined||x===''||typeof x==='boolean')return null;const n=Number(x);return Number.isFinite(n)?n:null;}
 function v30Clock(x){return Number.isSafeInteger(x)&&x>=0;}
@@ -32,13 +33,15 @@ function v30Qualify(item,now){
  const long=c.direction!=='SHORT';
  if(long?q.bid<b.quote.bid:q.ask>b.quote.ask)return fail('FINAL_QUOTE_RETREAT');
  if(long?q.bid<=a.quote.ask:q.ask>=a.quote.bid)return fail('FINAL_EXECUTABLE_PROGRESS_LOST');
+ const entryBudget=v31EntryBudget(item);
+ if(!entryBudget.allowed)return fail(entryBudget.reason);
  const progress=long?100*(q.bid/a.quote.ask-1):100*(a.quote.bid-q.ask)/a.quote.bid;
  const minResponse=Math.min(Math.abs(pair.first_response.response_pct),Math.abs(pair.new_trade_response.response_pct));
  const ratio=minResponse/Math.max(q.spread_pct,.000001);
  return {model:V30_MODEL,status:'READY_CURRENT_EVIDENCE',allowed:true,reason:null,venue:c.venue,symbol:c.symbol,direction:c.direction,
   evidence_id:[V30_MODEL,c.venue,c.symbol,c.direction,b.observed_at_ms].join(':'),
   observed_at_ms:f.observed_at_ms,expires_at_ms:q.at_ms+V30_FINAL_MAX_AGE_MS,
-  pair,final_quote:q,entry_reference:long?q.ask:q.bid,invalidation_reference:long?a.quote.bid:a.quote.ask,
+  pair,entry_budget:entryBudget,final_quote:q,entry_reference:long?q.ask:q.bid,invalidation_reference:long?a.quote.bid:a.quote.ask,
   quote_progress_pct:progress,priority:Math.min(10,ratio)+Math.min(5,Math.abs(progress)),
   confidence_probability:null,future_accuracy_proven:false,trading_permit:false,actual_fill_verified:false};
 }

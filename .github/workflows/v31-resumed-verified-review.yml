@@ -1,0 +1,83 @@
+name: IRYS V31 resumed entry timing and outcome repair review (NO SEND)
+on:
+  push:
+    branches: [fix/irys-v31-latency-quality-20261104]
+    paths: ['.github/workflows/v31-resumed-verified-review.yml','deployment/v31*.mjs','deployment/v30*.mjs','deployment/build_v31_worker.py','deployment/release_v31_guarded.mjs','tests/test_v31*.mjs']
+permissions:
+  contents: read
+  actions: read
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/download-artifact@v4
+        with:
+          name: v30-selective-production-natural-proof
+          run-id: 41693577194
+          github-token: ${{ github.token }}
+          path: /tmp/v30_prior
+      - uses: actions/download-artifact@v4
+        with:
+          name: v28-production-and-natural-verification
+          run-id: 41450016477
+          github-token: ${{ github.token }}
+          path: /tmp/v28_prior
+      - name: Build exact reviewed current source, preserve original V30 for comparative tests
+        run: |
+          mkdir -p v31_review
+          git fetch --quiet --depth=1 origin release/irys-v24-bitget-fallback-20261101
+          git show FETCH_HEAD:deployment/IRYS_V24_BITGET_FALLBACK_WORKER.mjs > /tmp/v24.mjs
+          python deployment/build_v27_worker.py /tmp/v24.mjs deployment/IRYS_V27_RESPONSE_WORKER.mjs
+          python deployment/build_v28_worker.py deployment/IRYS_V27_RESPONSE_WORKER.mjs deployment/IRYS_V28_BUILDUP_WORKER.mjs
+          python deployment/build_v29_worker.py deployment/IRYS_V28_BUILDUP_WORKER.mjs deployment/IRYS_V29_DIRECTION_REVIEW_WORKER.mjs
+          cp /tmp/v30_prior/IRYS_V30_SELECTIVE_DIRECTION_WORKER.mjs deployment/
+          python deployment/build_v31_worker.py deployment/IRYS_V29_DIRECTION_REVIEW_WORKER.mjs deployment/IRYS_V31_TIMELY_WORKER.mjs
+          echo '20c730063705ffa9fdbafa000621bbd8db94a71e3e926fa915c88fa56db44a3a  deployment/IRYS_V31_TIMELY_WORKER.mjs' | sha256sum -c -
+          echo 'c1b8722e5231d85aacbda04497128926817dcc38508a1249b2d637e3f145c89a  deployment/IRYS_V30_SELECTIVE_DIRECTION_WORKER.mjs' | sha256sum -c -
+      - name: Full old/new regression and exact-source rollback faults, mocked sends only
+        env:
+          V27_BASE_WORKER: /tmp/v24.mjs
+          V28_BASE_WORKER: deployment/IRYS_V27_RESPONSE_WORKER.mjs
+          V28_RELEASE_BASE_WORKER: /tmp/v28_prior/IRYS_V28_BUILDUP_WORKER.mjs
+          V29_BASE_WORKER: deployment/IRYS_V28_BUILDUP_WORKER.mjs
+          V30_BASE_WORKER: deployment/IRYS_V29_DIRECTION_REVIEW_WORKER.mjs
+        run: |
+          set -o pipefail
+          python -m unittest discover -s tests -v 2>&1 | tee v31_review/python_tests.log
+          node --test tests/*.mjs 2>&1 | tee v31_review/node_tests.log
+      - name: Public official native-minute recovery and current quote source, no live messages
+        run: |
+          git fetch --quiet --depth=1 origin main
+          git rev-parse origin/main > v31_review/frozen_main.txt
+          for f in state.json v24_bitget_fast_latest.json v30_state.json; do git show "origin/main:data/$f" > "data/$f"; done
+          set -o pipefail
+          node deployment/v30_producer.mjs | tee v31_review/real_producer.log
+          node --input-type=module <<'JS'
+          import {readFileSync,writeFileSync} from 'node:fs';import assert from 'node:assert/strict';import {v30ModelDigest} from './deployment/v30_producer.mjs';
+          const r=JSON.parse(readFileSync('data/v30_direction_latest.json','utf8'));
+          assert.equal(r.model_digest,'0f5b9a9f4fff19d148901583c52d1b77b8f1b04be0512f778f4ee5c2f15526ec');assert.equal(r.model_digest,v30ModelDigest());
+          assert(r.summary.listed_spot>=100&&r.summary.listed_futures>=100);assert.equal(r.summary.selected,r.summary.evaluated);
+          assert.equal(r.orders_sent,false);assert.equal(r.telegram_sent,false);assert.equal(r.timing.barrier_removed,true);assert(r.outcome_candles.length>0);
+          const proof={at_ms:r.at_ms,summary:r.summary,timing:r.timing,history_pages:r.outcome_candles.length,history_errors:r.history_errors,minute_proxies:r.forward.minute_close_proxies,new_model:r.forward.current_model,legacy_records:r.forward.legacy_records,future_accuracy_proven:false,no_messages_or_orders:true};
+          writeFileSync('v31_review/real_public_proof.json',JSON.stringify(proof,null,2));console.log('V31_REAL_PUBLIC_PROOF',JSON.stringify(proof));
+          JS
+      - name: Preserve source and proof even on failed checks, without writing production state
+        if: always()
+        run: |
+          mkdir -p v31_review
+          test ! -f deployment/IRYS_V31_TIMELY_WORKER.mjs || cp deployment/IRYS_V31_TIMELY_WORKER* v31_review/
+          test ! -f data/v30_direction_latest.json || cp data/v30_direction_latest.json v31_review/
+          test ! -f data/v30_state.json || cp data/v30_state.json v31_review/
+          git rev-parse HEAD > v31_review/verified_commit.txt
+          git archive --format=zip --output=v31_review/verified_source.zip HEAD
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: v31-resumed-reviewed-timing-outcomes
+          path: v31_review/
+          retention-days: 7
+          if-no-files-found: error
