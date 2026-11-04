@@ -2,9 +2,9 @@ name: IRYS V31 resumed entry timing and outcome repair review (NO SEND)
 on:
   push:
     branches: [fix/irys-v31-latency-quality-20261104]
-    paths: ['.github/workflows/v31-resumed-verified-review.yml','deployment/v31*.mjs','diagnostics/v31_apply_resume.py','tests/test_v31*.mjs']
+    paths: ['.github/workflows/v31-resumed-verified-review.yml','deployment/v31*.mjs','deployment/v30*.mjs','deployment/build_v31_worker.py','deployment/release_v31_guarded.mjs','tests/test_v31*.mjs']
 permissions:
-  contents: write
+  contents: read
   actions: read
 jobs:
   review:
@@ -26,16 +26,9 @@ jobs:
           run-id: 41450016477
           github-token: ${{ github.token }}
           path: /tmp/v28_prior
-      - uses: actions/download-artifact@v4
-        with:
-          name: v31-last-ack-source-replay
-          run-id: 41792966767
-          github-token: ${{ github.token }}
-          path: /tmp/ake_source
-      - name: Apply exact reviewed source replacements and build original/changed fixtures
+      - name: Build exact reviewed current source, preserve original V30 for comparative tests
         run: |
           mkdir -p v31_review
-          python diagnostics/v31_apply_resume.py
           git fetch --quiet --depth=1 origin release/irys-v24-bitget-fallback-20261101
           git show FETCH_HEAD:deployment/IRYS_V24_BITGET_FALLBACK_WORKER.mjs > /tmp/v24.mjs
           python deployment/build_v27_worker.py /tmp/v24.mjs deployment/IRYS_V27_RESPONSE_WORKER.mjs
@@ -45,13 +38,7 @@ jobs:
           python deployment/build_v31_worker.py deployment/IRYS_V29_DIRECTION_REVIEW_WORKER.mjs deployment/IRYS_V31_TIMELY_WORKER.mjs
           echo '20c730063705ffa9fdbafa000621bbd8db94a71e3e926fa915c88fa56db44a3a  deployment/IRYS_V31_TIMELY_WORKER.mjs' | sha256sum -c -
           echo 'c1b8722e5231d85aacbda04497128926817dcc38508a1249b2d637e3f145c89a  deployment/IRYS_V30_SELECTIVE_DIRECTION_WORKER.mjs' | sha256sum -c -
-          python - <<'PY'
-          import json,pathlib
-          doc=json.loads(pathlib.Path('/tmp/ake_source/prior_public_source.json').read_text())
-          x=next(x for x in doc['items'] if x['candidate']['symbol']=='AKEUSDT')
-          pathlib.Path('tests/fixtures/v31_ake_case.json').write_text(json.dumps({'items':[x]},separators=(',',':')))
-          PY
-      - name: All old and new regressions, genuine AKE replay and positive-control send mocks only
+      - name: Full old/new regression and exact-source rollback faults, mocked sends only
         env:
           V27_BASE_WORKER: /tmp/v24.mjs
           V28_BASE_WORKER: deployment/IRYS_V27_RESPONSE_WORKER.mjs
@@ -62,7 +49,7 @@ jobs:
           set -o pipefail
           python -m unittest discover -s tests -v 2>&1 | tee v31_review/python_tests.log
           node --test tests/*.mjs 2>&1 | tee v31_review/node_tests.log
-      - name: Real public source timing and native-minute label recovery, no orders or messages
+      - name: Public official native-minute recovery and current quote source, no live messages
         run: |
           git fetch --quiet --depth=1 origin main
           git rev-parse origin/main > v31_review/frozen_main.txt
@@ -70,36 +57,22 @@ jobs:
           set -o pipefail
           node deployment/v30_producer.mjs | tee v31_review/real_producer.log
           node --input-type=module <<'JS'
-          import {readFileSync,writeFileSync} from 'node:fs';import assert from 'node:assert/strict';
-          import {v30ModelDigest} from './deployment/v30_producer.mjs';
+          import {readFileSync,writeFileSync} from 'node:fs';import assert from 'node:assert/strict';import {v30ModelDigest} from './deployment/v30_producer.mjs';
           const r=JSON.parse(readFileSync('data/v30_direction_latest.json','utf8'));
           assert.equal(r.model_digest,'0f5b9a9f4fff19d148901583c52d1b77b8f1b04be0512f778f4ee5c2f15526ec');assert.equal(r.model_digest,v30ModelDigest());
-          assert(r.summary.listed_spot>=100&&r.summary.listed_futures>=100,'LIVE_OFFICIAL_SOURCE_UNAVAILABLE');
-          assert.equal(r.summary.selected,r.summary.evaluated);assert.equal(r.orders_sent,false);assert.equal(r.telegram_sent,false);
-          assert.equal(r.timing.barrier_removed,true);assert(r.outcome_candles.length>0,'HISTORICAL_OUTCOME_RECOVERY_NOT_OBSERVED');
-          const proof={at_ms:r.at_ms,summary:r.summary,timing:r.timing,history_pages:r.outcome_candles.length,history_errors:r.history_errors,
-            minute_proxies:r.forward.minute_close_proxies,new_model:r.forward.current_model,legacy_records:r.forward.legacy_records,
-            future_accuracy_proven:false,no_messages_or_orders:true};
+          assert(r.summary.listed_spot>=100&&r.summary.listed_futures>=100);assert.equal(r.summary.selected,r.summary.evaluated);
+          assert.equal(r.orders_sent,false);assert.equal(r.telegram_sent,false);assert.equal(r.timing.barrier_removed,true);assert(r.outcome_candles.length>0);
+          const proof={at_ms:r.at_ms,summary:r.summary,timing:r.timing,history_pages:r.outcome_candles.length,history_errors:r.history_errors,minute_proxies:r.forward.minute_close_proxies,new_model:r.forward.current_model,legacy_records:r.forward.legacy_records,future_accuracy_proven:false,no_messages_or_orders:true};
           writeFileSync('v31_review/real_public_proof.json',JSON.stringify(proof,null,2));console.log('V31_REAL_PUBLIC_PROOF',JSON.stringify(proof));
           JS
-      - name: Publish only verified ordinary source changes to same branch, never old market data or workflows
-        run: |
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git fetch --quiet origin fix/irys-v31-latency-quality-20261104
-          test "$(git rev-parse FETCH_HEAD)" = "$GITHUB_SHA"
-          git add deployment/v30_core.mjs deployment/v30_delivery.mjs deployment/v30_producer.mjs deployment/build_v31_worker.py tests/test_v30_producer.mjs tests/fixtures/v31_ake_case.json
-          git commit -m 'fix(v31): verified entry-budget, per-market pair timing and separate native-minute outcomes'
-          git push origin HEAD:fix/irys-v31-latency-quality-20261104
-          git rev-parse HEAD > v31_review/verified_commit.txt
-          git ls-tree HEAD deployment/v30_core.mjs deployment/v30_delivery.mjs deployment/v30_producer.mjs deployment/build_v31_worker.py
-      - name: Preserve exact source and evidence even on failure
+      - name: Preserve source and proof even on failed checks, without writing production state
         if: always()
         run: |
           mkdir -p v31_review
           test ! -f deployment/IRYS_V31_TIMELY_WORKER.mjs || cp deployment/IRYS_V31_TIMELY_WORKER* v31_review/
           test ! -f data/v30_direction_latest.json || cp data/v30_direction_latest.json v31_review/
           test ! -f data/v30_state.json || cp data/v30_state.json v31_review/
+          git rev-parse HEAD > v31_review/verified_commit.txt
           git archive --format=zip --output=v31_review/verified_source.zip HEAD
       - uses: actions/upload-artifact@v4
         if: always()
