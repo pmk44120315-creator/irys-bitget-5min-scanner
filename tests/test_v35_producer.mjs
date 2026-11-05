@@ -13,3 +13,9 @@ test('READY prior signal is freshly checked even after it leaves current discove
  const x=await v30Produce({read:e.read,clock:e.clock,sleep:e.sleep,previous:e.state,priorSpot:e.legacy,modelDigest:'test',historyMode:'cached'});
  assert(!x.report.checks.some(c=>c.symbol==='F100USDT'));assert(x.report.followups.some(f=>f.symbol==='F100USDT'&&f.first&&f.second&&f.final));
 });
+
+test('first cached-mode migration preserves already collected native historical pages',async()=>{
+ const e=environment(),pages=[{venue:'bitget',symbol:'F0USDT',source:'OFFICIAL_NATIVE_1M',fetched_at_ms:T-1000,bars:[]}];e.state.minute_history=pages;
+ const x=await v30Produce({read:e.read,clock:e.clock,sleep:e.sleep,previous:e.state,priorSpot:e.legacy,modelDigest:'test',historyMode:'cached',cachedHistory:[]});
+ assert.deepEqual(x.state.minute_history,pages);assert.deepEqual(x.report.outcome_candles,pages);
+});

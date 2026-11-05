@@ -76,7 +76,7 @@ async function v30Produce({read,clock=Date.now,sleep=ms=>new Promise(r=>setTimeo
  const pairs=await v31ReadPairs(observed,c=>v29ReadSnapshot(c,read,clock),clock,sleep);
  const first=pairs.map(x=>x.first),second=pairs.map(x=>x.second);
  // History reads run before final quotes; they cannot age a just-validated entry.
- const history=historyMode==='cached'?{pages:Array.isArray(cachedHistory)?cachedHistory:[],errors:[]}:await v31FetchHistory(state.records||[],read,clock,state.minute_history||[]);
+ const history=historyMode==='cached'?{pages:Array.isArray(cachedHistory)&&cachedHistory.length?cachedHistory:(state.minute_history||[]),errors:[]}:await v31FetchHistory(state.records||[],read,clock,state.minute_history||[]);
  state.minute_history=history.pages;
  const finalRisk=await universes(read,clock);
  const oldRows=state.records||[],atBeforeFinal=clock();
