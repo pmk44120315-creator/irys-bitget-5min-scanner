@@ -1,0 +1,103 @@
+name: IRYS V32 venue imbalance and original evidence audit (READ ONLY)
+on:
+  push:
+    branches: [fix/irys-v32-venue-direction-audit-20261105]
+    paths: ['.github/workflows/v32-venue-history-audit.yml']
+permissions:
+  contents: read
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Freeze exact main source and its public hypothesis ledger
+        run: |
+          mkdir -p v32_audit/history
+          git fetch --quiet --depth=1 origin main
+          git rev-parse FETCH_HEAD > v32_audit/main_sha.txt
+          git archive --format=zip --output=v32_audit/source.zip FETCH_HEAD
+          for f in v30_state.json v30_direction_latest.json; do git show "FETCH_HEAD:data/$f" > "v32_audit/$f"; done
+      - name: Read last 24 hours original published evidence and existing public ACK summaries
+        env:
+          GH_READ_TOKEN: ${{ github.token }}
+        run: |
+          python - <<'PY'
+          import json,os,time,datetime as dt,pathlib,urllib.request,urllib.parse,concurrent.futures,collections
+          root=pathlib.Path('v32_audit');UTC=dt.timezone.utc;now=dt.datetime.now(UTC)
+          repo='pmk44120315-creator/irys-bitget-5min-scanner';api='https://api.github.com/repos/'+repo
+          def get(url,github=False):
+              h={'accept':'application/json','User-Agent':'IRYS-authorized-public-evidence-audit'}
+              if github:h['authorization']='Bearer '+os.environ['GH_READ_TOKEN']
+              for attempt in range(3):
+                  try:
+                      with urllib.request.urlopen(urllib.request.Request(url,headers=h),timeout=30) as r:return json.load(r)
+                  except Exception:
+                      if attempt==2:raise
+                      time.sleep(attempt+1)
+          def save(path,x):path.write_text(json.dumps(x,ensure_ascii=False,separators=(',',':')),encoding='utf-8')
+          health=get('https://irys-surge-monitor.vhehwpfl.workers.dev/?v32audit='+str(time.time_ns()));save(root/'health.json',health)
+          last=health.get('last') or {};delivery=last.get('v30DirectionalDelivery') or {};ack=last.get('telegramLastApiReceipt') or {}
+          print('V32_PUBLIC_HEALTH',json.dumps({'read_at':now.isoformat(),'tick':last.get('time'),'version':last.get('codeVersion'),'runtime_status':last.get('status'),'delivery':delivery,'last_public_ack':ack,'all_private_messages_accessed':False},ensure_ascii=False))
+          since=(now-dt.timedelta(hours=24)).isoformat().replace('+00:00','Z');commits=[];page=1
+          while True:
+              batch=get(api+'/commits?'+urllib.parse.urlencode({'path':'data/v30_direction_latest.json','since':since,'per_page':100,'page':page}),True)
+              if not isinstance(batch,list):raise RuntimeError('COMMIT_LIST_SCHEMA')
+              commits+=batch
+              if len(batch)<100:break
+              page+=1
+          save(root/'commit_inventory.json',{'window_start_utc':since,'asof_utc':now.isoformat(),'pagination_complete':True,'commits':[{'sha':r['sha'],'at':r['commit']['committer']['date']} for r in commits]})
+          def load(c):
+              sha=c['sha']
+              try:
+                  doc=get('https://raw.githubusercontent.com/'+repo+'/'+sha+'/data/v30_direction_latest.json')
+                  if not isinstance(doc,dict):raise RuntimeError('PACKET_SCHEMA')
+                  save(root/'history'/(sha+'.json'),doc)
+                  return {'sha':sha,'at_ms':doc.get('at_ms'),'summary':doc.get('summary'),'model_digest':doc.get('model_digest'),'error':None}
+              except Exception as e:return {'sha':sha,'error':type(e).__name__}
+          with concurrent.futures.ThreadPoolExecutor(max_workers=6) as pool:inventory=list(pool.map(load,commits))
+          save(root/'history_inventory.json',inventory)
+          checks=collections.Counter();ready=collections.Counter();seen=set();duplicates=0
+          for f in (root/'history').glob('*.json'):
+              d=json.loads(f.read_text());generation=d.get('at_ms')
+              if generation in seen:duplicates+=1;continue
+              seen.add(generation)
+              for c in d.get('checks') or []:
+                  venue=c.get('venue','UNKNOWN');checks[(venue,c.get('reason') or c.get('status'))]+=1
+                  if c.get('allowed'):ready[(venue,c.get('direction'))]+=1
+          save(root/'venue_counts.json',{'unique_generations':len(seen),'duplicate_generations':duplicates,'checks':[{'venue':a,'reason':b,'n':n} for (a,b),n in checks.items()],'qualified':[{'venue':a,'direction':b,'n':n} for (a,b),n in ready.items()],'failed_source_reads':sum(bool(x.get('error')) for x in inventory)})
+          print('V32_PUBLISHED_HISTORY',json.dumps({'commits':len(commits),'unique_generations':len(seen),'failed_reads':sum(bool(x.get('error')) for x in inventory),'ready':{str(k):v for k,v in ready.items()},'reasons':{str(k):v for k,v in checks.items()}},ensure_ascii=False))
+          # Only the existing publicly visible last ACK; never export private KV.
+          symbol=ack.get('symbol');stamp=ack.get('ack_received_at_ms') or ack.get('recorded_send_ms') or ack.get('bot_accepted_at_ms')
+          if symbol and not stamp and ack.get('accepted_at'):stamp=int(dt.datetime.fromisoformat(ack['accepted_at'].replace(' KST','+09:00').replace(' ','T')).timestamp()*1000)
+          if symbol and isinstance(stamp,int):
+              end=min(int(time.time()*1000)//60000*60000,(stamp//60000+62)*60000)
+              if symbol.startswith('KRW-'):
+                  to=dt.datetime.fromtimestamp(end/1000,dt.timezone(dt.timedelta(hours=9))).strftime('%Y-%m-%dT%H:%M:%S')
+                  url='https://api.bithumb.com/v1/candles/minutes/1?'+urllib.parse.urlencode({'market':symbol,'to':to,'count':200})
+              else:url='https://api.bitget.com/api/v2/mix/market/history-candles?'+urllib.parse.urlencode({'symbol':symbol,'productType':'USDT-FUTURES','granularity':'1m','endTime':end,'limit':200})
+              save(root/'last_public_ack_candles.json',{'ack':ack,'event_ms':stamp,'url':url,'raw':get(url),'fetched_ms':int(time.time()*1000)})
+          # Native Bithumb strings and timestamps, preserved exactly for contract tests.
+          latest=json.loads((root/'v30_direction_latest.json').read_text());symbols=['KRW-BTC','KRW-ETH']+[x['candidate']['symbol'] for x in latest.get('items',[]) if x.get('candidate',{}).get('venue')=='bithumb'][:6]
+          symbols=list(dict.fromkeys(symbols));samples=[]
+          for phase in (1,2):
+              at=int(time.time()*1000);books=get('https://api.bithumb.com/v1/orderbook?'+urllib.parse.urlencode({'markets':','.join(symbols)}));ticks=get('https://api.bithumb.com/v1/ticker?'+urllib.parse.urlencode({'markets':','.join(symbols)}))
+              tape=[]
+              for s in symbols:
+                  try:tape.append({'symbol':s,'raw':get('https://api.bithumb.com/v1/trades/ticks?'+urllib.parse.urlencode({'market':s,'count':500})),'received_ms':int(time.time()*1000)})
+                  except Exception as e:tape.append({'symbol':s,'error':type(e).__name__})
+                  time.sleep(.18)
+              samples.append({'phase':phase,'request_ms':at,'received_ms':int(time.time()*1000),'books':books,'tickers':ticks,'tapes':tape})
+              if phase==1:time.sleep(9)
+          save(root/'bithumb_native_pairs.json',samples)
+          print('V32_AUDIT_COMPLETE_PUBLIC_ONLY_NO_MESSAGES_NO_ORDERS_NO_DEPLOY')
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: v32-original-venue-direction-evidence
+          path: v32_audit/
+          retention-days: 7
+          if-no-files-found: error
