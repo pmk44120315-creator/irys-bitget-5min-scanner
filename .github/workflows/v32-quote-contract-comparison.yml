@@ -1,0 +1,110 @@
+name: IRYS V32 source-only venue alternatives and later native prices (NO SEND)
+on:
+  push:
+    branches: [fix/irys-v32-venue-direction-audit-20261105]
+    paths: ['.github/workflows/v32-quote-contract-comparison.yml']
+permissions:
+  contents: read
+  actions: read
+jobs:
+  compare:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/download-artifact@v4
+        with:
+          name: v32-original-venue-direction-evidence
+          run-id: 41971446361
+          github-token: ${{ github.token }}
+          path: /tmp/v32_original
+      - name: Freeze three named source-only alternatives BEFORE reading their future labels
+        run: |
+          mkdir -p v32_comparison
+          node --input-type=module <<'JS'
+          import {readFileSync,writeFileSync,readdirSync} from 'node:fs';
+          import {v30Qualify} from './deployment/v30_core.mjs';
+          const gate=readFileSync('deployment/v29_direction_gate.mjs','utf8'),source=readFileSync('deployment/v30_core.mjs','utf8');
+          const modes={same_side:gate.replace('if(long?b.bid<=a.ask:b.ask>=a.bid)','if(long?!(b.bid>a.bid&&b.ask>=a.ask):!(b.ask<a.ask&&b.bid<=a.bid))'),
+            same_side_signed:gate.replace('if(long?b.bid<=a.ask:b.ask>=a.bid)','if(long?!(b.bid>a.bid&&b.ask>=a.ask):!(b.ask<a.ask&&b.bid<=a.bid))').replace('r1.price_response!==direction||r2.price_response!==direction','(long?r1.response_pct<=0:r1.response_pct>=0)||(long?r2.response_pct<=0:r2.response_pct>=0)')};
+          const classifiers={original:v30Qualify};
+          for(const [name,g] of Object.entries(modes)){
+            writeFileSync('deployment/.v32_gate_'+name+'.mjs',g);
+            const s=source.replace("'./v29_direction_gate.mjs'","'./.v32_gate_"+name+".mjs'").replace('if(long?q.bid<=a.quote.ask:q.ask>=a.quote.bid)','if(long?!(q.bid>a.quote.bid&&q.ask>=a.quote.ask):!(q.ask<a.quote.ask&&q.bid<=a.quote.bid))');
+            writeFileSync('deployment/.v32_core_'+name+'.mjs',s);classifiers[name]=(await import('./deployment/.v32_core_'+name+'.mjs')).v30Qualify;
+          }
+          const packets=readdirSync('/tmp/v32_original/history').map(file=>({file,doc:JSON.parse(readFileSync('/tmp/v32_original/history/'+file))})).sort((a,b)=>a.doc.at_ms-b.doc.at_ms);
+          const events=[],counts={};
+          for(const {file,doc} of packets)for(const item of doc.items||[]){
+            const c=item.candidate,row={at_ms:doc.at_ms,commit:file.slice(0,-5),venue:c.venue,symbol:c.symbol,direction:c.direction,entry_quote:item.final?.quote,change_pct:c.change_pct,checks:{}};
+            for(const [mode,fn] of Object.entries(classifiers)){const r=fn(item,doc.at_ms);row.checks[mode]={allowed:r.allowed,reason:r.reason,priority:r.priority||0};const key=mode+':'+c.venue+':'+(r.allowed?'READY':r.reason);counts[key]=(counts[key]||0)+1;}
+            if(Object.values(row.checks).some(x=>x.allowed))events.push(row);
+          }
+          const start=packets[0].doc.at_ms,end=packets.at(-1).doc.at_ms,cut=start+(end-start)*2/3;
+          writeFileSync('v32_comparison/source_only_candidates.json',JSON.stringify({policies:Object.keys(classifiers),window_start_ms:start,window_end_ms:end,temporal_split_ms:cut,selection_before_outcomes:true,actual_telegram_events:false,counts,events}));
+          console.log('V32_PREDECLARED_SOURCE_REPLAY',JSON.stringify({events:events.length,ready:Object.fromEntries(Object.entries(counts).filter(([k])=>k.endsWith(':READY'))),temporal_split_ms:cut}));
+          JS
+      - name: Official same-venue minute outcomes with fixed reference and no synthetic target bars
+        run: |
+          python - <<'PY'
+          import json,time,pathlib,datetime as dt,urllib.request,urllib.parse,threading,concurrent.futures,collections,csv
+          p=pathlib.Path('v32_comparison');src=json.loads((p/'source_only_candidates.json').read_text());now=int(time.time()*1000);lock=threading.Lock();next_at=[0.]
+          def get(url):
+            for retry in range(4):
+              with lock:
+                delay=max(0,next_at[0]-time.monotonic())
+                if delay:time.sleep(delay)
+                next_at[0]=time.monotonic()+.24
+              try:
+                with urllib.request.urlopen(urllib.request.Request(url,headers={'User-Agent':'IRYS-public-counterfactual-study'}),timeout=25) as r:return json.load(r)
+              except Exception:
+                if retry==3:raise
+                time.sleep(1+retry)
+          def evaluate(e):
+            out=dict(e);at=e['at_ms'];end=min(now//60000*60000,((at+62*60000)//60000)*60000)
+            if e['venue']=='bitget':url='https://api.bitget.com/api/v2/mix/market/history-candles?'+urllib.parse.urlencode({'symbol':e['symbol'],'productType':'USDT-FUTURES','granularity':'1m','endTime':end,'limit':200})
+            else:
+              to=dt.datetime.fromtimestamp(end/1000,dt.timezone(dt.timedelta(hours=9))).strftime('%Y-%m-%dT%H:%M:%S')
+              url='https://api.bithumb.com/v1/candles/minutes/1?'+urllib.parse.urlencode({'market':e['symbol'],'to':to,'count':200})
+            out['url']=url;out['outcomes']={}
+            try:
+              raw=get(url)
+              if e['venue']=='bitget':
+                assert raw.get('code')=='00000';bars={int(b[0]):{'open':float(b[1]),'high':float(b[2]),'low':float(b[3]),'close':float(b[4])} for b in raw['data']}
+              else:
+                assert isinstance(raw,list);bars={int(dt.datetime.fromisoformat(b['candle_date_time_utc']).replace(tzinfo=dt.timezone.utc).timestamp()*1000):{'open':float(b['opening_price']),'high':float(b['high_price']),'low':float(b['low_price']),'close':float(b['trade_price'])} for b in raw if b['market']==e['symbol']}
+              out['raw']=raw;entry=float(e['entry_quote']['bid' if e['direction']=='SHORT' else 'ask'])
+              for h in [5,15,30,60]:
+                close_at=((at+h*60000+59999)//60000)*60000;b=bars.get(close_at-60000)
+                if close_at>now:out['outcomes'][str(h)]={'status':'NOT_DUE'};continue
+                if not b:out['outcomes'][str(h)]={'status':'MISSING_NATIVE_TARGET'};continue
+                signed=100*(1-b['close']/entry) if e['direction']=='SHORT' else 100*(b['close']/entry-1)
+                out['outcomes'][str(h)]={'status':'CLOSED_MINUTE_PROXY','signed_pct':signed,'net_scenario_pct':signed-.2,'entry_quote_reference':entry,'target_close':b['close'],'close_at_ms':close_at,'actual_fill_verified':False}
+              out['error']=None
+            except Exception as exc:out['error']=type(exc).__name__
+            return out
+          with concurrent.futures.ThreadPoolExecutor(max_workers=3) as pool:rows=list(pool.map(evaluate,src['events']))
+          results={}
+          for mode in src['policies']:
+            for venue in ['bitget','bithumb']:
+              for period in ['first_two_thirds','last_third','all']:
+                selected=[r for r in rows if r['venue']==venue and r['checks'][mode]['allowed'] and (period=='all' or (r['at_ms']<src['temporal_split_ms'])==(period=='first_two_thirds'))]
+                summary={}
+                for h in [5,15,30,60]:
+                  m=[r['outcomes'].get(str(h),{}) for r in selected];values=[x['signed_pct'] for x in m if x.get('status')=='CLOSED_MINUTE_PROXY']
+                  summary[str(h)]={'n':len(values),'positive':sum(x>0 for x in values),'nonpositive':sum(x<=0 for x in values),'net_positive_scenario':sum(x>.2 for x in values),'mean_signed_pct':sum(values)/len(values) if values else None,'unmeasured':len(selected)-len(values)}
+                results[mode+':'+venue+':'+period]=summary
+          result={'source_contract':src,'assessment':'Retrospective alternatives, not actual notification performance or independent forward validation. Last-third reported separately. No parameter search or direction flips after outcomes.','summary':results,'records':rows,'read_errors':sum(bool(r.get('error')) for r in rows)}
+          (p/'comparison_with_native_prices.json').write_text(json.dumps(result,ensure_ascii=False,separators=(',',':')))
+          print('V32_NATIVE_ALTERNATIVE_RESULTS',json.dumps({'summary':results,'read_errors':result['read_errors']},ensure_ascii=False))
+          if result['read_errors']:raise SystemExit('SOURCE_READ_ERRORS_SEE_REPORT')
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: v32-predeclared-venue-alternatives
+          path: v32_comparison/
+          retention-days: 7
+          if-no-files-found: error
