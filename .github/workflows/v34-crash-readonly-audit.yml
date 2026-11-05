@@ -1,0 +1,95 @@
+name: IRYS V34 sudden-drop missed-alert audit (READ ONLY)
+on:
+  push:
+    branches: [fix/irys-v34-crash-alert-20261106]
+    paths: ['.github/workflows/v34-crash-readonly-audit.yml']
+permissions:
+  contents: read
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Freeze repository source without credentials or private state
+        run: |
+          mkdir -p v34_audit
+          git archive --format=zip --output=v34_audit/source.zip HEAD
+      - name: Public natural runtime and native market history; no deploy, send or orders
+        env:
+          GH_READ_TOKEN: ${{ github.token }}
+        run: |
+          python - <<'PY'
+          import os,json,time,datetime as dt,hashlib,pathlib,urllib.request,urllib.parse,concurrent.futures,collections
+          root=pathlib.Path('v34_audit'); now=int(time.time()*1000); repo='pmk44120315-creator/irys-bitget-5min-scanner'; base='https://api.github.com/repos/'+repo
+          errors=[]
+          def get(url):
+            headers={'User-Agent':'IRYS-readonly-crash-audit','accept':'application/json'}
+            if url.startswith('https://api.github.com/'): headers['authorization']='Bearer '+os.environ['GH_READ_TOKEN']
+            for attempt in range(3):
+              try:
+                with urllib.request.urlopen(urllib.request.Request(url,headers=headers),timeout=30) as r:
+                  raw=r.read();return json.loads(raw),hashlib.sha256(raw).hexdigest()
+              except Exception as e:
+                if attempt==2:raise RuntimeError(type(e).__name__+':'+str(getattr(e,'code','NETWORK'))) from None
+                time.sleep(1+attempt)
+          def save(name,obj):(root/name).write_text(json.dumps(obj,ensure_ascii=False,separators=(',',':')),encoding='utf8')
+          try:
+            health,_=get('https://irys-surge-monitor.vhehwpfl.workers.dev/?v34='+str(now));save('health.json',health)
+          except Exception as e:health={};errors.append({'phase':'public_health','error':str(e)})
+          since=dt.datetime.fromtimestamp((now-6*3600000)/1000,dt.timezone.utc).isoformat()
+          commits,_=get(base+'/commits?'+urllib.parse.urlencode({'path':'data/v30_direction_latest.json','since':since,'per_page':100}))
+          def packet(c):
+            sha=c['sha'];url='https://raw.githubusercontent.com/'+repo+'/'+sha+'/data/v30_direction_latest.json'
+            try:
+              d,checksum=get(url)
+              # All signal inputs/quotes preserved; cached history omitted and stated.
+              keep={k:d.get(k) for k in ['version','source','model_digest','started_at_ms','at_ms','summary','checks','items','outcome_quotes','timing']}
+              keep['git_sha']=sha;keep['git_saved_at']=c['commit']['committer']['date'];keep['full_json_sha256']=checksum
+              keep['omitted_fields']=['outcome_candles','history_errors','forward']
+              return keep
+            except Exception as e:return {'git_sha':sha,'error':str(e)}
+          with concurrent.futures.ThreadPoolExecutor(max_workers=4) as ex:packets=list(ex.map(packet,commits))
+          packets.sort(key=lambda d:d.get('at_ms',0));save('recent_signal_evidence.json',{'read_at_ms':now,'since_utc':since,'commit_listing_count':len(commits),'pagination_complete':len(commits)<100,'packets':packets})
+          latest=next((p for p in reversed(packets) if p.get('at_ms')),{})
+          oldest=next((p for p in packets if p.get('at_ms')),{});names={q['symbol']:q for q in oldest.get('outcome_quotes') or [] if q.get('venue')=='bitget'}
+          ranks=[]
+          for q in latest.get('outcome_quotes') or []:
+            o=names.get(q.get('symbol'))
+            if q.get('venue')!='bitget' or not o:continue
+            try:
+              old=(float(o['bid'])+float(o['ask']))/2;price=(float(q['bid'])+float(q['ask']))/2
+              if old>0:ranks.append({'symbol':q['symbol'],'change_pct':100*(price/old-1)})
+            except (ValueError,KeyError,TypeError):pass
+          ranks.sort(key=lambda x:x['change_pct']);save('window_declines.json',{'from_ms':oldest.get('at_ms'),'to_ms':latest.get('at_ms'),'markets':ranks})
+          short_reasons=collections.Counter();series=[]
+          for p in packets:
+            checks=p.get('checks') or [];short=[x for x in checks if x.get('direction')=='SHORT']
+            reasons=collections.Counter(x.get('reason') or x.get('status') for x in short);short_reasons.update(reasons)
+            summary=p.get('summary') or {}
+            series.append({'at_ms':p.get('at_ms'),'saved_at':p.get('git_saved_at'),'short_selected':len(short),'short_ready':sum(x.get('allowed') is True for x in short),'short_reasons':dict(reasons),'provider_errors':summary.get('provider_errors'),'long_ready':sum(x.get('direction')=='LONG' and x.get('allowed') is True for x in checks),'selected':summary.get('selected')})
+          symbols=list(dict.fromkeys(['BTCUSDT','ETHUSDT','XRPUSDT']+[x['symbol'] for x in ranks[:9]]))
+          candles=[]
+          for symbol in symbols:
+            url='https://api.bitget.com/api/v2/mix/market/history-candles?'+urllib.parse.urlencode({'symbol':symbol,'productType':'USDT-FUTURES','granularity':'5m','endTime':now,'limit':200})
+            try:
+              data,h=get(url);candles.append({'venue':'bitget','symbol':symbol,'source_url':url,'sha256':h,'fetched_ms':int(time.time()*1000),'raw':data})
+            except Exception as e:errors.append({'phase':'futures_candles','symbol':symbol,'error':str(e)})
+            time.sleep(.22)
+          for market in ['KRW-BTC','KRW-ETH','KRW-XRP']:
+            url='https://api.bithumb.com/v1/candles/minutes/5?'+urllib.parse.urlencode({'market':market,'count':200})
+            try:
+              data,h=get(url);candles.append({'venue':'bithumb','symbol':market,'source_url':url,'sha256':h,'fetched_ms':int(time.time()*1000),'raw':data})
+            except Exception as e:errors.append({'phase':'spot_candles','symbol':market,'error':str(e)})
+            time.sleep(.22)
+          save('native_prices.json',candles)
+          l=health.get('last') or {};delivery=l.get('v30DirectionalDelivery') or {}
+          result={'observed_at_utc':dt.datetime.now(dt.timezone.utc).isoformat(),'packets':len(packets),'from_ms':oldest.get('at_ms'),'to_ms':latest.get('at_ms'),'runtime_version':l.get('codeVersion'),'natural_tick':l.get('time'),'runtime_status':l.get('status'),'dispatch':l.get('githubDispatchStatus'),'delivery':delivery,'last_public_ack':l.get('telegramLastApiReceipt'),'short_rejections':dict(short_reasons),'recent_series':series[-18:],'window_top_declines':ranks[:12],'errors':errors,'source_read_only':True,'no_forced_scan_or_test_messages':True,'private_telegram_history_accessed':False}
+          save('audit_summary.json',result);print('V34_CRASH_AUDIT',json.dumps(result,ensure_ascii=False))
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: v34-crash-original-audit
+          path: v34_audit/
+          if-no-files-found: error
+          retention-days: 7
