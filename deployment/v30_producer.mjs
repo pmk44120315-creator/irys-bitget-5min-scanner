@@ -8,6 +8,7 @@ import {v29ReadSnapshot} from './v29_runtime.mjs';
 import {v29Quote} from './v29_direction_gate.mjs';
 import {V30_VERSION,V30_MODEL,v30ParsePublicJSON,v30Qualify,v30FuturesCandidates,v30Settle} from './v30_core.mjs';
 import {v31ReadPairs,v31ShouldRecord} from './v31_quality.mjs';
+import {v35FollowupMarkets} from './v35_lifecycle.mjs';
 import {v31FetchHistory,v31SettleMinute,v31MinuteSummary} from './v31_outcomes.mjs';
 async function pooled(items,fn,concurrency=6){
  const out=new Array(items.length);let index=0;
@@ -52,7 +53,7 @@ function summaryForward(rows){
   result.groups[venue+':'+direction+':'+stage]={events:group.length,horizons};
  }return result;
 }
-async function v30Produce({read,clock=Date.now,sleep=ms=>new Promise(r=>setTimeout(r,ms)),previous={},priorSpot={},priorFutures={},modelDigest}){
+async function v30Produce({read,clock=Date.now,sleep=ms=>new Promise(r=>setTimeout(r,ms)),previous={},priorSpot={},priorFutures={},modelDigest,historyMode='inline',cachedHistory=[]}){
  if(typeof read!=='function'||!modelDigest)throw Error('PUBLIC_READER_AND_MODEL_REQUIRED');
  const started=clock(),state=structuredClone(previous||{}),u=await universes(read,clock);
  let spot=[],ft=[];await Promise.all([
@@ -69,15 +70,18 @@ async function v30Produce({read,clock=Date.now,sleep=ms=>new Promise(r=>setTimeo
  if(spotScan?.summary.status==='OBSERVED')state.v28=spotScan.next;
  const spots=(spotScan?.candidates||[]).map(c=>({venue:'bithumb',symbol:c.symbol,direction:'BUY',anchor_price:c.baseline_price,discovery_price:c.price,change_pct:c.move_pct,priority:c.priority,discovery_is_signal:false}));
  const candidates=[...spots,...futures],errors=[];
- const pairs=await v31ReadPairs(candidates,c=>v29ReadSnapshot(c,read,clock),clock,sleep);
+ const followupMarkets=v35FollowupMarkets(state.records||[],clock());
+ const present=new Set(candidates.map(c=>c.venue+':'+c.symbol));
+ const observed=[...candidates,...followupMarkets.filter(c=>!present.has(c.venue+':'+c.symbol))];
+ const pairs=await v31ReadPairs(observed,c=>v29ReadSnapshot(c,read,clock),clock,sleep);
  const first=pairs.map(x=>x.first),second=pairs.map(x=>x.second);
  // History reads run before final quotes; they cannot age a just-validated entry.
- const history=await v31FetchHistory(state.records||[],read,clock,state.minute_history||[]);
+ const history=historyMode==='cached'?{pages:Array.isArray(cachedHistory)?cachedHistory:[],errors:[]}:await v31FetchHistory(state.records||[],read,clock,state.minute_history||[]);
  state.minute_history=history.pages;
  const finalRisk=await universes(read,clock);
  const oldRows=state.records||[],atBeforeFinal=clock();
  const due=oldRows.filter(r=>[5,15,30,60].some(h=>!r.outcomes?.[String(h)]&&Math.abs(atBeforeFinal-(r.issued_at_ms+h*60000))<=150000));
- const end=await finalQuotes([...candidates,...due],finalRisk,read,clock),now=clock();
+ const end=await finalQuotes([...observed,...due],finalRisk,read,clock),now=clock();
  const byQuote=new Map(end.quotes.map(x=>[x.venue+':'+x.symbol,x]));
  const items=[],checks=[];
  for(let i=0;i<candidates.length;i++){const c=candidates[i];
@@ -105,15 +109,16 @@ async function v30Produce({read,clock=Date.now,sleep=ms=>new Promise(r=>setTimeo
    selected:candidates.length,evaluated:checks.length,paired_complete:items.length,unreviewed:candidates.length-checks.length,ready:checks.filter(x=>x.allowed).length,
    selected_by_direction:{BUY:spots.length,LONG:futures.filter(x=>x.direction==='LONG').length,SHORT:futures.filter(x=>x.direction==='SHORT').length},
    rejection_reasons:reasons,provider_errors:providerErrors,spot_discovery:spotScan?.summary||{status:'SOURCE_UNAVAILABLE'},future_accuracy_proven:false},
-  checks,items,outcome_quotes:end.quotes.map(q=>({...q.quote,venue:q.venue,symbol:q.symbol})),
+  checks,items,followups:observed.map((c,i)=>({venue:c.venue,symbol:c.symbol,first:first[i],second:second[i],final:byQuote.get(c.venue+':'+c.symbol)||null})),
+  outcome_quotes:end.quotes.map(q=>({...q.quote,venue:q.venue,symbol:q.symbol})),
   outcome_candles:history.pages,history_errors:history.errors,
   timing:{discovery_at_ms:snapshotAt,paired_completed_ms:Math.max(snapshotAt,...second.filter(x=>!x.error).map(x=>x.observed_at_ms)),finished_at_ms:now,
-   pair_separations_ms:pairs.filter(x=>!x.first.error&&!x.second.error).map(x=>x.second.observed_at_ms-x.first.observed_at_ms),cadence_ms:300000,barrier_removed:true},
+   pair_separations_ms:pairs.filter(x=>!x.first.error&&!x.second.error).map(x=>x.second.observed_at_ms-x.first.observed_at_ms),cadence_ms:300000,barrier_removed:true,history_reads_in_live_path:historyMode!=='cached',followup_markets:followupMarkets.length},
   forward:{...summaryForward(state.records),minute_close_proxies:v31MinuteSummary(state.records)},orders_sent:false,telegram_sent:false};
  return {report,state};
 }
 function v30ModelDigest(){
- const files=['v30_core.mjs','v30_producer.mjs','v29_direction_gate.mjs','v29_runtime.mjs','v28_discovery.mjs','v31_quality.mjs','v31_outcomes.mjs'];
+ const files=['v30_core.mjs','v30_producer.mjs','v29_direction_gate.mjs','v29_runtime.mjs','v28_discovery.mjs','v31_quality.mjs','v31_outcomes.mjs','v35_lifecycle.mjs'];
  const h=createHash('sha256');for(const name of files){h.update(name+'\0');h.update(readFileSync(new URL(name,import.meta.url)));}return h.digest('hex');
 }
 function publicReader(clock=Date.now){
@@ -127,7 +132,9 @@ function publicReader(clock=Date.now){
 async function main(){
  const readJSON=(p,otherwise={})=>{try{return JSON.parse(readFileSync(p,'utf8'))}catch{return otherwise}};
  const legacy=readJSON('data/state.json').spot_fast||{},oldF=readJSON('data/v24_bitget_fast_latest.json');
- const result=await v30Produce({read:publicReader(),previous:readJSON('data/v30_state.json'),priorSpot:{spot_at_ms:legacy.time_ms,spot:legacy.prices||{}},priorFutures:{at_ms:oldF.at_ms,prices:oldF.prices||{}},modelDigest:v30ModelDigest()});
+ const cache=readJSON('data/v35_outcome_history.json');
+ const historyPages=cache.version==='V35_NATIVE_HISTORY_CACHE_V1'&&Array.isArray(cache.pages)?cache.pages:[];
+ const result=await v30Produce({read:publicReader(),historyMode:'cached',cachedHistory:historyPages,previous:readJSON('data/v30_state.json'),priorSpot:{spot_at_ms:legacy.time_ms,spot:legacy.prices||{}},priorFutures:{at_ms:oldF.at_ms,prices:oldF.prices||{}},modelDigest:v30ModelDigest()});
  for(const [name,obj] of [['v30_direction_latest.json',result.report],['v30_state.json',result.state]]){writeFileSync('data/.'+name,JSON.stringify(obj));renameSync('data/.'+name,'data/'+name);}
  console.log('V30_PUBLIC_PRODUCER',JSON.stringify({at_ms:result.report.at_ms,model_digest:result.report.model_digest,...result.report.summary,check_results:result.report.checks,orders_sent:false,telegram_sent:false}));
  if(result.report.summary.listed_spot===0&&result.report.summary.listed_futures===0)process.exitCode=2;
