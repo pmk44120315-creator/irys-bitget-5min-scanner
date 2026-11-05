@@ -1,0 +1,47 @@
+name: IRYS V34 independent major-market crash evidence (NO MESSAGES)
+on:
+  workflow_run:
+    workflows: ['Bitget five-minute read-only snapshot']
+    types: [requested]
+permissions:
+  contents: read
+concurrency:
+  group: irys-v34-crash-evidence-writer
+  cancel-in-progress: false
+jobs:
+  produce:
+    if: github.event.workflow_run.head_branch == 'main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Resolve only the current approved risk source
+        run: |
+          git fetch --quiet origin main
+          git reset --hard origin/main
+          node --check deployment/v34_producer.mjs
+      - name: Native closed bars and final quotes; no account or message access
+        id: collect
+        continue-on-error: true
+        run: node deployment/v34_producer.mjs
+      - name: Publish only dedicated risk evidence; no original data overwrites
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          test -f data/v34_crash_latest.json
+          git add data/v34_crash_latest.json
+          git diff --staged --quiet && exit 0
+          git commit -m 'data(v34): official cross-venue major-market risk evidence only'
+          for attempt in 1 2 3 4 5 6 7 8; do
+            git fetch --quiet origin main
+            if ! git rebase origin/main; then git rebase --abort; exit 1; fi
+            if git push origin HEAD:main; then exit 0; fi
+            sleep 2
+          done
+          exit 1
+      - name: Do not conceal unavailable providers behind a successful publication
+        if: steps.collect.outcome == 'failure'
+        run: exit 1

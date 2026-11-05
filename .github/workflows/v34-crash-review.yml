@@ -1,0 +1,87 @@
+name: IRYS V34 crash risk regression and official-source review (NO SEND)
+on:
+  push:
+    branches: [fix/irys-v34-crash-alert-20261106]
+    paths: ['deployment/v34*.mjs','deployment/build_v34_worker.py','tests/test_v34*.mjs','tests/fixtures/v34_risk.mjs','.github/workflows/v34-crash-review.yml']
+permissions:
+  contents: read
+  actions: read
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/download-artifact@v4
+        with:
+          name: v31-guarded-production-natural-proof
+          run-id: 41814867318
+          github-token: ${{ github.token }}
+          path: /tmp/v31_original
+      - uses: actions/download-artifact@v4
+        with:
+          name: v30-selective-production-natural-proof
+          run-id: 41693577194
+          github-token: ${{ github.token }}
+          path: /tmp/v30_original
+      - uses: actions/download-artifact@v4
+        with:
+          name: v28-production-and-natural-verification
+          run-id: 41450016477
+          github-token: ${{ github.token }}
+          path: /tmp/v28_original
+      - name: Rebuild original fixtures and risk Worker with exact source leases
+        run: |
+          mkdir -p v34_review
+          git fetch --quiet --depth=1 origin release/irys-v24-bitget-fallback-20261101
+          git show FETCH_HEAD:deployment/IRYS_V24_BITGET_FALLBACK_WORKER.mjs > /tmp/v24.mjs
+          python deployment/build_v27_worker.py /tmp/v24.mjs deployment/IRYS_V27_RESPONSE_WORKER.mjs
+          python deployment/build_v28_worker.py deployment/IRYS_V27_RESPONSE_WORKER.mjs deployment/IRYS_V28_BUILDUP_WORKER.mjs
+          python deployment/build_v29_worker.py deployment/IRYS_V28_BUILDUP_WORKER.mjs deployment/IRYS_V29_DIRECTION_REVIEW_WORKER.mjs
+          cp /tmp/v30_original/IRYS_V30_SELECTIVE_DIRECTION_WORKER.mjs deployment/
+          cp /tmp/v31_original/IRYS_V31_TIMELY_WORKER.mjs deployment/
+          python deployment/build_v34_worker.py deployment/IRYS_V31_TIMELY_WORKER.mjs deployment/IRYS_V34_CRASH_WARNING_WORKER.mjs
+          echo '728b2d14d3543b79040d810cbfe290dbb14c6edb3987ee5b2db4d96b0d9de881  deployment/IRYS_V34_CRASH_WARNING_WORKER.mjs' | sha256sum -c -
+          node --check deployment/IRYS_V34_CRASH_WARNING_WORKER.mjs
+      - name: Original and new regressions, mock Telegram only
+        env:
+          V27_BASE_WORKER: /tmp/v24.mjs
+          V28_BASE_WORKER: deployment/IRYS_V27_RESPONSE_WORKER.mjs
+          V28_RELEASE_BASE_WORKER: /tmp/v28_original/IRYS_V28_BUILDUP_WORKER.mjs
+          V29_BASE_WORKER: deployment/IRYS_V28_BUILDUP_WORKER.mjs
+          V30_BASE_WORKER: deployment/IRYS_V29_DIRECTION_REVIEW_WORKER.mjs
+          V34_BASE_WORKER: deployment/IRYS_V31_TIMELY_WORKER.mjs
+        run: |
+          set -o pipefail
+          python -m unittest discover -s tests -v 2>&1 | tee v34_review/python_tests.log
+          node --test tests/*.mjs 2>&1 | tee v34_review/node_tests.log
+      - name: Real native public source with both venues and actual quote timestamps, no messages
+        run: |
+          set -o pipefail
+          node deployment/v34_producer.mjs | tee v34_review/official_source.log
+          node --input-type=module <<'JS'
+          import {readFileSync,writeFileSync} from 'node:fs';import assert from 'node:assert/strict';
+          import {v34Evaluate} from './deployment/v34_crash.mjs';import {v34ModelDigest} from './deployment/v34_producer.mjs';
+          const d=JSON.parse(readFileSync('data/v34_crash_latest.json','utf8'));
+          assert.equal(d.model_digest,v34ModelDigest());assert.equal(d.items.length,6);assert.equal(d.provider_errors.length,0);
+          const p=v34Evaluate(d,Date.now(),v34ModelDigest());assert(['OBSERVED_DROP','VERIFIED_QUIET'].includes(p.status),'REAL_SOURCE_INCOMPLETE');
+          assert.equal(d.orders_sent,false);assert.equal(d.telegram_sent,false);assert.equal(p.trade_entry_permit,false);
+          writeFileSync('v34_review/real_source_proof.json',JSON.stringify(p,null,2));
+          console.log('V34_OFFICIAL_NATIVE_PROOF',JSON.stringify(p));
+          JS
+      - name: Preserve exact tested bytes and failures as well as successes
+        if: always()
+        run: |
+          mkdir -p v34_review
+          test ! -f deployment/IRYS_V34_CRASH_WARNING_WORKER.mjs || cp deployment/IRYS_V34_CRASH_WARNING_WORKER* v34_review/
+          test ! -f data/v34_crash_latest.json || cp data/v34_crash_latest.json v34_review/
+          git archive --format=zip --output=v34_review/source.zip HEAD
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: v34-tested-crash-risk-source
+          path: v34_review/
+          retention-days: 7
+          if-no-files-found: error
