@@ -1,0 +1,43 @@
+name: IRYS V32 resumed accounting verification and public health (NO DEPLOY)
+on:
+  push:
+    branches: [fix/irys-v32-venue-direction-audit-20261105]
+    paths: ['deployment/v32_outcome_summary.mjs','tests/test_v32_outcome_summary.mjs','.github/workflows/v32-resume-summary-review.yml']
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: New accounting and original native-minute regressions, no sender
+        run: |
+          mkdir -p v32_resume_proof
+          set -o pipefail
+          node --test tests/test_v32_outcome_summary.mjs tests/test_v31_outcomes.mjs 2>&1 | tee v32_resume_proof/tests.log
+      - name: Current public runtime only, no private record export or mutation
+        run: |
+          python - <<'PY'
+          import json,pathlib,urllib.request,datetime,time
+          p=pathlib.Path('v32_resume_proof')
+          req=urllib.request.Request('https://irys-surge-monitor.vhehwpfl.workers.dev/?resume='+str(time.time_ns()),headers={'accept':'application/json','User-Agent':'IRYS-readonly-resume-check'})
+          with urllib.request.urlopen(req,timeout=25) as r:h=json.load(r)
+          l=h.get('last') or {};d=l.get('v30DirectionalDelivery') or {}
+          proof={'read_at_utc':datetime.datetime.now(datetime.timezone.utc).isoformat(),'runtime_version':l.get('codeVersion'),'tick_kst':l.get('time'),'status':l.get('status'),'dispatch':l.get('githubDispatchStatus'),'last_public_ack':l.get('telegramLastApiReceipt'),'actual_ack_outcome_summary':d.get('actual_alert_outcomes'),'delivery_status':d.get('status'),'source_summary':d.get('source_summary'),'runtime_modified':False,'telegram_sent_by_check':False,'all_private_messages_read':False,'forecast_improvement_proven':False}
+          (p/'public_runtime.json').write_text(json.dumps(proof,ensure_ascii=False,indent=2))
+          print('V32_RESUMED_PUBLIC_RUNTIME',json.dumps(proof,ensure_ascii=False))
+          assert l.get('status')=='PASS','CURRENT_RUNTIME_NOT_PASS'
+          PY
+      - name: Preserve reviewed files without publishing private support correspondence
+        if: always()
+        run: |
+          mkdir -p v32_resume_proof
+          cp deployment/v32_outcome_summary.mjs tests/test_v32_outcome_summary.mjs docs/IRYS_V32_RESUMED_CHECKPOINT_20261105_KO.md v32_resume_proof/
+          git rev-parse HEAD > v32_resume_proof/commit.txt
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: v32-resumed-checkpoint-and-accounting-proof
+          path: v32_resume_proof/
+          retention-days: 7
+          if-no-files-found: error
