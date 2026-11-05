@@ -1,0 +1,36 @@
+name: IRYS V11 live V10 source-only preflight READ ONLY (never deploy)
+on:
+  push:
+    branches: [fix/irys-v11-mplx-telegram-watch-20261028]
+    paths:
+      - 'deployment/release-v11-safe.mjs'
+      - 'deployment/IRYS_V11_SPOT_FUTURES_EARLY_WATCH_WORKER.mjs'
+      - '.github/workflows/verify-irys-v11-preflight.yml'
+permissions:
+  contents: read
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    env:
+      IRYS_V7_CF_API_TOKEN: ${{ secrets.IRYS_V7_CF_API_TOKEN }}
+      IRYS_REALTIME_CF_ACCOUNT_ID: ${{ secrets.IRYS_REALTIME_CF_ACCOUNT_ID }}
+      IRYS_V11_RELEASE_ONCE: AUTHORIZED_FROM_REVIEWED_MARKER
+      IRYS_V11_RELEASE_DRY_RUN: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify immutable reviewed source and record SHA256 candidate
+        shell: bash
+        run: |
+          test "$(git hash-object deployment/IRYS_V11_SPOT_FUTURES_EARLY_WATCH_WORKER.mjs)" = 'c63d22968c020a173e404179befbfc76d9342971'
+          echo "IRYS_V11_EXPECTED_SHA256=$(sha256sum deployment/IRYS_V11_SPOT_FUTURES_EARLY_WATCH_WORKER.mjs | cut -d' ' -f1)" >> "$GITHUB_ENV"
+          sha256sum deployment/IRYS_V11_SPOT_FUTURES_EARLY_WATCH_WORKER.mjs
+      - name: Syntax and Cloudflare multipart parser test
+        run: |
+          node --check deployment/release-v11-safe.mjs
+          node --check deployment/IRYS_V11_SPOT_FUTURES_EARLY_WATCH_WORKER.mjs
+          node --test tests/test_cloudflare_source_parser.mjs
+      - name: Confirm LIVE V10 SHA256, all bindings/cron and future V11 without deploying
+        run: node deployment/release-v11-safe.mjs

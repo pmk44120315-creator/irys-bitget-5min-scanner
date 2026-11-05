@@ -1,0 +1,44 @@
+name: IRYS V11 early-market-watch guarded code-only rollout (one-time marker)
+on:
+  push:
+    branches: [fix/irys-v11-mplx-telegram-watch-20261028]
+    paths:
+      - 'deployment/IRYS_V11_RELEASE_APPROVED_20261028.txt'
+permissions:
+  contents: read
+concurrency:
+  group: irys-surge-monitor-v11-release-once
+  cancel-in-progress: false
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      IRYS_V7_CF_API_TOKEN: ${{ secrets.IRYS_V7_CF_API_TOKEN }}
+      IRYS_REALTIME_CF_ACCOUNT_ID: ${{ secrets.IRYS_REALTIME_CF_ACCOUNT_ID }}
+      IRYS_V11_RELEASE_ONCE: AUTHORIZED_FROM_REVIEWED_MARKER
+      IRYS_V11_RELEASE_DRY_RUN: '0'
+      IRYS_V11_EXPECTED_SHA256: '95d88a10010ab054c377f2a99202c2abeae860ab40c82e2beb11e003a37301d7'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify marker plus exact immutable V11 candidate
+        shell: bash
+        run: |
+          grep -Fxq 'IRYS_V11_RELEASE_MARKER=EARLY_WATCH_VERIFIED_20261028' deployment/IRYS_V11_RELEASE_APPROVED_20261028.txt
+          grep -Fxq 'V11_SHA256=95d88a10010ab054c377f2a99202c2abeae860ab40c82e2beb11e003a37301d7' deployment/IRYS_V11_RELEASE_APPROVED_20261028.txt
+          test "$(git hash-object deployment/IRYS_V11_SPOT_FUTURES_EARLY_WATCH_WORKER.mjs)" = 'c63d22968c020a173e404179befbfc76d9342971'
+      - name: Validate source, all existing Python and tested V11 transport safety
+        run: |
+          node --check deployment/IRYS_V11_SPOT_FUTURES_EARLY_WATCH_WORKER.mjs
+          node --check deployment/release-v11-safe.mjs
+          python -m unittest discover -s tests -p 'test_*.py' -v
+          python -m unittest discover -s ai_twin/tests -p 'test_*.py' -v
+          node --test tests/test_cloudflare_source_parser.mjs tests/test_irys_v11_mplx_early_watch.mjs tests/test_irys_v11_futures_compat.mjs tests/test_irys_v11_spot_ai_compat.mjs tests/test_irys_v11_spot_scheduler.mjs
+      - name: Replace only irys-surge-monitor source code, compare SHA256, preserved secrets/KV/Cron and rollback
+        run: node deployment/release-v11-safe.mjs

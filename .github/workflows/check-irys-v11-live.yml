@@ -1,0 +1,22 @@
+name: IRYS V11 production early-watch health READ ONLY
+on:
+  push:
+    branches: [fix/irys-v11-mplx-telegram-watch-20261028]
+    paths:
+      - 'deployment/check-v11-live.mjs'
+      - '.github/workflows/check-irys-v11-live.yml'
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    env:
+      IRYS_V7_CF_API_TOKEN: ${{ secrets.IRYS_V7_CF_API_TOKEN }}
+      IRYS_REALTIME_CF_ACCOUNT_ID: ${{ secrets.IRYS_REALTIME_CF_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Read exact live V11 SHA, Cron, bindings and last real spot/futures/early market routing
+        run: node deployment/check-v11-live.mjs
