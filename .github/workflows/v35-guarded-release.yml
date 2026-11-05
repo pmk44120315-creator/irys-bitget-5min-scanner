@@ -1,0 +1,124 @@
+name: IRYS V35 guarded lifecycle deployment and natural verification
+on:
+  push:
+    branches: [fix/irys-v35-thesis-lifecycle-20261106]
+    paths: ['.github/workflows/v35-guarded-release.yml']
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: irys-v27-guarded-worker-source
+  cancel-in-progress: false
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/download-artifact@v4
+        with:
+          name: v31-guarded-production-natural-proof
+          run-id: 41814867318
+          github-token: ${{ github.token }}
+          path: /tmp/v31_original
+      - uses: actions/download-artifact@v4
+        with:
+          name: v30-selective-production-natural-proof
+          run-id: 41693577194
+          github-token: ${{ github.token }}
+          path: /tmp/v30_original
+      - uses: actions/download-artifact@v4
+        with:
+          name: v28-production-and-natural-verification
+          run-id: 41450016477
+          github-token: ${{ github.token }}
+          path: /tmp/v28_original
+      - name: Rebuild exact tested source and prior V34 for rollback fixtures
+        run: |
+          mkdir -p v35_release
+          git fetch --quiet --depth=1 origin release/irys-v24-bitget-fallback-20261101
+          git show FETCH_HEAD:deployment/IRYS_V24_BITGET_FALLBACK_WORKER.mjs > /tmp/v24.mjs
+          python deployment/build_v27_worker.py /tmp/v24.mjs deployment/IRYS_V27_RESPONSE_WORKER.mjs
+          python deployment/build_v28_worker.py deployment/IRYS_V27_RESPONSE_WORKER.mjs deployment/IRYS_V28_BUILDUP_WORKER.mjs
+          python deployment/build_v29_worker.py deployment/IRYS_V28_BUILDUP_WORKER.mjs deployment/IRYS_V29_DIRECTION_REVIEW_WORKER.mjs
+          cp /tmp/v30_original/IRYS_V30_SELECTIVE_DIRECTION_WORKER.mjs deployment/
+          cp /tmp/v31_original/IRYS_V31_TIMELY_WORKER.mjs deployment/
+          python deployment/build_v34_worker.py deployment/IRYS_V31_TIMELY_WORKER.mjs deployment/IRYS_V34_CRASH_WARNING_WORKER.mjs
+          python deployment/build_v35_worker.py deployment/IRYS_V34_CRASH_WARNING_WORKER.mjs deployment/IRYS_V35_LIFECYCLE_WORKER.mjs
+          echo '728b2d14d3543b79040d810cbfe290dbb14c6edb3987ee5b2db4d96b0d9de881  deployment/IRYS_V34_CRASH_WARNING_WORKER.mjs' | sha256sum -c -
+          echo '949cc9b7392e7f6bbf7ce710509b804ce734cf6b123294b1a2c530cfdc2669aa  deployment/IRYS_V35_LIFECYCLE_WORKER.mjs' | sha256sum -c -
+      - name: Complete regressions and rollback fault tests before any live writes
+        env:
+          V27_BASE_WORKER: /tmp/v24.mjs
+          V28_BASE_WORKER: deployment/IRYS_V27_RESPONSE_WORKER.mjs
+          V28_RELEASE_BASE_WORKER: /tmp/v28_original/IRYS_V28_BUILDUP_WORKER.mjs
+          V29_BASE_WORKER: deployment/IRYS_V28_BUILDUP_WORKER.mjs
+          V30_BASE_WORKER: deployment/IRYS_V29_DIRECTION_REVIEW_WORKER.mjs
+          V34_BASE_WORKER: deployment/IRYS_V31_TIMELY_WORKER.mjs
+          V35_BASE_WORKER: deployment/IRYS_V34_CRASH_WARNING_WORKER.mjs
+        run: |
+          set -o pipefail
+          python -m unittest discover -s tests -v 2>&1 | tee v35_release/python_tests.log
+          node --test tests/*.mjs 2>&1 | tee v35_release/node_tests.log
+      - name: Observe new normal producer publication; do not invoke any scan
+        run: |
+          node --input-type=module <<'JS'
+          import {writeFileSync} from 'node:fs';import assert from 'node:assert/strict';
+          const digest='baea9920208c677a338827a451cd8e0e5bf8a45d0600f84812b33aa743b4d9b9';const deadline=Date.now()+390000;let doc,ok=false;const reads=[];
+          do{try{const r=await fetch('https://raw.githubusercontent.com/pmk44120315-creator/irys-bitget-5min-scanner/main/data/v30_direction_latest.json?v35deploy='+Date.now(),{signal:AbortSignal.timeout(20000)});
+            if(r.ok){doc=await r.json();reads.push({at_ms:Date.now(),source_at_ms:doc.at_ms,digest:doc.model_digest});if(doc.model_digest===digest&&doc.at_ms<=Date.now()&&Date.now()-doc.at_ms<=360000){ok=true;break}}}catch{}
+            if(Date.now()>=deadline)break;await new Promise(r=>setTimeout(r,10000));
+          }while(Date.now()<=deadline);
+          writeFileSync('v35_release/producer_readiness.json',JSON.stringify({ok,reads,summary:doc?.summary,timing:doc?.timing},null,2));
+          assert(ok,'CURRENT_REVIEWED_PRODUCER_NOT_READY_NO_DEPLOYMENT');
+          JS
+      - name: Verified original-source lease and ordinary code-only deployment, no private-state access
+        env:
+          CF_ACCOUNT: ${{ secrets.IRYS_REALTIME_CF_ACCOUNT_ID }}
+          CF_TOKEN: ${{ secrets.IRYS_V7_CF_API_TOKEN }}
+        run: node deployment/release_v35_guarded.mjs
+      - name: Read first full natural post-deployment tick and unchanged risk/entry functions
+        run: |
+          node --input-type=module <<'JS'
+          import {readFileSync,writeFileSync} from 'node:fs';import assert from 'node:assert/strict';
+          const deployed=JSON.parse(readFileSync('v35_release/deployment.json','utf8'));
+          const target=Math.ceil(Date.parse(deployed.at_utc)/300000)*300000,deadline=target+210000;
+          const ms=s=>typeof s==='string'?Date.parse(s.replace(' KST','+09:00').replace(' ','T')):NaN;
+          let health;const reads=[];
+          do{const r=await fetch('https://irys-surge-monitor.vhehwpfl.workers.dev/?v35natural='+Date.now(),{signal:AbortSignal.timeout(20000)});assert(r.ok,'HEALTH_HTTP_'+r.status);health=await r.json();const l=health.last||{};
+            reads.push({at_ms:Date.now(),tick:l.time,version:l.codeVersion,status:l.status});if(l.codeVersion===deployed.version&&ms(l.time)>=target)break;
+            if(Date.now()>=deadline)break;await new Promise(r=>setTimeout(r,10000));
+          }while(Date.now()<=deadline);
+          const l=health?.last||{},d=l.v30DirectionalDelivery||{},risk=l.v34MarketRisk||{},coverage=l.v23DirectFastScout?.v28Discovery||{};
+          const proof={verified_at_utc:new Date().toISOString(),version:l.codeVersion,tick_kst:l.time,status:l.status,dispatch:l.githubDispatchStatus,
+            lifecycle_enabled:health.signalLifecycleEnabled===true,lifecycle:d.signal_lifecycle||null,
+            entry_enabled:health.marketNotificationsEnabled===true,entry_status:d.status,entry_feed:d.feed,entry_sent:d.sent,entry_source_summary:d.source_summary,
+            risk_enabled:health.marketRiskWarningsEnabled===true,risk_status:risk.status,risk_feed:risk.feed,
+            coverage:{listed:coverage.listed,tickers:coverage.tickers,tracked:coverage.tracked},actual_ack_this_tick:l.telegramApiAckedThisRun,
+            last_public_ack:l.telegramLastApiReceipt,actual_alert_outcomes:d.actual_alert_outcomes,
+            no_forced_scan_or_test_messages:true,device_receipt_verified:false,forecast_accuracy_improvement_proven:false};
+          writeFileSync('v35_release/natural_proof.json',JSON.stringify(proof,null,2));writeFileSync('v35_release/natural_health.json',JSON.stringify(health,null,2));writeFileSync('v35_release/natural_reads.json',JSON.stringify(reads,null,2));
+          console.log('V35_NATURAL_PROOF',JSON.stringify(proof));
+          assert.equal(l.codeVersion,deployed.version);assert(ms(l.time)>=target);assert.equal(l.status,'PASS');assert.equal(l.githubDispatchStatus,'ACCEPTED');
+          assert(proof.lifecycle_enabled&&proof.entry_enabled&&proof.risk_enabled);assert.equal(d.feed?.ok,true);assert(d.signal_lifecycle);assert.equal(d.signal_lifecycle.edit_errors,0);
+          assert.equal(risk.feed?.ok,true);assert(['RISK_QUIET','RISK_TELEGRAM_API_ACK','RISK_EPISODE_ALREADY_NOTIFIED_OR_ATTEMPTED','RISK_COOLDOWN','RISK_SOURCE_ALREADY_PROCESSED'].includes(risk.status));
+          assert(coverage.listed>=100&&coverage.listed===coverage.tracked);
+          assert(!['DIRECTION_DELIVERY_RUNTIME_ERROR','EVIDENCE_SOURCE_NOT_READY','DELIVERY_STATE_UNVERIFIED','DELIVERY_RESERVATION_FAILED','DELIVERY_UNCERTAIN','TELEGRAM_ACK_NOT_VERIFIED','ACK_RECEIPT_PERSISTENCE_PARTIAL'].includes(d.status));
+          const r=await fetch('https://raw.githubusercontent.com/pmk44120315-creator/irys-bitget-5min-scanner/main/data/v30_direction_latest.json?v35proof='+Date.now(),{signal:AbortSignal.timeout(20000)});assert(r.ok);const p=await r.json();writeFileSync('v35_release/public_producer.json',JSON.stringify(p));
+          assert.equal(p.model_digest,deployed.producer_digest);assert.equal(p.timing.history_reads_in_live_path,false);
+          JS
+      - name: Save both failures and actual successful evidence plus exact source
+        if: always()
+        run: |
+          mkdir -p v35_release
+          test ! -f deployment/IRYS_V35_LIFECYCLE_WORKER.mjs || cp deployment/IRYS_V35_LIFECYCLE_WORKER* v35_release/
+          git archive --format=zip --output=v35_release/verified_source.zip HEAD
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: v35-deployed-natural-proof
+          path: v35_release/
+          retention-days: 7
+          if-no-files-found: error
