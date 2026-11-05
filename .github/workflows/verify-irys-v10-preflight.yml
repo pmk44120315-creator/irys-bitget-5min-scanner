@@ -1,0 +1,37 @@
+name: IRYS V10 precise production preflight READ ONLY (never deploy)
+on:
+  push:
+    branches: [fix/irys-v10-bitget-longshort-proof-20261028]
+    paths:
+      - 'deployment/release-v10-safe.mjs'
+      - 'deployment/IRYS_V10_VERIFIED_FUTURES_WORKER.mjs'
+      - 'deployment/parse-cloudflare-script.mjs'
+      - '.github/workflows/verify-irys-v10-preflight.yml'
+permissions:
+  contents: read
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    env:
+      IRYS_V7_CF_API_TOKEN: ${{ secrets.IRYS_V7_CF_API_TOKEN }}
+      IRYS_REALTIME_CF_ACCOUNT_ID: ${{ secrets.IRYS_REALTIME_CF_ACCOUNT_ID }}
+      IRYS_V10_RELEASE_ONCE: AUTHORIZED_FROM_REVIEWED_MARKER
+      IRYS_V10_RELEASE_DRY_RUN: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Pin reviewed V10 Worker Git blob and calculate its source SHA256
+        shell: bash
+        run: |
+          test "$(git hash-object deployment/IRYS_V10_VERIFIED_FUTURES_WORKER.mjs)" = '157a266180a01df660e8c7d08b2e08d9bbd2fa77'
+          echo "IRYS_V10_EXPECTED_SHA256=$(sha256sum deployment/IRYS_V10_VERIFIED_FUTURES_WORKER.mjs | cut -d' ' -f1)" >> "$GITHUB_ENV"
+          sha256sum deployment/IRYS_V10_VERIFIED_FUTURES_WORKER.mjs
+      - name: Syntax and Cloudflare extraction exact-source tests
+        run: |
+          node --check deployment/release-v10-safe.mjs
+          node --check deployment/IRYS_V10_VERIFIED_FUTURES_WORKER.mjs
+          node --test tests/test_cloudflare_source_parser.mjs
+      - name: Confirm deployed V8 SHA256, existing bindings and five-minute cron before release
+        run: node deployment/release-v10-safe.mjs
