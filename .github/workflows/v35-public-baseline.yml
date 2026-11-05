@@ -1,0 +1,44 @@
+name: IRYS V35 current directional baseline (READ ONLY)
+on:
+  push:
+    branches: [fix/irys-v35-thesis-lifecycle-20261106]
+    paths: ['.github/workflows/v35-public-baseline.yml']
+permissions:
+  contents: read
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Freeze current main and public outcome state, no token or private history access
+        run: |
+          mkdir -p v35_baseline
+          git fetch --quiet --depth=1 origin main
+          git rev-parse FETCH_HEAD > v35_baseline/source_commit.txt
+          git archive --format=zip --output=v35_baseline/source.zip FETCH_HEAD
+          git show FETCH_HEAD:data/v30_direction_latest.json > v35_baseline/current_packet.json
+          git show FETCH_HEAD:data/v30_state.json > v35_baseline/current_state.json
+          python - <<'PY'
+          import urllib.request,json,pathlib,datetime,collections
+          p=pathlib.Path('v35_baseline')
+          u='https://irys-surge-monitor.vhehwpfl.workers.dev/?v35baseline='+str(datetime.datetime.now().timestamp())
+          with urllib.request.urlopen(urllib.request.Request(u,headers={'accept':'application/json','User-Agent':'IRYS-read-only-baseline'}),timeout=25) as r:h=json.load(r)
+          (p/'health.json').write_text(json.dumps(h,ensure_ascii=False,indent=2))
+          state=json.loads((p/'current_state.json').read_text());rows=state.get('records') or []
+          groups={}
+          for venue,direction in [('bithumb','BUY'),('bitget','LONG'),('bitget','SHORT')]:
+           a=[x for x in rows if x.get('venue')==venue and x.get('direction')==direction and x.get('evidence_status')=='READY_CURRENT_EVIDENCE'];g={'ready_hypotheses':len(a),'horizons':{}}
+           for k in ['5','15','30','60']:
+            m=[x.get('minute_outcomes',{}).get(k) for x in a];m=[x for x in m if x and x.get('status')=='MEASURED_MINUTE_CLOSE_PROXY']
+            g['horizons'][k]={'measured':len(m),'positive':sum(x['gross_reference_pct']>0 for x in m),'mean_pct':sum(x['gross_reference_pct'] for x in m)/len(m) if m else None}
+           groups[venue+':'+direction]=g
+          report={'at_utc':datetime.datetime.now(datetime.timezone.utc).isoformat(),'records':len(rows),'groups':groups,'last_tick':h.get('last',{}).get('time'),'version':h.get('last',{}).get('codeVersion'),'actual_ack_summary':h.get('last',{}).get('v30DirectionalDelivery',{}).get('actual_alert_outcomes'), 'hypotheses_are_not_actual_messages':True,'no_production_mutation':True}
+          (p/'summary.json').write_text(json.dumps(report,ensure_ascii=False,indent=2));print('V35_BASELINE',json.dumps(report,ensure_ascii=False))
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: v35-current-public-baseline
+          path: v35_baseline/
+          retention-days: 7
+          if-no-files-found: error
