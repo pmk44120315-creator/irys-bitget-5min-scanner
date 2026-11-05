@@ -1,0 +1,102 @@
+name: IRYS V35 cache-preserving final review (NO LIVE SEND)
+on:
+  push:
+    branches: [fix/irys-v35-thesis-lifecycle-20261106]
+    paths: ['.github/workflows/v35-final-review.yml','diagnostics/v35_preserve_cache.py']
+permissions:
+  contents: write
+  actions: read
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/download-artifact@v4
+        with:
+          name: v31-guarded-production-natural-proof
+          run-id: 41814867318
+          github-token: ${{ github.token }}
+          path: /tmp/v31_original
+      - uses: actions/download-artifact@v4
+        with:
+          name: v30-selective-production-natural-proof
+          run-id: 41693577194
+          github-token: ${{ github.token }}
+          path: /tmp/v30_original
+      - uses: actions/download-artifact@v4
+        with:
+          name: v28-production-and-natural-verification
+          run-id: 41450016477
+          github-token: ${{ github.token }}
+          path: /tmp/v28_original
+      - name: Apply cache preservation and exact source reconstruction
+        run: |
+          mkdir -p v35_final
+          python diagnostics/v35_preserve_cache.py
+          git fetch --quiet --depth=1 origin release/irys-v24-bitget-fallback-20261101
+          git show FETCH_HEAD:deployment/IRYS_V24_BITGET_FALLBACK_WORKER.mjs > /tmp/v24.mjs
+          python deployment/build_v27_worker.py /tmp/v24.mjs deployment/IRYS_V27_RESPONSE_WORKER.mjs
+          python deployment/build_v28_worker.py deployment/IRYS_V27_RESPONSE_WORKER.mjs deployment/IRYS_V28_BUILDUP_WORKER.mjs
+          python deployment/build_v29_worker.py deployment/IRYS_V28_BUILDUP_WORKER.mjs deployment/IRYS_V29_DIRECTION_REVIEW_WORKER.mjs
+          cp /tmp/v30_original/IRYS_V30_SELECTIVE_DIRECTION_WORKER.mjs deployment/
+          cp /tmp/v31_original/IRYS_V31_TIMELY_WORKER.mjs deployment/
+          python deployment/build_v34_worker.py deployment/IRYS_V31_TIMELY_WORKER.mjs deployment/IRYS_V34_CRASH_WARNING_WORKER.mjs
+          python deployment/build_v35_worker.py deployment/IRYS_V34_CRASH_WARNING_WORKER.mjs deployment/IRYS_V35_LIFECYCLE_WORKER.mjs
+          echo '949cc9b7392e7f6bbf7ce710509b804ce734cf6b123294b1a2c530cfdc2669aa  deployment/IRYS_V35_LIFECYCLE_WORKER.mjs' | sha256sum -c -
+      - name: All original and new tests including source lease and rollback faults
+        env:
+          V27_BASE_WORKER: /tmp/v24.mjs
+          V28_BASE_WORKER: deployment/IRYS_V27_RESPONSE_WORKER.mjs
+          V28_RELEASE_BASE_WORKER: /tmp/v28_original/IRYS_V28_BUILDUP_WORKER.mjs
+          V29_BASE_WORKER: deployment/IRYS_V28_BUILDUP_WORKER.mjs
+          V30_BASE_WORKER: deployment/IRYS_V29_DIRECTION_REVIEW_WORKER.mjs
+          V34_BASE_WORKER: deployment/IRYS_V31_TIMELY_WORKER.mjs
+          V35_BASE_WORKER: deployment/IRYS_V34_CRASH_WARNING_WORKER.mjs
+        run: |
+          set -o pipefail
+          python -m unittest discover -s tests -v 2>&1 | tee v35_final/python_tests.log
+          node --test tests/*.mjs 2>&1 | tee v35_final/node_tests.log
+      - name: Official source smoke with cache preservation and publication independence
+        run: |
+          git fetch --quiet --depth=1 origin main
+          for f in state.json v24_bitget_fast_latest.json v30_state.json; do git show "origin/main:data/$f" > "data/$f"; done
+          set -o pipefail
+          node deployment/v30_producer.mjs | tee v35_final/public_producer.log
+          sha256sum data/v30_direction_latest.json > /tmp/v35_packet.sha
+          node deployment/v35_history.mjs | tee v35_final/history.log
+          sha256sum -c /tmp/v35_packet.sha
+          node --input-type=module <<'JS'
+          import {readFileSync,writeFileSync} from 'node:fs';import assert from 'node:assert/strict';
+          import {v30ModelDigest} from './deployment/v30_producer.mjs';
+          const p=JSON.parse(readFileSync('data/v30_direction_latest.json','utf8')),h=JSON.parse(readFileSync('data/v35_outcome_history.json','utf8'));
+          assert.equal(p.model_digest,v30ModelDigest());assert.equal(p.model_digest,'baea9920208c677a338827a451cd8e0e5bf8a45d0600f84812b33aa743b4d9b9');
+          assert(p.summary.listed_spot>=100&&p.summary.listed_futures>=100);assert.equal(p.summary.evaluated,p.summary.selected);assert.equal(p.timing.history_reads_in_live_path,false);assert.equal(p.orders_sent,false);assert.equal(p.telegram_sent,false);
+          const proof={at_ms:p.at_ms,summary:p.summary,timing:p.timing,followups:p.followups.length,preserved_history_pages:p.outcome_candles.length,post_publication_history_pages:h.pages.length,history_errors:h.errors,live_packet_unchanged_by_history:true,future_accuracy_proven:false};
+          writeFileSync('v35_final/public_proof.json',JSON.stringify(proof,null,2));console.log('V35_FINAL_REAL_PUBLIC_PROOF',JSON.stringify(proof));
+          JS
+      - name: Commit only tested ordinary cache repair files to exact feature HEAD
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git fetch --quiet origin fix/irys-v35-thesis-lifecycle-20261106
+          test "$(git rev-parse FETCH_HEAD)" = "$GITHUB_SHA"
+          git add deployment/v30_producer.mjs tests/test_v35_producer.mjs
+          git commit -m 'fix(v35): preserve original native historical pages during first live cache transition'
+          git push origin HEAD:fix/irys-v35-thesis-lifecycle-20261106
+          git rev-parse HEAD > v35_final/verified_commit.txt
+      - name: Keep exact code, failed stages and passed evidence
+        if: always()
+        run: |
+          mkdir -p v35_final
+          test ! -f deployment/IRYS_V35_LIFECYCLE_WORKER.mjs || cp deployment/IRYS_V35_LIFECYCLE_WORKER* v35_final/
+          git archive --format=zip --output=v35_final/verified_source.zip HEAD
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: v35-final-reviewed-lifecycle
+          path: v35_final/
+          retention-days: 7
+          if-no-files-found: error

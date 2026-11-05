@@ -25,12 +25,12 @@ jobs:
           git reset --hard origin/main
           echo "V30_SOURCE_SHA=$(git rev-parse HEAD)"
       - name: Pure evidence, producer and delivery checks without live Telegram
-        run: node --test tests/test_v30_core.mjs tests/test_v30_producer.mjs tests/test_v30_delivery.mjs
+        run: node --test tests/test_v30_core.mjs tests/test_v30_producer.mjs tests/test_v30_delivery.mjs tests/test_v35_lifecycle.mjs tests/test_v35_producer.mjs
       - name: Official public first samples, disjoint new trades, final quotes and outcomes
         id: producer
         continue-on-error: true
         run: node deployment/v30_producer.mjs
-      - name: Publish only V30 public market evidence, never overwrite original collectors or private state
+      - name: Independently publish current public evidence before any history refresh
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
@@ -50,6 +50,24 @@ jobs:
             sleep 2
           done
           echo '::error::V30 output not published; do not label prior generation fresh'
+          exit 1
+      - name: Historical prices after current evidence has already been published
+        if: steps.producer.outcome == 'success'
+        run: |
+          node deployment/v35_history.mjs
+          git add data/v35_outcome_history.json
+          if git diff --staged --quiet; then exit 0; fi
+          git commit -m 'data(v35): separate native outcome history after timely signal publication'
+          for attempt in 1 2 3 4 5 6 7 8; do
+            git fetch --quiet origin main
+            if ! git rebase origin/main; then
+              git rebase --abort
+              echo '::error::History cache collision: preserve main, no force push'
+              exit 1
+            fi
+            if git push origin HEAD:main; then exit 0; fi
+            sleep 2
+          done
           exit 1
       - name: Never hide a failed provider collection behind successful commit
         if: steps.producer.outcome == 'failure'
