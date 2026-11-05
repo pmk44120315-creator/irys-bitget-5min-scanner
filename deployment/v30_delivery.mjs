@@ -3,6 +3,7 @@
  */
 import {V30_VERSION,v30Qualify,v30ValidatePacket,v30Settle,v30OutcomeSummary} from './v30_core.mjs';
 import {v31SettleMinute,v31MinuteSummary} from './v31_outcomes.mjs';
+import {v35Reconcile} from './v35_lifecycle.mjs';
 const V30_FEED='https://api.github.com/repos/pmk44120315-creator/irys-bitget-5min-scanner/contents/data/v30_direction_latest.json';
 const V30_SEND_CAP=2,V30_SYMBOL_COOLDOWN_MS=90*60000;
 const v30Permits=new WeakSet();
@@ -14,11 +15,11 @@ function v30FormatSignal(p,now){
  const f=x=>Number(x).toLocaleString('ko-KR',{maximumFractionDigits:10}),q=p.final_quote;
  const kst=ms=>new Date(ms+9*3600000).toISOString().slice(0,19).replace('T',' ')+' KST';
  const dir=p.direction==='BUY'?'BUY · 현물 상승':p.direction==='LONG'?'LONG · 상승':'SHORT · 하락';
- return `🔎 [V31 방향·진입가격 재확인]\n${p.venue==='bithumb'?'빗썸':'비트겟'} ${p.symbol} | ${dir}\n`+
+ return `🔎 [V35 방향 근거·후속 상태 확인]\n${p.venue==='bithumb'?'빗썸':'비트겟'} ${p.symbol} | ${dir}\n`+
   `근거 시각 ${kst(p.observed_at_ms)}\n최우선 매수/매도호가 ${f(q.bid)} / ${f(q.ask)}\n`+
   `독립 신규 체결·호가 2회 확인 + 최종 호가 재확인\n`+
   `근거 이탈 참고선 ${f(p.invalidation_reference)} · 유효 ${kst(p.expires_at_ms)}까지\n`+
-  `5·15분 방향 가설입니다. 이후 적중률·실제 체결·수익은 보장되지 않으며, 유효시각이 지난 신호를 추격하지 마세요.`;
+  `5·15분 방향 가설이며 적중·수익을 보장하지 않습니다. 5분 주기로 최대15분간 기준 이탈을 재확인하고, 확인되면 이 메시지를 무효 표시합니다. 유효시각이 지난 신호를 추격하지 마세요.`;
 }
 async function v30ReadPacket(env,requestedAt,options){
  const clock=options.clock||Date.now,sleep=options.sleep||(ms=>new Promise(r=>setTimeout(r,ms)));
@@ -43,6 +44,7 @@ async function v30ReviewAndDeliver(env,state,requestedAt,options){
  state.v30ActualForecasts=v30Settle(state.v30ActualForecasts||[],Array.isArray(doc.outcome_quotes)?doc.outcome_quotes:[],clock());
  state.v30ActualForecasts=v31SettleMinute(state.v30ActualForecasts,Array.isArray(doc.outcome_candles)?doc.outcome_candles:[],clock());
  output.actual_alert_outcomes={...v30OutcomeSummary(state.v30ActualForecasts),minute_close_proxies:v31MinuteSummary(state.v30ActualForecasts)};
+ output.signal_lifecycle=await v35Reconcile(state,doc,{clock,edit:options.editStatus});
  const approved=[],rejected={};
  for(const item of doc.items){const q=v30Qualify(item,clock());output.evaluated++;
   if(q.allowed)approved.push({item,proof:q});else rejected[q.reason]=(rejected[q.reason]||0)+1;
