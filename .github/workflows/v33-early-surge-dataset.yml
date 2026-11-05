@@ -1,0 +1,116 @@
+name: IRYS V33 all-market early-surge evidence (READ ONLY NO SEND)
+on:
+  push:
+    branches: [research/irys-v33-early-surge-20261105]
+    paths: ['.github/workflows/v33-early-surge-dataset.yml']
+permissions:
+  contents: read
+jobs:
+  freeze:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Freeze predeclared experiment and official current-universe history
+        run: |
+          mkdir -p v33_dataset/candles
+          python -u - <<'PY'
+          import urllib.request,urllib.parse,urllib.error,json,pathlib,gzip,datetime as dt,time,threading,concurrent.futures,hashlib,collections
+          root=pathlib.Path('v33_dataset');KST=dt.timezone(dt.timedelta(hours=9));UTC=dt.timezone.utc
+          # Fixed BEFORE fetching outcomes: the screenshot is not a training label.
+          start=int(dt.datetime(2026,11,2,0,0,tzinfo=KST).timestamp()*1000)
+          end=int(dt.datetime(2026,11,5,15,35,tzinfo=KST).timestamp()*1000)
+          photo=['ELSA','EDGE','FLUID','UP','SOLV','MEV','BEAM','KMNO','ICNT','QUID','CAP','BLEND']
+          spec={'version':'V33_EARLY_SURGE_PREREGISTERED_V1','written_at_utc':dt.datetime.now(UTC).isoformat(),
+            'history_start_ms':start,'history_end_exclusive_ms':end,'native_unit_minutes':5,
+            'training_ends_kst':'2026-11-04 00:00:00','validation_ends_kst':'2026-11-05 00:00:00',
+            'test_start_kst':'2026-11-05 00:00:00','test_end_kst':'2026-11-05 15:35:00',
+            'photo_targets_excluded_from_training_and_validation':photo,
+            'target':'From next observed 5m open, +3% before -1.5% within 60min; both in same bar ambiguous, not success',
+            'secondary_metrics':['15/30/60min signed return','maximum adverse move','early first passage to +10% relative preceding-hour reference','frequency at fixed message budget'],
+            'baselines':['5m return ranking','15m return ranking','self-normalized turnover ranking'],
+            'new_idea':'Competing continuation-vs-failure prediction from own-normalized traded-value, failed-down price response and remaining entry headroom, not hard quote crossing',
+            'no_parameter_search_on_test':True,'closed_bar_features_only':True,'training_labels_purged_60m_at_boundaries':True,
+            'no_forward_filling_missing_trades':True,'not_account_fills_or_profit':True,
+            'historical_membership_limitation':'Current official KRW universe; removed or delisted historical markets unavailable; warnings captured now are not historical warnings',
+            'production_unchanged':True,'telegram_sent':False,'orders_sent':False}
+          (root/'experiment.json').write_text(json.dumps(spec,ensure_ascii=False,indent=2))
+          lock=threading.Lock();next_at=[0.];calls=[0]
+          def get(path,params=None):
+            url='https://api.bithumb.com'+path+('?' + urllib.parse.urlencode(params) if params else '')
+            for attempt in range(5):
+              with lock:
+                scheduled=max(time.monotonic(),next_at[0]);next_at[0]=scheduled+.20;calls[0]+=1
+              delay=scheduled-time.monotonic()
+              if delay>0:time.sleep(delay)
+              try:
+                with urllib.request.urlopen(urllib.request.Request(url,headers={'User-Agent':'IRYS-public-causal-research','accept':'application/json'}),timeout=25) as r:return json.load(r)
+              except urllib.error.HTTPError as e:
+                if e.code not in [429,500,502,503,504] or attempt==4:raise RuntimeError('HTTP_'+str(e.code)) from None
+                time.sleep(2+attempt*2)
+              except (TimeoutError,urllib.error.URLError):
+                if attempt==4:raise RuntimeError('NETWORK_UNAVAILABLE') from None
+                time.sleep(1+attempt)
+          markets=get('/v1/market/all',{'isDetails':'true'});warnings=get('/v1/market/virtual_asset_warning')
+          assert isinstance(markets,list) and isinstance(warnings,list)
+          names=sorted({r['market'] for r in markets if r['market'].startswith('KRW-')});assert len(names)>100
+          tickers=[]
+          for i in range(0,len(names),100):tickers+=get('/v1/ticker',{'markets':','.join(names[i:i+100])})
+          current={'read_at_utc':dt.datetime.now(UTC).isoformat(),'markets':markets,'warnings':warnings,'tickers':tickers}
+          (root/'current_universe.json').write_text(json.dumps(current,ensure_ascii=False,indent=2))
+          print('V33_CURRENT_PHOTO',json.dumps([{'symbol':r['market'],'price':r['trade_price'],'day_pct':100*r['signed_change_rate'],'at_ms':r.get('timestamp')} for r in tickers if r['market'].removeprefix('KRW-') in photo],ensure_ascii=False))
+          def timestamp(r):return int(dt.datetime.fromisoformat(r['candle_date_time_utc']).replace(tzinfo=UTC).timestamp()*1000)
+          def collect(symbol):
+            cursor=end;pages=0;data={};conflicts=set();error=None
+            try:
+              while cursor>start:
+                kst=dt.datetime.fromtimestamp(cursor/1000,KST).strftime('%Y-%m-%dT%H:%M:%S')
+                raw=get('/v1/candles/minutes/5',{'market':symbol,'to':kst,'count':200});pages+=1
+                if not isinstance(raw,list):raise RuntimeError('CANDLE_SCHEMA')
+                if not raw:break
+                times=[]
+                for row in raw:
+                  if row.get('market')!=symbol:raise RuntimeError('CROSS_SYMBOL_RESPONSE')
+                  at=timestamp(row);times.append(at)
+                  if at>=cursor:raise RuntimeError('NON_EXCLUSIVE_CURSOR_OR_CLOCK')
+                  if at<start or at+300000>end:continue
+                  values=[row.get(k) for k in ['opening_price','high_price','low_price','trade_price','candle_acc_trade_volume','candle_acc_trade_price']]
+                  if any(v is None for v in values):raise RuntimeError('MISSING_NATIVE_OHLCV')
+                  record=[at]+values
+                  if at in data and data[at]!=record:conflicts.add(at)
+                  data[at]=record
+                next_cursor=min(times)
+                if next_cursor>=cursor:raise RuntimeError('PAGINATION_NOT_ADVANCING')
+                cursor=next_cursor
+              rows=[data[t] for t in sorted(data) if t not in conflicts]
+            except Exception as e:error=str(e);rows=[data[t] for t in sorted(data) if t not in conflicts]
+            obj={'symbol':symbol,'start_ms':start,'end_exclusive_ms':end,'pages':pages,'error':error,
+              'conflicting_closed_bars':sorted(conflicts),'columns':['open_time_ms','open','high','low','close','base_volume','quote_volume'],
+              'native_rows':rows,'missing_intervals_not_filled':True}
+            b=json.dumps(obj,separators=(',',':')).encode();p=root/'candles'/f'{symbol}.json.gz'
+            with gzip.open(p,'wb') as f:f.write(b)
+            return {'symbol':symbol,'rows':len(rows),'pages':pages,'error':error,'conflicts':len(conflicts),'first_ms':rows[0][0] if rows else None,'last_ms':rows[-1][0] if rows else None,'sha256':hashlib.sha256(b).hexdigest()}
+          outcomes=[]
+          with concurrent.futures.ThreadPoolExecutor(max_workers=8) as pool:
+            for i,res in enumerate(pool.map(collect,names),1):
+              outcomes.append(res)
+              if i%40==0:print('V33_COLLECTION_PROGRESS',i,len(names),'http_calls',calls[0],flush=True)
+          summary={'at_utc':dt.datetime.now(UTC).isoformat(),'official_universe':len(names),'collected':len(outcomes),
+            'bars':sum(r['rows'] for r in outcomes),'http_calls':calls[0],'errors':[r for r in outcomes if r['error']],
+            'outcomes':outcomes,'production_unchanged':True,'telegram_sent':False}
+          (root/'collection_manifest.json').write_text(json.dumps(summary,ensure_ascii=False,indent=2))
+          print('V33_COLLECTION_FINISHED',json.dumps({k:v for k,v in summary.items() if k!='outcomes'},ensure_ascii=False))
+          try:
+            url='https://irys-surge-monitor.vhehwpfl.workers.dev/?v33audit='+str(time.time_ns())
+            with urllib.request.urlopen(url,timeout=25) as r:health=json.load(r)
+            (root/'public_health.json').write_text(json.dumps(health,ensure_ascii=False,indent=2))
+          except Exception as e:(root/'health_read_error.txt').write_text(type(e).__name__)
+          assert len(outcomes)==len(names),'INCOMPLETE_UNIVERSE_COLLECTION'
+          if summary['errors']:raise SystemExit('PARTIAL_NATIVE_SOURCE_ERRORS_SAVED_NOT_HIDDEN')
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: v33-frozen-all-market-native-history
+          path: v33_dataset/
+          if-no-files-found: error
+          retention-days: 7
