@@ -1,0 +1,44 @@
+name: IRYS V34 deployment-auth diagnosis and public runtime (READ ONLY)
+on:
+  push:
+    branches: [fix/irys-v34-crash-alert-20261106]
+    paths: ['.github/workflows/v34-auth-and-health-readonly.yml']
+permissions:
+  contents: read
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Official token validity only, never print token or account identifier and never modify deployment
+        env:
+          CF_ACCOUNT: ${{ secrets.IRYS_REALTIME_CF_ACCOUNT_ID }}
+          CF_TOKEN: ${{ secrets.IRYS_V7_CF_API_TOKEN }}
+        run: |
+          mkdir -p v34_auth
+          node --input-type=module <<'JS'
+          import {writeFileSync} from 'node:fs';
+          const token=process.env.CF_TOKEN,account=process.env.CF_ACCOUNT;
+          const proof={at_utc:new Date().toISOString(),token_present:!!token,account_present:!!account,verification:[],no_writes:true,no_credential_contents_exported:true};
+          for(const [kind,path] of [['USER_TOKEN','/user/tokens/verify'],['ACCOUNT_TOKEN','/accounts/'+account+'/tokens/verify']]){
+            try{const r=await fetch('https://api.cloudflare.com/client/v4'+path,{headers:{authorization:'Bearer '+token,accept:'application/json'},signal:AbortSignal.timeout(20000)});
+              let j;try{j=await r.json()}catch{j={}};
+              const row={kind,http:r.status,success:j.success===true,status:j.result?.status||null,expires_on:j.result?.expires_on||null,not_before:j.result?.not_before||null,error_codes:(j.errors||[]).map(e=>e.code).filter(Number.isFinite)};
+              proof.verification.push(row);if(row.success)break;
+            }catch{proof.verification.push({kind,status:'VERIFY_NETWORK_UNAVAILABLE'})}
+          }
+          writeFileSync('v34_auth/auth_status.json',JSON.stringify(proof,null,2));console.log('V34_AUTH_STATUS',JSON.stringify(proof));
+          try{const r=await fetch('https://irys-surge-monitor.vhehwpfl.workers.dev/?v34authcheck='+Date.now(),{signal:AbortSignal.timeout(20000)});const h=await r.json();
+            const l=h.last||{},d=l.v30DirectionalDelivery||{};const status={at_utc:new Date().toISOString(),http:r.status,version:l.codeVersion,natural_tick:l.time,status:l.status,dispatch:l.githubDispatchStatus,entry_source_ok:d.feed?.ok,entry_status:d.status,risk_enabled:h.marketRiskWarningsEnabled===true,code_changed_by_this_check:false};
+            writeFileSync('v34_auth/current_health.json',JSON.stringify(status,null,2));console.log('V34_CURRENT_UNCHANGED_HEALTH',JSON.stringify(status));
+          }catch{console.log('V34_PUBLIC_HEALTH_UNAVAILABLE')}
+          const feed=await fetch('https://raw.githubusercontent.com/pmk44120315-creator/irys-bitget-5min-scanner/main/data/v34_crash_latest.json?authcheck='+Date.now(),{signal:AbortSignal.timeout(20000)});
+          if(feed.ok){const d=await feed.json();const status={at_ms:d.at_ms,model_digest:d.model_digest,items:d.items?.length,provider_errors:d.provider_errors,status:d.summary?.status,telegram_sent:d.telegram_sent,orders_sent:d.orders_sent};
+            writeFileSync('v34_auth/public_producer.json',JSON.stringify(status,null,2));console.log('V34_PUBLIC_PRODUCER_STATUS',JSON.stringify(status));}
+          JS
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: v34-readonly-auth-and-public-health
+          path: v34_auth/
+          retention-days: 7
+          if-no-files-found: error
