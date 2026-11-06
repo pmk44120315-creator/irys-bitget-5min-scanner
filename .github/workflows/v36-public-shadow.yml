@@ -1,0 +1,79 @@
+name: IRYS V36 prospective counter-hypothesis and first-touch path shadow (NO ALERTS)
+on:
+  workflow_run:
+    workflows: ['IRYS V30 official paired directional evidence (NO MESSAGES)']
+    types: [completed]
+permissions:
+  contents: read
+concurrency:
+  group: irys-v36-prospective-writer
+  cancel-in-progress: false
+jobs:
+  shadow:
+    if: github.event.workflow_run.head_branch == 'main' && github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Reload latest committed public evidence before score or label
+        run: |
+          git fetch --quiet origin main
+          git reset --hard origin/main
+          echo "V36_PUBLIC_SOURCE_COMMIT=$(git rev-parse HEAD)"
+      - name: Validate shadow logic without test orders or Telegram
+        run: node --test tests/test_v36_shadow.mjs
+      - name: Score current independent pressure and settle immutable future paths
+        run: |
+          mkdir -p v36_operating
+          node deployment/v36_runner.mjs | tee v36_operating/run.log
+          node --input-type=module <<'JS'
+          import assert from 'node:assert/strict';import {readFileSync} from 'node:fs';
+          const out=JSON.parse(readFileSync('data/v36_shadow_latest.json','utf8'));
+          const state=JSON.parse(readFileSync('data/v36_shadow_state.json','utf8'));
+          assert.equal(out.version,'V36_CONTRA_PROSPECTIVE_SHADOW_V1');
+          assert.equal(out.shadow_only,true);assert.equal(out.telegram_sent,false);assert.equal(out.orders_sent,false);assert.equal(out.auto_promotion,false);
+          assert(Array.isArray(state.events)&&state.events.length<=3000);
+          const ids=new Set(state.events.map(x=>x.id));assert.equal(ids.size,state.events.length,'DUPLICATE_EPISODES');
+          for(const e of state.events){
+            assert(e.barriers_locked&&e.label_source==='FROZEN_PRIOR_MARKET');
+            assert(e.issued_at_ms<=out.at_ms&&e.observed_hypothesis.future_direction_proven===false);
+            for(const outcome of Object.values(e.outcomes||{}))assert(outcome.actual_execution_verified===false);
+          }
+          console.log('V36_PROSPECTIVE_STATE_VERIFIED',JSON.stringify({new_events:out.new_events,tracked:out.tracked_episodes,history_pages:out.successful_native_histories,errors:out.source_errors.length,not_a_livetrading_alert:true}));
+          JS
+      - name: Save only new V36 public records with nonforce rebase and current source lease
+        run: |
+          cp data/v36_shadow_latest.json v36_operating/
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add data/v36_shadow_latest.json data/v36_shadow_state.json
+          if git diff --staged --quiet; then exit 0; fi
+          git commit -m 'data(v36): immutable prospective counter-hypothesis and closed-minute first touch'
+          for attempt in 1 2 3 4 5 6 7 8 9 10; do
+            git fetch --quiet origin main
+            if ! git rebase origin/main; then
+              git rebase --abort
+              echo '::error::v36 state conflict; no overwrite or force push'
+              exit 1
+            fi
+            if git push origin HEAD:main; then exit 0; fi
+            sleep 2
+          done
+          echo '::error::v36 state not published; never claim fresh'
+          exit 1
+      - name: Evidence for natural runs and missing labels
+        if: always()
+        run: |
+          mkdir -p v36_operating
+          test ! -f data/v36_shadow_latest.json || cp data/v36_shadow_latest.json v36_operating/
+          git rev-parse HEAD > v36_operating/commit.txt
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: v36-prospective-public-shadow-natural
+          path: v36_operating/
+          retention-days: 7
+          if-no-files-found: error
