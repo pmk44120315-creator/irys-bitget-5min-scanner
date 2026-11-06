@@ -3,6 +3,7 @@ import {readFileSync,writeFileSync,renameSync} from 'node:fs';
 import {pathToFileURL} from 'node:url';
 import {v37AssessSnapshot,v37SelectEarly,v37BuildEvents,v37LabelEvents,V37_EARLY_VERSION} from './v37_early.mjs';
 import {v36NativeHistory} from './v36_runner.mjs';
+import {v37CompareToReady} from './v37_compare.mjs';
 const good=x=>typeof x==='number'&&Number.isFinite(x)&&x>0;
 const between=(t,now,limit=120000)=>Number.isSafeInteger(t)&&t<=now&&now-t<=limit;
 function v37PrepareRows({spotState,fastFeed,tickers,futuresHistory={},now}={}){
@@ -66,7 +67,9 @@ function v37RunCycle({spotState,fastFeed,tickers,history={},old={},now,nativePag
  state.futuresHistory={...history,...prepared.nextFutures};
  state.last_source_at_ms=now;
  const stats=v37Stats(state.events);
+ const readyTiming=v37CompareToReady(state.events,spotState?.records||[]);
  const output={version:V37_EARLY_VERSION,source:'CURRENT_PUBLIC_PRIOR_ONLY',at_ms:now,source_errors:prepared.source_errors,
+  public_baseline_ready_timing:readyTiming,
   spot_candidates_observed:prepared.rows.filter(x=>x.venue==='bithumb').length,
   futures_candidates_observed:prepared.rows.filter(x=>x.venue==='bitget').length,
   new_events:r.added.length,selected_early_count:selections.length,tracked:state.events.length,
