@@ -18,8 +18,8 @@ for(const b of bars){
  if(at<start||at>end)continue;
  const result=v38Detect({venue:'bitget',symbol:'ONEUSDT',direction:'LONG',bars,now:at});
  all.push({at_ms:at,status:result.status,reason:result.reason,close:b.close});
- if(result.status!=='EARLY_RECLAIM')continue;
- const id=[result.direction,result.impulse_peak_at_ms].join(':');
+ if(!['EARLY_RECLAIM','EARLY_TURN_WATCH'].includes(result.status))continue;
+ const id=[result.direction,result.impulse_peak_at_ms,result.status].join(':');
  if(distinct.has(id))continue;distinct.add(id);
  const after=bars.filter(x=>x.start_ms>=at),outcomes={};
  for(const h of [5,15,30,60]){
@@ -37,13 +37,13 @@ writeFileSync('v38_review/ONEUSDT_official_5m_bars.json',JSON.stringify({source_
 console.log('V38_ONE_REPLAY_TIMELINE',JSON.stringify(all.filter(x=>x.at_ms>=Date.parse('2026-11-06T07:45:00Z')&&x.at_ms<=Date.parse('2026-11-06T10:00:00Z')).map(x=>({kst:new Date(x.at_ms+9*3600000).toISOString().slice(11,16),status:x.status,reason:x.reason,close:x.close}))));
 const proof={version:'V38_ONEUSDT_5M_ASOF_REPLAY_V1',symbol:'ONEUSDT',source:'BITGET_OFFICIAL_PUBLIC_V3_HISTORY_CANDLES',
  retrieved_at_utc:new Date().toISOString(),source_url:url,full_source_candle_count:parsed.bars.length,asof_checks:all.length,
- asof_min_ms:start,asof_max_ms:end,candidate_count:events.length,events,inspection:all,
+ asof_min_ms:start,asof_max_ms:end,watch_count:events.filter(e=>e.signal.status==='EARLY_TURN_WATCH').length,confirmed_count:events.filter(e=>e.signal.status==='EARLY_RECLAIM').length,candidate_count:events.length,events,inspection:all,
  pullback_low_was_not_known_in_advance:true,detector_saw_only_closed_past_candles:true,
  screenshot_is_context_not_training_label:true,retro_backtest_is_not_prospective_accuracy:true,
  original_live_telegram_sent:false,orders_sent:false,account_fill_verified:false};
 writeFileSync('v38_review/ONEUSDT_historical_replay.json',JSON.stringify(proof,null,2));
 console.log('V38_ONE_HISTORICAL_REPLAY_SUMMARY',JSON.stringify({candles:parsed.bars.length,checks:all.length,
- candidate_count:events.length,entries:events.map(e=>({at_kst:new Date(e.at_ms+9*3600000).toISOString().slice(0,16).replace('T',' ')+' KST',
+ candidate_count:events.length,watch_count:events.filter(e=>e.signal.status==='EARLY_TURN_WATCH').length,entries:events.map(e=>({phase:e.signal.status,at_kst:new Date(e.at_ms+9*3600000).toISOString().slice(0,16).replace('T',' ')+' KST',
  price:e.signal.close_reference,prior_high:e.signal.previous_impulse_high,
  risk_reference:e.signal.stop_reference,after_15m:e.outcomes[15].signed_pct,after_60m:e.outcomes[60].signed_pct})),
  no_test_telegram:true,no_trade_permission:true}));
