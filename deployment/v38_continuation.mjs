@@ -41,7 +41,11 @@ function v38Detect({venue,symbol,direction,bars,now}={}){
  if(!currentTrend)return fail('NO_SETUP','NO_PRIOR_DIRECTIONAL_TREND');
  const trueRanges=transformed.slice(1).map((b,i)=>Math.max(b.high-b.low,Math.abs(b.high-transformed[i].close),Math.abs(b.low-transformed[i].close)));
  const atr=median(trueRanges.slice(-18));if(!positive(atr))return fail('INSUFFICIENT_HISTORY','ATR_UNAVAILABLE');
- if(!(last.close>last.open&&last.close>prev.high+0.01*atr))return fail('NO_SETUP','NO_CLOSED_BAR_RECLAIM');
+ const reclaimed=last.close>prev.high+0.01*atr;
+ const earlyTurn=last.close>last.open&&prev.close<prev.open&&last.close>prev.close+.12*atr&&
+  last.close>last.low+.58*(last.high-last.low);
+ if(!reclaimed&&!earlyTurn)return fail('NO_SETUP','NO_CLOSED_BAR_REVERSAL');
+ if(reclaimed&&last.close<=last.open)return fail('NO_SETUP','RECLAIM_CANDLE_NOT_RISING');
  let late=false;
  for(let peak=len-4;peak>=Math.max(27,len-12);peak--){
   const high=transformed[peak].high;
@@ -63,8 +67,8 @@ function v38Detect({venue,symbol,direction,bars,now}={}){
   const stop=sign===1?trough:-trough;
   const target=sign===1?high:-high;
   const eventPrice=sign*last.close;
-  return {version:V38_VERSION,status:'EARLY_RECLAIM',reason:null,venue,symbol,direction,
-   signal_kind:'CONTROLLED_PULLBACK_FIRST_RECLAIM',source:'ONLY_CLOSED_5M_PUBLIC_CANDLES',evaluated_at_ms:now,
+  return {version:V38_VERSION,status:reclaimed?'EARLY_RECLAIM':'EARLY_TURN_WATCH',reason:null,venue,symbol,direction,
+   signal_kind:reclaimed?'CONTROLLED_PULLBACK_FIRST_RECLAIM':'CONTROLLED_PULLBACK_FIRST_TURN_WATCH',source:'ONLY_CLOSED_5M_PUBLIC_CANDLES',evaluated_at_ms:now,
    signal_closed_at_ms:last.t+STEP,first_reclaim_bar_start_ms:last.t,impulse_peak_at_ms:transformed[peak].t,
    prior_trough_at_ms:pull.find(x=>x.low===trough)?.t??null,
    close_reference:eventPrice,previous_impulse_high:target,stop_reference:stop,prior_high_reward_risk:rr,
