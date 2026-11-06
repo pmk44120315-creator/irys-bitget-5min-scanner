@@ -51,9 +51,10 @@ function v38Settle(old={},pages=[],now){
    const key=String(h);if(e.outcomes[key]?.status==='MEASURED_CLOSE_PROXY')continue;
    const target=e.issued_at_ms+h*60000;
    if(now<target)continue;
-   const rows=eligible.filter(b=>b.start_ms+STEP>=target&&b.start_ms+STEP<=target+STEP);
-   if(rows.length===1){
-    const b=rows[0],sign=e.direction==='SHORT'?-1:1,change=sign*100*(b.close/e.entry_close_proxy-1);
+   const rows=eligible.filter(b=>b.start_ms+STEP>=target&&b.start_ms+STEP<=target+STEP).sort((a,b)=>a.start_ms-b.start_ms);
+   const first=rows[0];const conflicting=first&&rows.filter(b=>b.start_ms===first.start_ms).length>1;
+   if(first&&!conflicting){
+    const b=first,sign=e.direction==='SHORT'?-1:1,change=sign*100*(b.close/e.entry_close_proxy-1);
     const relevant=eligible.filter(z=>z.start_ms+STEP<=b.start_ms+STEP);
     const maxFav=relevant.length?sign===1?Math.max(...relevant.map(z=>z.high)):Math.min(...relevant.map(z=>z.low)):null;
     const maxAdv=relevant.length?sign===1?Math.min(...relevant.map(z=>z.low)):Math.max(...relevant.map(z=>z.high)):null;
@@ -62,7 +63,7 @@ function v38Settle(old={},pages=[],now){
      max_favorable_pct:maxFav===null?null:sign*100*(maxFav/e.entry_close_proxy-1),
      max_adverse_pct:maxAdv===null?null:sign*100*(maxAdv/e.entry_close_proxy-1),
      cost_included:false,actual_execution_verified:false,ambiguous_within_candle:true};
-   }else if(now>target+STEP)e.outcomes[key]={status:rows.length>1?'AMBIGUOUS_DUPLICATE':'UNMEASURED_NO_CANDLE',actual_execution_verified:false};
+   }else if(now>target+STEP)e.outcomes[key]={status:conflicting?'AMBIGUOUS_DUPLICATE':'UNMEASURED_NO_CANDLE',actual_execution_verified:false};
   }
  }
  return state;
