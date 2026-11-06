@@ -1,0 +1,40 @@
+--- a/deployment/v30_delivery.mjs
++++ b/deployment/v30_delivery.mjs
+@@ -38,13 +38,12 @@
+ async function v30ReviewAndDeliver(env,state,requestedAt,options){
+  const clock=options.clock||Date.now;
+  const output={version:V30_VERSION,status:'CHECKING_CURRENT_EVIDENCE',market_notifications_enabled:true,policy:'QUALIFIED_CURRENT_DIRECTION_ONLY',sent:0,ready:0,evaluated:0,forecast_accuracy_proven:false,trading_permit:false};
++ let doc=null;
++ try{
+  const got=await v30ReadPacket(env,requestedAt,options);output.feed={ok:got.ok,reason:got.reason||null,reads:got.reads,wait_ms:got.wait_ms||0};
+  if(!got.ok){output.status='EVIDENCE_SOURCE_NOT_READY';return output;}
+- const doc=got.doc;output.source_at_ms=doc.at_ms;output.source_summary=doc.summary||{};output.forward=doc.forward||{};
+- state.v30ActualForecasts=v30Settle(state.v30ActualForecasts||[],Array.isArray(doc.outcome_quotes)?doc.outcome_quotes:[],clock());
+- state.v30ActualForecasts=v31SettleMinute(state.v30ActualForecasts,Array.isArray(doc.outcome_candles)?doc.outcome_candles:[],clock());
+- output.actual_alert_outcomes={...v30OutcomeSummary(state.v30ActualForecasts),minute_close_proxies:v31MinuteSummary(state.v30ActualForecasts)};
+- output.signal_lifecycle=await v35Reconcile(state,doc,{clock,edit:options.editStatus});
++ doc=got.doc;output.source_at_ms=doc.at_ms;output.source_summary=doc.summary||{};output.forward=doc.forward||{};
++ // New signal validation and send must not await historical or old-message work.
+  const approved=[],rejected={};
+  for(const item of doc.items){const q=v30Qualify(item,clock());output.evaluated++;
+   if(q.allowed)approved.push({item,proof:q});else rejected[q.reason]=(rejected[q.reason]||0)+1;
+@@ -102,5 +101,19 @@
+  try{if(options.onAck)await options.onAck(item,proof,ack,clock(),doc);}catch(_e){persistence=false;}
+  if(!persistence)output.status='ACK_RECEIPT_PERSISTENCE_PARTIAL';
+  output.receipt_persistence_verified=persistence;output.device_receipt_verified=false;output.hourly={...hourly};return output;
++ }finally{
++  const decidedAt=clock();output.delivery_phase_completed_at_ms=decidedAt;
++  // Post-decision work also runs on source failure. Only time-based expiry is
++  // allowed without a valid current packet; no new directional breach is invented.
++  try{
++   state.v30ActualForecasts=v30Settle(state.v30ActualForecasts||[],Array.isArray(doc?.outcome_quotes)?doc.outcome_quotes:[],clock());
++   state.v30ActualForecasts=v31SettleMinute(state.v30ActualForecasts,Array.isArray(doc?.outcome_candles)?doc.outcome_candles:[],clock());
++   output.actual_alert_outcomes={...v30OutcomeSummary(state.v30ActualForecasts),minute_close_proxies:v31MinuteSummary(state.v30ActualForecasts)};
++   output.signal_lifecycle=await v35Reconcile(state,doc||{followups:[]},{clock,edit:options.editStatus});
++   output.post_delivery_audit_status='COMPLETED';
++  }catch(_e){output.post_delivery_audit_status='FAILED';}
++  output.status_updates_after_delivery_decision=true;
++  output.post_delivery_housekeeping_ms=clock()-decidedAt;
++ }
+ }
+ export {v30ReadPacket,v30ReviewAndDeliver,v30ConsumePermit,v30FormatSignal};
