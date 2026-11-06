@@ -1,0 +1,31 @@
+name: IRYS V36 source admission diagnostic (READ ONLY, NO ALERTS)
+on:
+  push:
+    branches: [feature/irys-v36-counterevidence-shadow-20261106]
+    paths: ['.github/workflows/v36-admission-diagnosis.yml']
+permissions:
+  contents: read
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compare live raw packet to original signal and shadow admission without mutating state
+        run: |
+          git fetch --quiet --depth=1 origin main
+          git show origin/main:data/v30_direction_latest.json > /tmp/v36-current-packet.json
+          node --input-type=module <<'JS'
+          import {readFileSync} from 'node:fs';
+          import {v36Evidence} from './deployment/v36_hypotheses.mjs';
+          import {v36Freeze} from './deployment/v36_paths.mjs';
+          const d=JSON.parse(readFileSync('/tmp/v36-current-packet.json','utf8')),cnt={},sample=[];
+          for(const i of d.items||[]){
+            const freeze=v36Freeze(i,d.at_ms),e=v36Evidence(i,d.at_ms);
+            const k=(freeze?'FREEZE_OK':'FREEZE_NO')+':'+e.status+':'+e.reason;
+            cnt[k]=(cnt[k]||0)+1;
+            if(sample.length<12)sample.push({symbol:i.candidate?.symbol,venue:i.candidate?.venue,result:e.status,reason:e.reason,freeze:!!freeze,
+              age_first:d.at_ms-i.first?.quote?.at_ms,age_second:d.at_ms-i.second?.quote?.at_ms,age_final:d.at_ms-i.final?.quote?.at_ms,
+              count_first:i.first?.trades?.length,count_second:i.second?.trades?.length});
+          }
+          console.log('V36_ACTUAL_ADMISSION_DIAG',JSON.stringify({at_ms:d.at_ms,now:Date.now(),items:d.items?.length||0,digest_matches:d.model_digest==='baea9920208c677a338827a451cd8e0e5bf8a45d0600f84812b33aa743b4d9b9',reasons:cnt,sample}));
+          JS
