@@ -7,7 +7,7 @@ const STEP=300000;
 const good=x=>typeof x==='number'&&Number.isFinite(x)&&x>0;
 function v38Universe({fastFeed,tickers,prior={},now,maxSymbols=72}={}){
  const info={provider_total:0,crypto_verified:0,valid_tickers:0,selected:[],not_scanned:0,errors:[]};
- if(!Number.isSafeInteger(now)||!Number.isSafeInteger(fastFeed?.at_ms)||fastFeed.at_ms>now||now-fastFeed.at_ms>240000||
+ if(!Number.isSafeInteger(now)||!Number.isSafeInteger(fastFeed?.at_ms)||fastFeed.at_ms>now||now-fastFeed.at_ms>360000||
  fastFeed?.venue!=='bitget'||!fastFeed.prices||typeof fastFeed.prices!=='object')return {...info,errors:['STALE_VETTED_CRYPTO_UNIVERSE']};
  if(!Array.isArray(tickers))return {...info,errors:['OFFICIAL_TICKER_SCHEMA']};
  info.provider_total=tickers.length;const vetted=new Set(Object.keys(fastFeed.prices));info.crypto_verified=vetted.size;
