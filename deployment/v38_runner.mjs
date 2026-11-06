@@ -71,29 +71,34 @@ async function publicJSON(url){
 }
 async function main(){
  const prior=load('data/v38_continuation_state.json',{events:[]});
- const fastFeed=load('data/v24_bitget_fast_latest.json',{}),now=Date.now(),errors=[];let tickers=[];
+ const fastFeed=load('data/v24_bitget_fast_latest.json',{}),errors=[];let tickers=[];
  try{const t=await publicJSON('https://api.bitget.com/api/v2/mix/market/tickers?productType=USDT-FUTURES');
   if(t.code!=='00000'||!Array.isArray(t.data))throw Error('PROVIDER_TICKERS_INVALID');tickers=t.data;}
  catch(e){errors.push('OFFICIAL_FUTURES_TICKERS_UNAVAILABLE');}
- const universe=v38Universe({fastFeed,tickers,prior,now,maxSymbols:72}),pages=[];
+ const selectionAt=Date.now();
+ const universe=v38Universe({fastFeed,tickers,prior,now:selectionAt,maxSymbols:72}),pages=[];
+ if(universe.selected.length===0&&universe.errors.length===0)errors.push('NO_CURRENT_ELIGIBLE_TICKERS');
  let next=0;
  await Promise.all(Array.from({length:Math.min(4,universe.selected.length)},async()=>{while(next<universe.selected.length){
   const t=universe.selected[next++];
   try{
    const url='https://api.bitget.com/api/v3/market/history-candles?'+new URLSearchParams({category:'USDT-FUTURES',
-    symbol:t.symbol,interval:'5m',endTime:String(Math.floor(now/STEP)*STEP),limit:'100',type:'market'});
-   const raw=await publicJSON(url),parsed=v38ParseBitgetCandles(raw,now);
+    symbol:t.symbol,interval:'5m',endTime:String(Math.floor(selectionAt/STEP)*STEP),limit:'100',type:'market'});
+   const raw=await publicJSON(url),parsed=v38ParseBitgetCandles(raw,selectionAt);
    if(parsed.status!=='OBSERVED')throw Error(parsed.reason||'CANDLES_INVALID');
-   pages.push({venue:'bitget',symbol:t.symbol,source:'OFFICIAL_NATIVE_5M',fetched_at_ms:now,bars:parsed.bars});
+   pages.push({venue:'bitget',symbol:t.symbol,source:'OFFICIAL_NATIVE_5M',fetched_at_ms:Date.now(),bars:parsed.bars});
   }catch(e){errors.push('NATIVE_5M_'+t.symbol+'_UNAVAILABLE');}
  }}));
- const result=v38RunCycle({fastFeed,tickers,prior,now,pages,selection:universe});
- const output={...result.output,source_errors:[...universe.errors,...errors],history_requested:universe.selected.length,history_success:pages.length,
+ const evaluatedAt=Date.now();
+ const result=v38RunCycle({fastFeed,tickers,prior,now:evaluatedAt,pages,selection:universe});
+ const output={...result.output,at_ms:evaluatedAt,selection_at_ms:selectionAt,
+  status:universe.errors.length||errors.length?'SOURCE_PARTIAL':'OBSERVED',
+  source_errors:[...universe.errors,...errors],history_requested:universe.selected.length,history_success:pages.length,
    history_failed:errors.length,all_source_errors_explicit:true};
  for(const [name,value] of [['v38_continuation_state.json',result.state],['v38_continuation_latest.json',output]]){
   const tmp='data/.'+name;writeFileSync(tmp,JSON.stringify(value));renameSync(tmp,'data/'+name);
  }
- console.log('V38_EARLY_CONTINUATION_SHADOW',JSON.stringify({at_ms:now,universe:universe.crypto_verified,inspected:output.inspected_symbols,
+ console.log('V38_EARLY_CONTINUATION_SHADOW',JSON.stringify({at_ms:evaluatedAt,universe:universe.crypto_verified,inspected:output.inspected_symbols,
   closed_history_pages:pages.length,watch:output.watch_candidates,reclaims:output.reclaim_candidates,new_events:output.new_events,
   tracked:output.tracked,provider_errors:output.source_errors.length,measured5:output.summary.horizons['5'],
   verified_live_direction_accurate:false,orders:false,telegram:false}));
