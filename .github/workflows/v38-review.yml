@@ -25,7 +25,9 @@ jobs:
       - name: Independently reproduce user ONEUSDT reference at historical 5m closed-candle times
         if: success()
         run: |
-          node deployment/v38_reference_replay.mjs | tee v38_review/ONEUSDT_historical_replay.log
+          set -o pipefail
+          node deployment/v38_reference_replay.mjs 2>&1 | tee v38_review/ONEUSDT_historical_replay.log
+          test -s v38_review/ONEUSDT_historical_replay.json
       - name: Preserve original source/test and truthful stage results
         if: always()
         run: |
