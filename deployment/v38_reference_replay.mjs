@@ -33,6 +33,8 @@ for(const b of bars){
  events.push({at_ms:at,signal:result,outcomes});
 }
 mkdirSync('v38_review',{recursive:true});
+writeFileSync('v38_review/ONEUSDT_official_5m_bars.json',JSON.stringify({source_url:url,candles:parsed.bars},null,2));
+console.log('V38_ONE_REPLAY_TIMELINE',JSON.stringify(all.filter(x=>x.at_ms>=Date.parse('2026-11-06T07:45:00Z')&&x.at_ms<=Date.parse('2026-11-06T10:00:00Z')).map(x=>({kst:new Date(x.at_ms+9*3600000).toISOString().slice(11,16),status:x.status,reason:x.reason,close:x.close}))));
 const proof={version:'V38_ONEUSDT_5M_ASOF_REPLAY_V1',symbol:'ONEUSDT',source:'BITGET_OFFICIAL_PUBLIC_V3_HISTORY_CANDLES',
  retrieved_at_utc:new Date().toISOString(),source_url:url,full_source_candle_count:parsed.bars.length,asof_checks:all.length,
  asof_min_ms:start,asof_max_ms:end,candidate_count:events.length,events,inspection:all,
