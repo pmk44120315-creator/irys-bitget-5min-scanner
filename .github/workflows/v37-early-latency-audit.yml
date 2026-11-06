@@ -1,0 +1,52 @@
+name: IRYS public live alert latency and early-discovery audit (READ ONLY)
+on:
+  push:
+    branches: [audit/irys-v37-late-alert-20261106]
+    paths: ['.github/workflows/v37-early-latency-audit.yml']
+permissions:
+  contents: read
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Live Cloudflare public health and raw independent producer timing
+        run: |
+          mkdir -p v37_audit
+          git fetch --quiet origin main
+          git show origin/main:data/v30_direction_latest.json > v37_audit/current_v30_packet.json
+          git show origin/main:data/v36_shadow_latest.json > v37_audit/current_v36_summary.json
+          python - <<'PY'
+          import urllib.request,json,datetime,pathlib,statistics
+          d=pathlib.Path('v37_audit')
+          url='https://irys-surge-monitor.vhehwpfl.workers.dev/?v37latency='+str(datetime.datetime.now().timestamp())
+          with urllib.request.urlopen(urllib.request.Request(url,headers={'User-Agent':'IRYS-public-readonly-lateness-audit'}),timeout=25) as r:h=json.load(r)
+          (d/'public_health.json').write_text(json.dumps(h,indent=2,ensure_ascii=False))
+          p=json.loads((d/'current_v30_packet.json').read_text());s=p.get('summary',{});t=p.get('timing',{})
+          w=h.get('last') or {};deliv=w.get('v30DirectionalDelivery') or {};scout=w.get('v23DirectFastScout') or {}
+          ack=w.get('telegramLastApiReceipt') or {}
+          source_to_ack=(ack.get('ack_received_at_ms')-p['started_at_ms']) if isinstance(ack.get('ack_received_at_ms'),int) and p.get('started_at_ms')<=ack['ack_received_at_ms'] and ack['ack_received_at_ms']-p['started_at_ms']<=180000 else None
+          pairs=t.get('pair_separations_ms') or []
+          report={'at_utc':datetime.datetime.now(datetime.timezone.utc).isoformat(),
+           'live_version':w.get('codeVersion'),'live_tick':w.get('time'),'status':w.get('status'),
+           'ack':{k:ack.get(k) for k in ('symbol','channel','status','telegram_message_id','accepted_at','recorded_send_ms','ack_received_at_ms')},
+           'current_packet':{'at_ms':p.get('at_ms'),'started_at_ms':p.get('started_at_ms'),'duration_ms':p.get('at_ms',0)-p.get('started_at_ms',0),
+             'selected':s.get('selected'),'ready':s.get('ready'),'rejection_reasons':s.get('rejection_reasons'),'timing':t,
+             'pair_min_ms':min(pairs) if pairs else None,'pair_median_ms':statistics.median(pairs) if pairs else None,
+             'source_to_last_ack_ms_if_same_generation':source_to_ack},
+           'delivery':{'status':deliv.get('status'),'sent':deliv.get('sent'),'sent_symbol':deliv.get('sent_symbol'),'direction':deliv.get('direction'),'feed':deliv.get('feed'),
+            'source_at_ms':deliv.get('source_at_ms'),'entry_status':deliv.get('entry_status'),'delivery_phase_completed_at_ms':deliv.get('delivery_phase_completed_at_ms'),
+            'latest_outcomes':deliv.get('actual_alert_outcomes')},
+           'fast_scout':{'status':scout.get('status'),'selected':scout.get('selected'),'listed_spot':scout.get('listed_spot'),'listed_futures':scout.get('listed_futures'),'keys':sorted(scout.keys())[:35]},
+           'private_message_bodies_read':False,'no_production_change':True}
+          (d/'summary.json').write_text(json.dumps(report,indent=2,ensure_ascii=False))
+          print('V37_LATENCY_AUDIT',json.dumps({k:v for k,v in report.items() if k not in ['current_packet']},ensure_ascii=False))
+          print('V37_PACKET_TIMING',json.dumps(report['current_packet'],ensure_ascii=False))
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: v37-current-public-late-alert-evidence
+          path: v37_audit/
+          retention-days: 7
+          if-no-files-found: error
