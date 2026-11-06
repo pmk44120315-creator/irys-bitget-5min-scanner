@@ -51,3 +51,11 @@ test('select pending market only if outcome is unmeasured, within observed futur
  const xs=v37PendingMarkets(a.state.events,T+15*60000,40);
  assert(xs.some(x=>x.venue==='bithumb'&&x.symbol==='KRW-TEST'));
 });
+
+test('only actual public V30 READY can count as later baseline evidence, not all old candidates',()=>{
+ const data={...state,records:[{venue:'bithumb',symbol:'KRW-TEST',direction:'BUY',issued_at_ms:T+300000,model:'V31_PAIRED_TIMELY_ENTRY_V1',evidence_status:'READY_CURRENT_EVIDENCE',entry_quote:{ask:100.5,bid:100.4}}]};
+ const r=v37RunCycle({spotState:data,fastFeed:fast,tickers:[ticker],history:futureOld,old:{},now:T,nativePages:[]});
+ assert.equal(r.output.public_baseline_ready_timing.matched,1);
+ assert.equal(r.output.public_baseline_ready_timing.median_lead_ms,300000);
+ assert.equal(r.output.public_baseline_ready_timing.actual_telegram_ack_matches_verified,false);
+});
