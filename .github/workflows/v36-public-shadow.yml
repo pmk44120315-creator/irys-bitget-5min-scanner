@@ -38,9 +38,10 @@ jobs:
           assert(Array.isArray(state.events)&&state.events.length<=3000);
           const ids=new Set(state.events.map(x=>x.id));assert.equal(ids.size,state.events.length,'DUPLICATE_EPISODES');
           for(const e of state.events){
-            assert(e.barriers_locked&&e.label_source==='FROZEN_PRIOR_MARKET');
+            assert(e.barriers_locked&&e.label_source==='FROZEN_PRIOR_MARKET'||e.barriers_locked===false&&e.label_source==='FROZEN_QUOTE_ONLY'&&e.target_price===null&&e.stop_price===null);
             assert(e.issued_at_ms<=out.at_ms&&e.observed_hypothesis.future_direction_proven===false);
             for(const outcome of Object.values(e.outcomes||{}))assert(outcome.actual_execution_verified===false);
+            for(const label of Object.values(e.direction_outcomes||{}))assert(label.actual_execution_verified===false);
           }
           console.log('V36_PROSPECTIVE_STATE_VERIFIED',JSON.stringify({new_events:out.new_events,tracked:out.tracked_episodes,history_pages:out.successful_native_histories,errors:out.source_errors.length,not_a_livetrading_alert:true}));
           JS

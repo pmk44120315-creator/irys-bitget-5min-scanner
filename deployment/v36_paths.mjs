@@ -18,6 +18,30 @@ function v36Freeze(item,now){
  entry_price:entry,risk_price:risk,target_price:entry+dir*1.5*risk,stop_price:entry-dir*risk,
  original_bid:bid,original_ask:ask,first_complete_start_ms:Math.ceil(now/MIN)*MIN,label_source:'FROZEN_PRIOR_MARKET',barriers_locked:true,execution_verified:false};
 }
+function v36FreezeQuoteOnly(item,now){
+ const c=item?.candidate||{},f=item?.final||{},q=f.quote||{};
+ if(!Number.isSafeInteger(now)||!['bitget','bithumb'].includes(c.venue)||
+ !['LONG','SHORT','BUY'].includes(c.direction)||c.venue==='bithumb'&&c.direction!=='BUY'||
+ f.venue!==c.venue||f.symbol!==c.symbol||!Number.isSafeInteger(f.observed_at_ms)||f.observed_at_ms>now||
+ !Number.isSafeInteger(q.at_ms)||q.at_ms>now||now-q.at_ms>45000||!good(q.bid)||!good(q.ask)||q.ask<q.bid)return null;
+ const entry=c.direction==='SHORT'?q.bid:q.ask;
+ return {version:V36_PATH_VERSION,venue:c.venue,symbol:c.symbol,direction:c.direction,issued_at_ms:now,
+ entry_price:entry,risk_price:null,target_price:null,stop_price:null,original_bid:q.bid,original_ask:q.ask,
+ first_complete_start_ms:Math.ceil(now/MIN)*MIN,label_source:'FROZEN_QUOTE_ONLY',barriers_locked:false,
+ risk_evaluable:false,execution_verified:false};
+}
+function v36LabelClose(e,bars,now,horizon=15){
+ const ret=(status,x={})=>({status,horizon_minutes:horizon,actual_execution_verified:false,...x});
+ if(!e||!Array.isArray(bars)||!Number.isSafeInteger(now)||![5,15,30,60].includes(horizon))return ret('INVALID_INPUT');
+ const target=e.issued_at_ms+horizon*MIN,closeAt=Math.floor(target/MIN)*MIN,start=closeAt-MIN;
+ if(now<closeAt)return ret('PENDING');if(start<e.first_complete_start_ms)return ret('UNMEASURED_TARGET');
+ const all=bars.filter(x=>x?.start_ms===start),valid=all.filter(x=>[x.open,x.high,x.low,x.close].every(good)&&x.low<=Math.min(x.open,x.close)&&x.high>=Math.max(x.open,x.close));
+ if(valid.length!==1)return ret(valid.length>1?'CONFLICTING_CANDLES':'UNMEASURED_TARGET');
+ const end=valid[0].close,sign=e.direction==='SHORT'?-1:1,change=sign*100*(end/e.entry_price-1);
+ return ret('MEASURED_DIRECTION',{close_at_ms:closeAt,target_ms:target,measurement_offset_ms:target-closeAt,
+ entry_quote_reference:e.entry_price,target_close:end,signed_direction_pct:change,direction_positive:change>0,
+ not_net_profit:true,not_fill_price:true});
+}
 function v36Label(e,bars,now,horizon=15){
  const result=(status,extra={})=>({status,horizon_minutes:horizon,version:V36_PATH_VERSION,actual_execution_verified:false,requires_intraminute_order:false,...extra});
  if(!e||e.version!==V36_PATH_VERSION||!Number.isSafeInteger(now)||![5,15,30,60].includes(horizon)||!Array.isArray(bars))return result('INVALID_INPUT');
@@ -38,4 +62,4 @@ function v36Label(e,bars,now,horizon=15){
  }
  return result(now>=limit?'NO_TOUCH_TIMEOUT':'PENDING',{measured_candles:seen});
 }
-export {V36_PATH_VERSION,v36Freeze,v36Label};
+export {V36_PATH_VERSION,v36Freeze,v36FreezeQuoteOnly,v36Label,v36LabelClose};

@@ -68,3 +68,27 @@ test('underpowered sample cannot activate a new live direction filter',()=>{
  assert.equal(v36Gate({pairs:8,correct:8,total:8,baselineCorrect:3,coverage:1}).promote,false);
  assert.equal(v36Gate({pairs:500,correct:400,total:500,baselineCorrect:410,coverage:.8}).promote,false);
 });
+
+test('a thin Bithumb trade tape remains visible as unconfirmed candidate and cannot be promoted to an invented trade',()=>{
+ const c=mk('LONG','KRW-TEST');c.candidate.venue='bithumb';c.candidate.direction='BUY';
+ for(const x of [c.first,c.second,c.final])x.venue='bithumb';
+ c.first.trades=[];c.second.trades=[];
+ const r=v36Observe({},{packet:pkt([c]),now:T,baselineDigest:'exact'});
+ assert.equal(r.events.length,1);
+ assert.equal(r.events[0].observed_hypothesis.status,'INSUFFICIENT_EVIDENCE');
+ assert.equal(r.events[0].barriers_locked,false);
+ assert.equal(r.events[0].target_price,null);
+ assert.equal(r.events[0].observed_hypothesis.trade_permission,false);
+});
+test('quote-only candidate labels a postissue close separately but invents no target-first outcome',()=>{
+ const x=mk();x.first.trades=[];x.second.trades=[];
+ const e=v36Observe({},{packet:pkt([x]),now:T,baselineDigest:'exact'}).events[0];assert(e);
+ const s=e.first_complete_start_ms;
+ const bars=[{start_ms:s+240000,open:e.entry_price,high:e.entry_price+.5,low:e.entry_price-.3,close:e.entry_price+.2}];
+ const p={source:'OFFICIAL_NATIVE_1M',venue:e.venue,symbol:e.symbol,fetched_at_ms:T+6*60000,bars};
+ const z=v36Advance({events:[e]},[p],T+6*60000).events[0];
+ assert.equal(z.direction_outcomes['5'].status,'MEASURED_DIRECTION');
+ assert.equal(z.direction_outcomes['5'].direction_positive,true);
+ assert.equal(z.outcomes['5'],undefined);
+ assert.equal(z.direction_outcomes['5'].actual_execution_verified,false);
+});
