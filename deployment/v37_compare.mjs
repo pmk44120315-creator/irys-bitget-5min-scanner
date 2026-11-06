@@ -12,7 +12,8 @@ function v37CompareToReady(early=[],baseline=[],maxLeadMs=3600000){
  }
  for(const group of validReady.values())group.sort((a,b)=>a.issued_at_ms-b.issued_at_ms);
  const rows=(early||[]).filter(e=>e?.source_label==='PUBLIC_PRIOR_OBSERVATIONS_ONLY'&&e.trade_permit===false&&
- Number.isSafeInteger(e.issued_at_ms)&&typeof e.entry_price==='number'&&e.entry_price>0);
+ e.time_basis==='ACTUAL_EVALUATOR_DECISION_CLOCK'&&Number.isSafeInteger(e.source_observed_at_ms)&&
+ Number.isSafeInteger(e.issued_at_ms)&&e.source_observed_at_ms<=e.issued_at_ms&&typeof e.entry_price==='number'&&e.entry_price>0);
  for(const e of rows){if(seen.has(e.id))continue;seen.add(e.id);
   const k=e.venue+':'+e.symbol+':'+e.direction;
   const b=(validReady.get(k)||[]).find(x=>x.issued_at_ms>=e.issued_at_ms&&x.issued_at_ms-e.issued_at_ms<=maxLeadMs);
@@ -25,7 +26,7 @@ function v37CompareToReady(early=[],baseline=[],maxLeadMs=3600000){
  }
  const leads=matches.map(x=>x.lead_ms),drifts=matches.map(x=>x.signed_price_progress_pct);
  return {version:'V37_PUBLIC_READY_TIMING_COMPARISON_V1',early_events:rows.length,matched:matches.length,
-  unmatched:rows.length-matches.length,median_lead_ms:median(leads),median_signed_progress_pct:median(drifts),
+  unmatched:rows.length-matches.length,legacy_unverified_clock:(early||[]).length-rows.length,source_quote_proxy_only:true,median_lead_ms:median(leads),median_signed_progress_pct:median(drifts),
   actual_telegram_ack_matches_verified:false,equal_signal_budget_verified:false,accuracy_proven:false,
   price_progress_is_not_profit:true,causal_direction_comparison_proven:false,
   matches:matches.slice(-80)};
