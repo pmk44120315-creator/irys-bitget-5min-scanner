@@ -1,6 +1,6 @@
 /** Immutable prospective shadow. Never sends market alerts or orders. */
 import {v36Evidence} from './v36_hypotheses.mjs';
-import {v36Freeze,v36Label} from './v36_paths.mjs';
+import {v36Freeze,v36FreezeQuoteOnly,v36Label,v36LabelClose} from './v36_paths.mjs';
 const V36_VERSION='V36_CONTRA_PROSPECTIVE_SHADOW_V1',MAX_EVENTS=3000,EPISODE_MS=1800000;
 const key=e=>`${e.venue}:${e.symbol}:${e.direction}:${Math.floor(e.issued_at_ms/EPISODE_MS)}`;
 function validPacket(p,now,digest){
@@ -13,12 +13,12 @@ function v36Observe(old={}, {packet,now,baselineDigest,benchmark=null}={}){
  if(!validPacket(packet,now,baselineDigest))return {status:'SOURCE_NOT_ELIGIBLE',events:[],state,source_asof_ms:packet?.at_ms??null};
  const ids=new Set(state.events.map(e=>e.id)),added=[];
  for(const item of packet.items){
-  const frozen=v36Freeze(item,packet.at_ms);if(!frozen)continue;
-  const evidence=v36Evidence(item,packet.at_ms,benchmark||{});if(evidence.status!=='OBSERVED')continue;
+  const frozen=v36Freeze(item,packet.at_ms)||v36FreezeQuoteOnly(item,packet.at_ms);if(!frozen)continue;
+  const evidence=v36Evidence(item,packet.at_ms,benchmark||{});
   const id=key(frozen);if(ids.has(id))continue;ids.add(id);
   const rec={...frozen,id,observed_hypothesis:evidence,baseline_model_digest:packet.model_digest,
    baseline_ready:packet.checks?.some(x=>x.venue===frozen.venue&&x.symbol===frozen.symbol&&x.direction===frozen.direction&&x.allowed===true)||false,
-   outcomes:{},created_from_public_packet_at_ms:packet.at_ms};
+   outcomes:{},direction_outcomes:{},created_from_public_packet_at_ms:packet.at_ms};
   added.push(rec);state.events.push(rec);
  }
  state.events=state.events.slice(-MAX_EVENTS);state.last_asof_ms=Math.max(state.last_asof_ms,packet.at_ms);
@@ -27,9 +27,13 @@ function v36Observe(old={}, {packet,now,baselineDigest,benchmark=null}={}){
 function v36Advance(old={},pages=[],now){
  const state={version:V36_VERSION,events:structuredClone(old.events||[]),last_asof_ms:old.last_asof_ms||0};
  const by=new Map(pages.filter(p=>p?.source==='OFFICIAL_NATIVE_1M'&&Number.isSafeInteger(p.fetched_at_ms)&&p.fetched_at_ms<=now&&Array.isArray(p.bars)).map(p=>[`${p.venue}:${p.symbol}`,p]));
- for(const e of state.events){const p=by.get(`${e.venue}:${e.symbol}`);if(!p)continue;e.outcomes??={};
+ for(const e of state.events){const p=by.get(`${e.venue}:${e.symbol}`);if(!p)continue;e.outcomes??={};e.direction_outcomes??={};
   for(const h of [5,15,30,60]){
-   if(e.outcomes[h]&&['TARGET_FIRST','STOP_FIRST','AMBIGUOUS_BOTH','NO_TOUCH_TIMEOUT'].includes(e.outcomes[h].status))continue;
+   if(e.direction_outcomes[h]?.status!=='MEASURED_DIRECTION'){
+    const d=v36LabelClose(e,p.bars,Math.min(now,p.fetched_at_ms),h);
+    if(d.status!=='PENDING')e.direction_outcomes[h]=d;
+   }
+   if(!e.barriers_locked||e.outcomes[h]&&['TARGET_FIRST','STOP_FIRST','AMBIGUOUS_BOTH','NO_TOUCH_TIMEOUT'].includes(e.outcomes[h].status))continue;
    const result=v36Label(e,p.bars,Math.min(now,p.fetched_at_ms),h);
    if(!['PENDING','PENDING_MISSING_CANDLE'].includes(result.status))e.outcomes[h]=result;
   }
@@ -47,8 +51,8 @@ function v36Summary(state){
  for(const venue of ['bithumb','bitget'])for(const direction of venue==='bithumb'?['BUY']:['LONG','SHORT']){
   const rows=events.filter(r=>r.venue===venue&&r.direction===direction),s={issued:rows.length,baseline_ready:rows.filter(r=>r.baseline_ready).length,horizons:{}};
   for(const h of [5,15,30,60]){
-   const labels=rows.map(r=>r.outcomes?.[h]?.status);
-   s.horizons[h]={target_first:labels.filter(x=>x==='TARGET_FIRST').length,stop_first:labels.filter(x=>x==='STOP_FIRST').length,
+   const labels=rows.map(r=>r.outcomes?.[h]?.status),dc=rows.map(r=>r.direction_outcomes?.[h]);
+   s.horizons[h]={direction_measured:dc.filter(x=>x?.status==='MEASURED_DIRECTION').length,direction_positive:dc.filter(x=>x?.status==='MEASURED_DIRECTION'&&x.direction_positive).length,target_first:labels.filter(x=>x==='TARGET_FIRST').length,stop_first:labels.filter(x=>x==='STOP_FIRST').length,
     ambiguous:labels.filter(x=>x==='AMBIGUOUS_BOTH').length,no_touch:labels.filter(x=>x==='NO_TOUCH_TIMEOUT').length,
     missing:labels.filter(x=>x?.startsWith('UNMEASURED')||x==='CONFLICTING_CANDLES').length,
     pending:labels.filter(x=>!x||x==='PENDING').length};
