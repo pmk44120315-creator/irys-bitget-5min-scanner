@@ -1,0 +1,41 @@
+name: IRYS V38 closed-5m pullback continuation first-reversal regression (NO ALERTS)
+on:
+  push:
+    branches: [feature/irys-v38-pullback-reaccel-20261106]
+    paths: ['deployment/v38*.mjs','tests/test_v38*.mjs','.github/workflows/v38-review.yml']
+permissions:
+  contents: read
+  actions: read
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Targeted as-of signal tests, no market or message
+        run: |
+          mkdir -p v38_review
+          set -o pipefail
+          node --test tests/test_v38_continuation.mjs 2>&1 | tee v38_review/targeted_tests.log
+      - name: Original regression without external credentials or secrets
+        if: success()
+        run: |
+          set -o pipefail
+          python -m unittest discover -s tests -v 2>&1 | tee v38_review/python_tests.log
+          node --test tests/test_v36*.mjs tests/test_v37*.mjs tests/test_v38*.mjs 2>&1 | tee v38_review/node_regression.log
+      - name: Independently reproduce user ONEUSDT reference at historical 5m closed-candle times
+        if: success()
+        run: |
+          set -o pipefail
+          node deployment/v38_reference_replay.mjs 2>&1 | tee v38_review/ONEUSDT_historical_replay.log
+          test -s v38_review/ONEUSDT_historical_replay.json
+      - name: Preserve original source/test and truthful stage results
+        if: always()
+        run: |
+          git archive --format=zip --output=v38_review/source.zip HEAD
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: v38-pullback-asof-review
+          path: v38_review/
+          retention-days: 7
+          if-no-files-found: error
