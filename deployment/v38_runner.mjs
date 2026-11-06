@@ -69,6 +69,18 @@ async function publicJSON(url){
  const resp=await fetch(url,{headers:{accept:'application/json','User-Agent':'IRYS-V38-PUBLIC-RESEARCH'},signal:AbortSignal.timeout(17000)});
  if(!resp.ok)throw Error('PUBLIC_HTTP_'+resp.status);return resp.json();
 }
+let nextHistoryRequestAt=0;
+async function pacedHistoryJSON(url){
+ const pause=ms=>new Promise(resolve=>setTimeout(resolve,ms));
+ async function attempt(){
+  const at=Math.max(Date.now(),nextHistoryRequestAt);
+  nextHistoryRequestAt=at+350; // <=3 requests/second for shared CI IP; provider limit 20/sec.
+  const delay=at-Date.now();if(delay>0)await pause(delay);
+  return publicJSON(url);
+ }
+ try{return await attempt();}
+ catch(e){if(String(e?.message)==='PUBLIC_HTTP_429'){await pause(2500);return attempt();}throw e;}
+}
 async function main(){
  const prior=load('data/v38_continuation_state.json',{events:[]});
  const fastFeed=load('data/v24_bitget_fast_latest.json',{}),errors=[];let tickers=[];
@@ -84,7 +96,7 @@ async function main(){
   try{
    const url='https://api.bitget.com/api/v3/market/history-candles?'+new URLSearchParams({category:'USDT-FUTURES',
     symbol:t.symbol,interval:'5m',endTime:String(Math.floor(selectionAt/STEP)*STEP),limit:'100',type:'market'});
-   const raw=await publicJSON(url),parsed=v38ParseBitgetCandles(raw,selectionAt);
+   const raw=await pacedHistoryJSON(url),parsed=v38ParseBitgetCandles(raw,selectionAt);
    if(parsed.status!=='OBSERVED')throw Error(parsed.reason||'CANDLES_INVALID');
    pages.push({venue:'bitget',symbol:t.symbol,source:'OFFICIAL_NATIVE_5M',fetched_at_ms:Date.now(),bars:parsed.bars});
   }catch(e){const raw=String(e?.message||'UNKNOWN');const reason=/^(PUBLIC_HTTP_\d{3}|INVALID_CANDLE_[A-Z_]+|DUPLICATE_SOURCE_CANDLES|INVALID_PUBLIC_CANDLE_SCHEMA|NO_NATIVE_CANDLES)$/.test(raw)?raw:'NATIVE_SOURCE_ERROR';errors.push('NATIVE_5M_'+t.symbol+'_'+reason);}
