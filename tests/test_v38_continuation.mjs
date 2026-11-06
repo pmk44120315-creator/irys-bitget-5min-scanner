@@ -1,3 +1,13 @@
+test('first bullish stabilization after a large red pullback is early WATCH before full previous-high reclaim',()=>{
+ const partial=[...closes.slice(0,-1),117.8];
+ const r=v38Detect(input(partial));
+ assert.equal(r.status,'EARLY_TURN_WATCH',JSON.stringify(r));
+ assert(r.close_reference<r.previous_impulse_high);
+ assert.equal(r.trade_permit,false);
+ assert.equal(r.entry_ready,false);
+ assert.equal(r.confirmation_after_low_not_exact_bottom,true);
+});
+
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {v38Detect,v38ParseBitgetCandles,V38_VERSION} from '../deployment/v38_continuation.mjs';
