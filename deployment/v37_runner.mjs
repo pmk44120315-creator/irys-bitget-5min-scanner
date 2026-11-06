@@ -40,18 +40,20 @@ function v37PrepareRows({spotState,fastFeed,tickers,futuresHistory={},now}={}){
  return {rows,nextFutures,source_errors};
 }
 function v37Stats(events){
- const out={events:events.length,actual_telegram_acks:0,ready_to_promote:false,measured:{},positive:{},unknown:{},directions:{}};
- for(const h of [5,15,30,60]){let measured=0,positive=0,missing=0;for(const e of events){const v=e.outcomes?.[String(h)];if(v?.status==='MEASURED_DIRECTION'){measured++;if(v.direction_positive)positive++;}else missing++;}
+ const verified=events.filter(e=>e.time_basis==='ACTUAL_EVALUATOR_DECISION_CLOCK'&&Number.isSafeInteger(e.issued_at_ms)&&Number.isSafeInteger(e.source_observed_at_ms)&&e.source_observed_at_ms<=e.issued_at_ms);
+ const out={events:events.length,clock_verified:verified.length,legacy_unverified_clock:events.length-verified.length,
+ actual_telegram_acks:0,ready_to_promote:false,source_quote_proxy_only:true,measured:{},positive:{},unknown:{},directions:{}};
+ for(const h of [5,15,30,60]){let measured=0,positive=0,missing=0;for(const e of verified){const v=e.outcomes?.[String(h)];if(v?.status==='MEASURED_DIRECTION'){measured++;if(v.direction_positive)positive++;}else missing++;}
   out.measured[h]=measured;out.positive[h]=positive;out.unknown[h]=missing;
  }
  for(const venue of ['bithumb','bitget'])for(const direction of venue==='bithumb'?['BUY']:['LONG','SHORT']){
-  const group=events.filter(e=>e.venue===venue&&e.direction===direction);
+  const group=verified.filter(e=>e.venue===venue&&e.direction===direction);
   out.directions[venue+':'+direction]={candidates:group.length,measured5:group.filter(e=>e.outcomes?.[5]?.status==='MEASURED_DIRECTION').length,
    direction_positive5:group.filter(e=>e.outcomes?.[5]?.status==='MEASURED_DIRECTION'&&e.outcomes[5].direction_positive).length};
  }return out;
 }
 function v37PendingMarkets(events,now,max=40){
- const by=new Map();for(const e of events){if(!between(e.issued_at_ms,now,65*60000))continue;
+ const by=new Map();for(const e of events){if(e.time_basis!=='ACTUAL_EVALUATOR_DECISION_CLOCK'||!between(e.issued_at_ms,now,65*60000))continue;
   if([5,15,30,60].every(h=>e.outcomes?.[h]?.status==='MEASURED_DIRECTION'))continue;
   const key=e.venue+':'+e.symbol;by.set(key,{venue:e.venue,symbol:e.symbol,issued_at_ms:e.issued_at_ms});
  }

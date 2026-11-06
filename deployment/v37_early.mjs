@@ -55,10 +55,12 @@ function v37BuildEvents(old,selected,now){
  const state={version:V37_EARLY_VERSION,events:structuredClone(old?.events||[]),asof_ms:now};
  const ids=new Set(state.events.map(x=>x.id)),added=[];
  for(const x of selected||[]){if(x.status!=='OBSERVED'||x.phase!=='EARLY_FLOW_LEAD'||x.trade_permit!==false||x.observed_at_ms>now)continue;
-  const id=[x.venue,x.symbol,x.direction,Math.floor(x.observed_at_ms/EPISODE)].join(':');
+  const id=['EVAL',x.venue,x.symbol,x.direction,Math.floor(now/EPISODE)].join(':');
   if(ids.has(id))continue;ids.add(id);
-  const e={id,version:V37_EARLY_VERSION,venue:x.venue,symbol:x.symbol,direction:x.direction,issued_at_ms:x.observed_at_ms,
-   first_complete_start_ms:Math.ceil(x.observed_at_ms/MIN)*MIN,entry_price:x.current_price,
+  const e={id,version:V37_EARLY_VERSION,venue:x.venue,symbol:x.symbol,direction:x.direction,
+   issued_at_ms:now,source_observed_at_ms:x.observed_at_ms,source_to_decision_latency_ms:now-x.observed_at_ms,
+   time_basis:'ACTUAL_EVALUATOR_DECISION_CLOCK',entry_reference_is_live_executable:false,
+   first_complete_start_ms:Math.ceil(now/MIN)*MIN,entry_price:x.current_price,
    first_recorded_price:x.first_recorded_price,pre_observation_move_pct:x.pre_observation_move_pct,
    early_score:x.early_score,flow_source:x.flow_source,flow_acceleration:x.flow_acceleration,
    phase_at_issue:x.phase,source_label:'PUBLIC_PRIOR_OBSERVATIONS_ONLY',trade_permit:false,probability:null,
