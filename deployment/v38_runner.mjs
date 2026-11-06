@@ -87,7 +87,7 @@ async function main(){
    const raw=await publicJSON(url),parsed=v38ParseBitgetCandles(raw,selectionAt);
    if(parsed.status!=='OBSERVED')throw Error(parsed.reason||'CANDLES_INVALID');
    pages.push({venue:'bitget',symbol:t.symbol,source:'OFFICIAL_NATIVE_5M',fetched_at_ms:Date.now(),bars:parsed.bars});
-  }catch(e){errors.push('NATIVE_5M_'+t.symbol+'_UNAVAILABLE');}
+  }catch(e){const raw=String(e?.message||'UNKNOWN');const reason=/^(PUBLIC_HTTP_\d{3}|INVALID_CANDLE_[A-Z_]+|DUPLICATE_SOURCE_CANDLES|INVALID_PUBLIC_CANDLE_SCHEMA|NO_NATIVE_CANDLES)$/.test(raw)?raw:'NATIVE_SOURCE_ERROR';errors.push('NATIVE_5M_'+t.symbol+'_'+reason);}
  }}));
  const evaluatedAt=Date.now();
  const result=v38RunCycle({fastFeed,tickers,prior,now:evaluatedAt,pages,selection:universe});
@@ -98,6 +98,8 @@ async function main(){
  for(const [name,value] of [['v38_continuation_state.json',result.state],['v38_continuation_latest.json',output]]){
   const tmp='data/.'+name;writeFileSync(tmp,JSON.stringify(value));renameSync(tmp,'data/'+name);
  }
+ const breakdown={};for(const e of errors){const k=e.replace(/^NATIVE_5M_[A-Z0-9]+_/,'');breakdown[k]=(breakdown[k]||0)+1;}
+ console.log('V38_HISTORY_ERROR_BREAKDOWN',JSON.stringify(breakdown));
  console.log('V38_EARLY_CONTINUATION_SHADOW',JSON.stringify({at_ms:evaluatedAt,universe:universe.crypto_verified,inspected:output.inspected_symbols,
   closed_history_pages:pages.length,watch:output.watch_candidates,reclaims:output.reclaim_candidates,new_events:output.new_events,
   tracked:output.tracked,provider_errors:output.source_errors.length,measured5:output.summary.horizons['5'],
