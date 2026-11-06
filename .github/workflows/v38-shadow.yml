@@ -1,0 +1,94 @@
+name: IRYS V38 prospective first-pullback research (NO ALERTS)
+on:
+  workflow_run:
+    workflows: ['IRYS V30 official paired directional evidence (NO MESSAGES)']
+    types: [completed]
+permissions:
+  contents: read
+concurrency:
+  group: irys-v38-public-writer
+  cancel-in-progress: false
+jobs:
+  shadow:
+    if: github.event.workflow_run.head_branch == 'main' && github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Freeze current main production-code-and-public-evidence lease
+        run: |
+          git fetch --quiet origin main
+          git reset --hard origin/main
+          git rev-parse HEAD
+      - name: Run V38 research-only causal tests before any state publication
+        run: node --test tests/test_v38_continuation.mjs tests/test_v38_shadow.mjs tests/test_v38_runner.mjs
+      - name: Read official Bitget 5m candles and settle only matured future labels
+        run: |
+          set -o pipefail
+          mkdir -p v38_operating
+          node deployment/v38_runner.mjs 2>&1 | tee v38_operating/run.log
+          node --input-type=module <<'JS'
+          import assert from 'node:assert/strict';
+          import {readFileSync,writeFileSync} from 'node:fs';
+          const x=JSON.parse(readFileSync('data/v38_continuation_latest.json','utf8'));
+          const s=JSON.parse(readFileSync('data/v38_continuation_state.json','utf8'));
+          assert.equal(x.version,'V38_EARLY_PULLBACK_CONTINUATION_SHADOW_V1');
+          assert.equal(x.research_only,true);assert.equal(x.live_signal_modified,false);
+          assert.equal(x.telegram_sent,false);assert.equal(x.orders_sent,false);
+          assert.equal(x.auto_promote,false);assert.equal(x.prediction_accuracy_proven,false);
+          assert(x.valid_current_tickers>=100,'NO_FRESH_PUBLIC_CRYPTO_TICKERS');
+          assert(x.inspected_symbols>=20,'MARKET_SHORTLIST_UNAVAILABLE');
+          assert(x.history_success>=20,'OFFICIAL_5M_HISTORY_COVERAGE_INADEQUATE');
+          assert(s.events.length<=2000,'STATE_CAP_INVALID');
+          assert.equal(s.events.length,new Set(s.events.map(e=>e.id)).size,'DUPLICATE_EPISODES');
+          for(const e of s.events){
+            assert.equal(e.time_basis,'ACTUAL_GITHUB_EVALUATOR_TIME');
+            assert(e.source_closed_at_ms<=e.issued_at_ms);
+            assert.equal(e.trade_permit,false);assert.equal(e.entry_reference_is_executable,false);
+            assert.equal(e.telegram_sent,false);
+            for(const o of Object.values(e.outcomes||{}))assert.equal(o.actual_execution_verified,false);
+          }
+          writeFileSync('v38_operating/public_proof.json',JSON.stringify({at_ms:x.at_ms,universe:x.verified_crypto_universe,
+            inspected:x.inspected_symbols,valid_tickers:x.valid_current_tickers,official_candle_pages:x.history_success,
+            watch_candidates:x.watch_candidates,reclaim_candidates:x.reclaim_candidates,new_events:x.new_events,
+            tracked:x.tracked,source_errors:x.source_errors,summary:x.summary,
+            live_telegram_unchanged:true,accuracy_unproven:true},null,2));
+          console.log('V38_ORDINARY_PUBLIC_PROOF',JSON.stringify({at_ms:x.at_ms,scanned:x.inspected_symbols,history:x.history_success,
+            events:x.tracked,new_events:x.new_events,watch:x.watch_candidates,reclaims:x.reclaim_candidates,
+            errors:x.source_errors.length,actual_telegram_changed:false,orders_sent:false}));
+          JS
+      - name: Publish only new V38 public records with nonforce rebase
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add data/v38_continuation_state.json data/v38_continuation_latest.json
+          if git diff --staged --quiet; then exit 0; fi
+          git commit -m 'data(v38): prospective first-pullback watch and closed-bar future outcome evidence'
+          for attempt in 1 2 3 4 5 6 7 8 9 10; do
+            git fetch --quiet origin main
+            if ! git rebase origin/main; then
+              git rebase --abort
+              echo '::error::V38 data collision: prior state preserved, no force push'
+              exit 1
+            fi
+            if git push origin HEAD:main; then exit 0; fi
+            sleep 2
+          done
+          echo '::error::V38 new state not published'
+          exit 1
+      - name: Keep non-secret source/error evidence for every outcome
+        if: always()
+        run: |
+          mkdir -p v38_operating
+          test ! -f data/v38_continuation_latest.json || cp data/v38_continuation_latest.json v38_operating/
+          git rev-parse HEAD > v38_operating/commit.txt
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: v38-natural-prospective-first-pullback-proof
+          path: v38_operating/
+          if-no-files-found: error
+          retention-days: 7
