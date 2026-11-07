@@ -97,3 +97,30 @@ test('no mutation to source records',()=>{
  const a=[ev()],snapshot=JSON.stringify(a);audit(a,T+2*3600000);
  assert.equal(JSON.stringify(a),snapshot);
 });
+
+test('AKE-like weakening sell pressure proposes reversal for research, not live SHORT approval',()=>{
+ const e=ev('ake-case',{side:'SHORT',close:101});
+ e.observed_hypothesis={status:'OBSERVED',observed_at_ms:e.issued_at_ms-1000,
+  evidence:{first_buy_share:.1734248,new_buy_share:.4862589,first_response_pct:.3,new_response_pct:.1,spread_pct:.05}};
+ const a=summarize([e],5,T+2*3600000,policies.baseline);
+ const b=summarize([e],5,T+2*3600000,policies.pressure_shift);
+ const c=summarize([e],5,T+2*3600000,policies.impact_decay);
+ assert.equal(a.wrong,1);
+ assert.equal(b.correct,1);assert.equal(c.correct,1);
+ const q=audit([e],T+2*3600000);
+ assert.equal(q.auto_promote,false);assert.equal(q.live_model_changed,false);
+});
+test('pressure shift rejects retroactively observed tape even when sign matches future',()=>{
+ const e=ev('future',{side:'SHORT',close:101});
+ e.observed_hypothesis={status:'OBSERVED',observed_at_ms:e.issued_at_ms+1,
+ evidence:{first_buy_share:.1,new_buy_share:.9,first_response_pct:.4,new_response_pct:.1,spread_pct:.1}};
+ const b=summarize([e],5,T+2*3600000,policies.pressure_shift);
+ assert.equal(b.measured,0);assert.equal(b.abstained,1);
+});
+test('no change in taker pressure is unresolved instead of inventing an edge',()=>{
+ const e=ev('flat');
+ e.observed_hypothesis={status:'OBSERVED',observed_at_ms:e.issued_at_ms,
+ evidence:{first_buy_share:.5,new_buy_share:.5,first_response_pct:.3,new_response_pct:.3,spread_pct:.1}};
+ assert.equal(policies.pressure_shift(e),null);
+ assert.equal(policies.impact_decay(e),null);
+});
