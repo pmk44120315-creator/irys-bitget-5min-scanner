@@ -36,9 +36,17 @@ function empty(){
   research_only:true,telegram_sent:false,orders_sent:false,
   actual_execution_verified:false,all_alerts_captured_proven:false};
 }
+function normalizeLedger(old){
+ if(old==null)return empty();
+ if(old.version!==VERSION||!Array.isArray(old.events))throw new TypeError('INVALID_EXISTING_LEDGER_SCHEMA');
+ const migrated=structuredClone(old);
+ // Metadata migration only: preserve all preexisting records and unknown fields.
+ return {...migrated,version:VERSION,research_only:true,telegram_sent:false,orders_sent:false,
+  actual_execution_verified:false,all_alerts_captured_proven:false};
+}
 function incorporate(old,proof,now){
  if(!Number.isSafeInteger(now))throw new TypeError('INVALID_TIME');
- const base=old?.version===VERSION&&Array.isArray(old.events)?structuredClone(old):empty();
+ const base=normalizeLedger(old);
  const out={ledger:base,added:0,updated:0,conflicts:0,ignored:0};
  if(!publicValid(proof,now)){out.ignored++;return out;}
  const id=proof.venue+':'+proof.symbol+':'+proof.ack_at_ms;
@@ -89,7 +97,7 @@ function ledgerStats(x,now){
  return r;
 }
 async function run({state,latest,now,read,githubToken=null}){
- let ledger=state?.version===VERSION&&Array.isArray(state.events)?state:empty();
+ let ledger=normalizeLedger(state);
  const report={new_proofs:0,updated_proofs:0,conflicts:0,unverified:0,rechecked:0};
  const adopt=p=>{const v=incorporate(ledger,p,now);ledger=v.ledger;report.new_proofs+=v.added;report.updated_proofs+=v.updated;report.conflicts+=v.conflicts;report.unverified+=v.ignored;};
  adopt(latest);
@@ -113,4 +121,4 @@ async function main(){
  console.log('V39_DURABLE_PUBLIC_ACK_LEDGER',JSON.stringify({at_ms:now,...v.report,summary:v.summary}));
 }
 if(process.argv[1]&&import.meta.url===pathToFileURL(process.argv[1]).href)main().catch(e=>{console.error('V39_LEDGER_AUDIT_ERROR',e?.name||'Error');process.exitCode=1;});
-export {empty,incorporate,ledgerStats,run};
+export {empty,incorporate,ledgerStats,run,normalizeLedger};
