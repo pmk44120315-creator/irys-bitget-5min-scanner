@@ -2,10 +2,11 @@ name: IRYS V40 archived-context direction learning (NO LIVE CHANGES)
 on:
   push:
     branches: [research/irys-v39-direction-causal-audit-20261107]
-    paths: ['.github/workflows/v40-historical-learning.yml']
+    paths: ['.github/workflows/v40-historical-learning.yml','research/v40_history_corpus.py','research/tests/test_v40_archive_boundary.py']
   workflow_dispatch:
 permissions:
   contents: read
+  actions: read
 jobs:
   history:
     runs-on: ubuntu-latest
@@ -14,6 +15,9 @@ jobs:
       OMP_NUM_THREADS: '1'
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
@@ -22,7 +26,63 @@ jobs:
         run: |
           mkdir -p v40_history
           set -o pipefail
-          python -m unittest discover -s research/tests -p 'test_v40*.py' -v 2>&1 | tee v40_history/tests.log
+          python -m unittest discover -s research/tests -p 'test_v40*.py' -v 2>&1 | tee v40_history/model_tests.log
+      - uses: actions/download-artifact@v4
+        with:
+          name: v351-delivery-first-production-proof
+          run-id: 42156639897
+          github-token: ${{ github.token }}
+          path: /tmp/v351
+      - uses: actions/download-artifact@v4
+        with:
+          name: v35-deployed-natural-proof
+          run-id: 42083867409
+          github-token: ${{ github.token }}
+          path: /tmp/v35
+      - uses: actions/download-artifact@v4
+        with:
+          name: v31-guarded-production-natural-proof
+          run-id: 41814867318
+          github-token: ${{ github.token }}
+          path: /tmp/v31
+      - uses: actions/download-artifact@v4
+        with:
+          name: v30-selective-production-natural-proof
+          run-id: 41693577194
+          github-token: ${{ github.token }}
+          path: /tmp/v30
+      - uses: actions/download-artifact@v4
+        with:
+          name: v28-production-and-natural-verification
+          run-id: 41450016477
+          github-token: ${{ github.token }}
+          path: /tmp/v28
+      - name: Restore exact existing Worker fixtures without touching production
+        run: |
+          git fetch --quiet --depth=1 origin release/irys-v24-bitget-fallback-20261101
+          git show FETCH_HEAD:deployment/IRYS_V24_BITGET_FALLBACK_WORKER.mjs > /tmp/v24.mjs
+          python deployment/build_v27_worker.py /tmp/v24.mjs deployment/IRYS_V27_RESPONSE_WORKER.mjs
+          python deployment/build_v28_worker.py deployment/IRYS_V27_RESPONSE_WORKER.mjs deployment/IRYS_V28_BUILDUP_WORKER.mjs
+          python deployment/build_v29_worker.py deployment/IRYS_V28_BUILDUP_WORKER.mjs deployment/IRYS_V29_DIRECTION_REVIEW_WORKER.mjs
+          cp /tmp/v30/IRYS_V30_SELECTIVE_DIRECTION_WORKER.mjs deployment/
+          cp /tmp/v31/IRYS_V31_TIMELY_WORKER.mjs deployment/
+          python deployment/build_v34_worker.py deployment/IRYS_V31_TIMELY_WORKER.mjs deployment/IRYS_V34_CRASH_WARNING_WORKER.mjs
+          cp /tmp/v35/IRYS_V35_LIFECYCLE_WORKER.mjs deployment/
+          cp /tmp/v351/IRYS_V351_DELIVERY_FIRST_WORKER.mjs deployment/
+          echo '6356cf5919e5dd05808d9b84bf92378393cc0b9a9da31e964d93566cc86c0d13  deployment/IRYS_V351_DELIVERY_FIRST_WORKER.mjs' | sha256sum -c -
+      - name: Complete original Node and Python regression plus new recovery tests
+        env:
+          V27_BASE_WORKER: /tmp/v24.mjs
+          V28_BASE_WORKER: deployment/IRYS_V27_RESPONSE_WORKER.mjs
+          V28_RELEASE_BASE_WORKER: /tmp/v28/IRYS_V28_BUILDUP_WORKER.mjs
+          V29_BASE_WORKER: deployment/IRYS_V28_BUILDUP_WORKER.mjs
+          V30_BASE_WORKER: deployment/IRYS_V29_DIRECTION_REVIEW_WORKER.mjs
+          V34_BASE_WORKER: deployment/IRYS_V31_TIMELY_WORKER.mjs
+          V35_BASE_WORKER: deployment/IRYS_V34_CRASH_WARNING_WORKER.mjs
+        run: |
+          set -o pipefail
+          python -m unittest discover -s tests -v 2>&1 | tee v40_history/python_regression.log
+          node --test tests/*.mjs 2>&1 | tee v40_history/node_regression.log
       - name: Restore all available earlier frozen ledgers through original commits
         env:
           GITHUB_TOKEN: ${{ github.token }}
@@ -48,6 +108,7 @@ jobs:
       - name: Preserve all outcomes and immutable source references
         if: always()
         run: |
+          mkdir -p v40_history
           git rev-parse HEAD > v40_history/source_commit.txt
           git archive --format=zip --output=v40_history/source.zip HEAD research/v40_frozen_features.py research/v40_direction_model.py research/v40_context_learning.py research/v40_forward_validation.py research/v40_history_corpus.py research/tests
           python - <<'PY'
