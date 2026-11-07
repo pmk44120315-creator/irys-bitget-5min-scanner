@@ -1,7 +1,7 @@
 name: IRYS V39 causal direction audit and live health snapshot (READ ONLY)
 on:
   schedule:
-    - cron: '19 * * * *'
+    - cron: '14,44 * * * *'
   workflow_dispatch:
   push:
     branches: [research/irys-v39-direction-causal-audit-20261107]
@@ -104,6 +104,7 @@ jobs:
             preselection_5m_move_pct:x.preselection_5m_move_pct,outcomes:x.outcomes}));
           JS
       - name: Read owner-controlled actual ACK state through Cloudflare official KV GET only
+        if: github.event_name != 'schedule'
         env:
           IRYS_CF_ACCOUNT: ${{ secrets.IRYS_REALTIME_CF_ACCOUNT_ID }}
           IRYS_CF_TOKEN: ${{ secrets.IRYS_V7_CF_API_TOKEN }}
@@ -125,5 +126,5 @@ jobs:
         with:
           name: v39-causal-direction-health-readonly
           path: v39_direction_audit/
-          retention-days: 7
+          retention-days: 30
           if-no-files-found: error
