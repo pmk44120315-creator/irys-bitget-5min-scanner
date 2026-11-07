@@ -1,0 +1,126 @@
+name: IRYS V40 archived-context direction learning (NO LIVE CHANGES)
+on:
+  push:
+    branches: [research/irys-v39-direction-causal-audit-20261107]
+    paths: ['.github/workflows/v40-historical-learning.yml','research/v40_history_corpus.py','research/tests/test_v40_archive_boundary.py']
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  history:
+    runs-on: ubuntu-latest
+    env:
+      OPENBLAS_NUM_THREADS: '1'
+      OMP_NUM_THREADS: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install 'numpy==2.3.5' 'scikit-learn==1.8.0'
+      - name: Unit and anti-leakage tests
+        run: |
+          mkdir -p v40_history
+          set -o pipefail
+          python -m unittest discover -s research/tests -p 'test_v40*.py' -v 2>&1 | tee v40_history/model_tests.log
+      - uses: actions/download-artifact@v4
+        with:
+          name: v351-delivery-first-production-proof
+          run-id: 42156639897
+          github-token: ${{ github.token }}
+          path: /tmp/v351
+      - uses: actions/download-artifact@v4
+        with:
+          name: v35-deployed-natural-proof
+          run-id: 42083867409
+          github-token: ${{ github.token }}
+          path: /tmp/v35
+      - uses: actions/download-artifact@v4
+        with:
+          name: v31-guarded-production-natural-proof
+          run-id: 41814867318
+          github-token: ${{ github.token }}
+          path: /tmp/v31
+      - uses: actions/download-artifact@v4
+        with:
+          name: v30-selective-production-natural-proof
+          run-id: 41693577194
+          github-token: ${{ github.token }}
+          path: /tmp/v30
+      - uses: actions/download-artifact@v4
+        with:
+          name: v28-production-and-natural-verification
+          run-id: 41450016477
+          github-token: ${{ github.token }}
+          path: /tmp/v28
+      - name: Restore exact existing Worker fixtures without touching production
+        run: |
+          git fetch --quiet --depth=1 origin release/irys-v24-bitget-fallback-20261101
+          git show FETCH_HEAD:deployment/IRYS_V24_BITGET_FALLBACK_WORKER.mjs > /tmp/v24.mjs
+          python deployment/build_v27_worker.py /tmp/v24.mjs deployment/IRYS_V27_RESPONSE_WORKER.mjs
+          python deployment/build_v28_worker.py deployment/IRYS_V27_RESPONSE_WORKER.mjs deployment/IRYS_V28_BUILDUP_WORKER.mjs
+          python deployment/build_v29_worker.py deployment/IRYS_V28_BUILDUP_WORKER.mjs deployment/IRYS_V29_DIRECTION_REVIEW_WORKER.mjs
+          cp /tmp/v30/IRYS_V30_SELECTIVE_DIRECTION_WORKER.mjs deployment/
+          cp /tmp/v31/IRYS_V31_TIMELY_WORKER.mjs deployment/
+          python deployment/build_v34_worker.py deployment/IRYS_V31_TIMELY_WORKER.mjs deployment/IRYS_V34_CRASH_WARNING_WORKER.mjs
+          cp /tmp/v35/IRYS_V35_LIFECYCLE_WORKER.mjs deployment/
+          cp /tmp/v351/IRYS_V351_DELIVERY_FIRST_WORKER.mjs deployment/
+          echo '6356cf5919e5dd05808d9b84bf92378393cc0b9a9da31e964d93566cc86c0d13  deployment/IRYS_V351_DELIVERY_FIRST_WORKER.mjs' | sha256sum -c -
+      - name: Complete original Node and Python regression plus new recovery tests
+        env:
+          V27_BASE_WORKER: /tmp/v24.mjs
+          V28_BASE_WORKER: deployment/IRYS_V27_RESPONSE_WORKER.mjs
+          V28_RELEASE_BASE_WORKER: /tmp/v28/IRYS_V28_BUILDUP_WORKER.mjs
+          V29_BASE_WORKER: deployment/IRYS_V28_BUILDUP_WORKER.mjs
+          V30_BASE_WORKER: deployment/IRYS_V29_DIRECTION_REVIEW_WORKER.mjs
+          V34_BASE_WORKER: deployment/IRYS_V31_TIMELY_WORKER.mjs
+          V35_BASE_WORKER: deployment/IRYS_V34_CRASH_WARNING_WORKER.mjs
+        run: |
+          set -o pipefail
+          python -m unittest discover -s tests -v 2>&1 | tee v40_history/python_regression.log
+          node --test tests/*.mjs 2>&1 | tee v40_history/node_regression.log
+      - name: Restore all available earlier frozen ledgers through original commits
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          set -o pipefail
+          git fetch --quiet --depth=1 origin b028ba4e97dc8e25ddc0181e73eb0e603a98e9d0
+          git show FETCH_HEAD:data/v22_evidence_state.json > v40_history/initial_v22.json
+          python research/v40_history_corpus.py --initial v40_history/initial_v22.json --commit b028ba4e97dc8e25ddc0181e73eb0e603a98e9d0 --out v40_history/archive | tee v40_history/recovery.log
+      - name: Train and freeze the unchanged candidate learner set
+        run: |
+          set -o pipefail
+          python research/v40_context_learning.py --state v40_history/archive/corpus.json --out v40_history/learned --asof-ms 1794054898000 | tee v40_history/training.log
+          sha256sum v40_history/learned/models.json > v40_history/frozen_model.sha256
+      - name: Separate newer-period validation without adapting frozen weights
+        run: |
+          set -o pipefail
+          git fetch --quiet --depth=1 origin main
+          git rev-parse FETCH_HEAD > v40_history/later_data_commit.txt
+          git show FETCH_HEAD:data/v22_evidence_state.json > v40_history/later_state.json
+          ASOF=$(python -c 'import time;print(int(time.time()*1000))')
+          python research/v40_forward_validation.py --models v40_history/learned/models.json --state v40_history/later_state.json --cutoff-ms 1794054898000 --asof-ms "$ASOF" --out v40_history/later_period.json | tee v40_history/later_period.log
+          sha256sum -c v40_history/frozen_model.sha256
+      - name: Preserve all outcomes and immutable source references
+        if: always()
+        run: |
+          mkdir -p v40_history
+          git rev-parse HEAD > v40_history/source_commit.txt
+          git archive --format=zip --output=v40_history/source.zip HEAD research/v40_frozen_features.py research/v40_direction_model.py research/v40_context_learning.py research/v40_forward_validation.py research/v40_history_corpus.py research/tests
+          python - <<'PY'
+          from pathlib import Path
+          import hashlib,json
+          p=Path('v40_history');d={str(f.relative_to(p)):{'bytes':f.stat().st_size,'sha256':hashlib.sha256(f.read_bytes()).hexdigest()} for f in p.rglob('*') if f.is_file()}
+          (p/'manifest.json').write_text(json.dumps(d,indent=2))
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: v40-historical-direction-verification
+          path: v40_history/
+          retention-days: 30
+          if-no-files-found: error
