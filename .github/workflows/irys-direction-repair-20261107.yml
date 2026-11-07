@@ -10,6 +10,7 @@ on:
       - '.github/workflows/irys-direction-repair-20261107.yml'
 permissions:
   contents: read
+  actions: read
 jobs:
   verify:
     runs-on: ubuntu-latest
@@ -21,6 +22,36 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+      - uses: actions/download-artifact@v4
+        with:
+          name: v351-delivery-first-production-proof
+          run-id: 42156639897
+          github-token: ${{ github.token }}
+          path: /tmp/v351
+      - uses: actions/download-artifact@v4
+        with:
+          name: v35-deployed-natural-proof
+          run-id: 42083867409
+          github-token: ${{ github.token }}
+          path: /tmp/v35
+      - uses: actions/download-artifact@v4
+        with:
+          name: v31-guarded-production-natural-proof
+          run-id: 41814867318
+          github-token: ${{ github.token }}
+          path: /tmp/v31
+      - uses: actions/download-artifact@v4
+        with:
+          name: v30-selective-production-natural-proof
+          run-id: 41693577194
+          github-token: ${{ github.token }}
+          path: /tmp/v30
+      - uses: actions/download-artifact@v4
+        with:
+          name: v28-production-and-natural-verification
+          run-id: 41450016477
+          github-token: ${{ github.token }}
+          path: /tmp/v28
       - name: Match local reviewed source bytes (sha256)
         run: |
           cat <<'CHECKSUMS' | sha256sum -c -
@@ -36,10 +67,39 @@ jobs:
           for f in deployment/direction_response_research.mjs deployment/v36*.mjs deployment/v37*.mjs; do node --check "$f"; done
       - name: Focused 60-test regression
         run: node --test tests/test_v36_shadow.mjs tests/test_v37_early.mjs tests/test_direction_repair.mjs tests/test_direction_response_research.mjs
-      - name: Complete Node test regression
-        run: node --test tests/*.mjs
+      - name: Reconstruct prior exact Worker test fixtures (no deployment)
+        run: |
+          git fetch --quiet --depth=1 origin release/irys-v24-bitget-fallback-20261101
+          git show FETCH_HEAD:deployment/IRYS_V24_BITGET_FALLBACK_WORKER.mjs > /tmp/v24.mjs
+          python deployment/build_v27_worker.py /tmp/v24.mjs deployment/IRYS_V27_RESPONSE_WORKER.mjs
+          python deployment/build_v28_worker.py deployment/IRYS_V27_RESPONSE_WORKER.mjs deployment/IRYS_V28_BUILDUP_WORKER.mjs
+          python deployment/build_v29_worker.py deployment/IRYS_V28_BUILDUP_WORKER.mjs deployment/IRYS_V29_DIRECTION_REVIEW_WORKER.mjs
+          cp /tmp/v30/IRYS_V30_SELECTIVE_DIRECTION_WORKER.mjs deployment/
+          cp /tmp/v31/IRYS_V31_TIMELY_WORKER.mjs deployment/
+          python deployment/build_v34_worker.py deployment/IRYS_V31_TIMELY_WORKER.mjs deployment/IRYS_V34_CRASH_WARNING_WORKER.mjs
+          cp /tmp/v35/IRYS_V35_LIFECYCLE_WORKER.mjs deployment/
+          cp /tmp/v351/IRYS_V351_DELIVERY_FIRST_WORKER.mjs deployment/
+          echo '6356cf5919e5dd05808d9b84bf92378393cc0b9a9da31e964d93566cc86c0d13  deployment/IRYS_V351_DELIVERY_FIRST_WORKER.mjs' | sha256sum -c -
       - name: Complete Python unittest regression
+        env:
+          V27_BASE_WORKER: /tmp/v24.mjs
+          V28_BASE_WORKER: deployment/IRYS_V27_RESPONSE_WORKER.mjs
+          V28_RELEASE_BASE_WORKER: /tmp/v28/IRYS_V28_BUILDUP_WORKER.mjs
+          V29_BASE_WORKER: deployment/IRYS_V28_BUILDUP_WORKER.mjs
+          V30_BASE_WORKER: deployment/IRYS_V29_DIRECTION_REVIEW_WORKER.mjs
+          V34_BASE_WORKER: deployment/IRYS_V31_TIMELY_WORKER.mjs
+          V35_BASE_WORKER: deployment/IRYS_V34_CRASH_WARNING_WORKER.mjs
         run: python -m unittest discover -s tests -v
+      - name: Complete Node test regression
+        env:
+          V27_BASE_WORKER: /tmp/v24.mjs
+          V28_BASE_WORKER: deployment/IRYS_V27_RESPONSE_WORKER.mjs
+          V28_RELEASE_BASE_WORKER: /tmp/v28/IRYS_V28_BUILDUP_WORKER.mjs
+          V29_BASE_WORKER: deployment/IRYS_V28_BUILDUP_WORKER.mjs
+          V30_BASE_WORKER: deployment/IRYS_V29_DIRECTION_REVIEW_WORKER.mjs
+          V34_BASE_WORKER: deployment/IRYS_V31_TIMELY_WORKER.mjs
+          V35_BASE_WORKER: deployment/IRYS_V34_CRASH_WARNING_WORKER.mjs
+        run: node --test tests/*.mjs
       - name: No live deployment or Telegram side effects
         run: |
           echo 'Research-only branch verification. No market-alert, order, or Cloudflare deployment steps exist in this workflow.'
