@@ -1,10 +1,15 @@
 name: IRYS V39 causal direction audit and live health snapshot (READ ONLY)
 on:
+  schedule:
+    - cron: '19 * * * *'
+  workflow_dispatch:
   push:
     branches: [research/irys-v39-direction-causal-audit-20261107]
     paths:
       - 'research/v39_direction_outcome_audit.mjs'
+      - 'research/v39_latest_ack_replay.mjs'
       - 'tests/test_v39_direction_audit.mjs'
+      - 'tests/test_v39_latest_ack_replay.mjs'
       - '.github/workflows/v39-direction-causal-audit.yml'
 permissions:
   contents: read
@@ -19,7 +24,8 @@ jobs:
       - name: Pure prospective-label audit tests
         run: |
           node --check research/v39_direction_outcome_audit.mjs
-          node --test tests/test_v39_direction_audit.mjs
+          node --check research/v39_latest_ack_replay.mjs
+          node --test tests/test_v39_direction_audit.mjs tests/test_v39_latest_ack_replay.mjs
       - name: Fetch recent native forward-outcome ledger from main (read only)
         run: |
           mkdir -p v39_direction_audit
@@ -74,6 +80,25 @@ jobs:
           }catch(e){result.status='PUBLIC_HEALTH_UNAVAILABLE';result.error=String(e?.message||e).slice(0,110);}
           writeFileSync('v39_direction_audit/worker_health_sanitized.json',JSON.stringify(result,null,2));
           console.log('V39_WORKER_HEALTH_SANITIZED',JSON.stringify(result));
+          JS
+      - name: Reconcile latest public Telegram ACK with genuinely earlier source and later closed bars
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          node research/v39_latest_ack_replay.mjs
+          node --input-type=module <<'JS'
+          import assert from 'node:assert/strict';
+          import {readFileSync} from 'node:fs';
+          const x=JSON.parse(readFileSync('v39_direction_audit/latest_ack_replay.json','utf8'));
+          assert.equal(x.read_only,true);
+          assert.equal(x.telegram_sent,false);
+          assert.equal(x.orders_sent,false);
+          assert.equal(x.actual_execution_verified,false);
+          console.log('V39_LATEST_ACK_READ_ONLY_RECEIPT',JSON.stringify({status:x.status,symbol:x.symbol,
+            direction:x.direction,ack_at_ms:x.ack_at_ms,source_to_ack_ms:x.source_to_ack_ms,
+            quote_to_ack_ms:x.quote_to_ack_ms,source_sha:x.source_commit,
+            first_buy_share:x.independent_first_taker_share,second_buy_share:x.independent_second_taker_share,
+            preselection_5m_move_pct:x.preselection_5m_move_pct,outcomes:x.outcomes}));
           JS
       - name: Preserve read-only evidence and exact source pin
         if: always()
