@@ -1,8 +1,9 @@
-name: IRYS V40 frozen-data direction learner verification (NO LIVE CHANGE)
+name: IRYS V40 actual learned-direction comparison (NO LIVE CHANGE)
 on:
   push:
     branches: [research/irys-v39-direction-causal-audit-20261107]
-    paths: ['research/v40*.py','tests/test_v40*.py','.github/workflows/v40-direction-learning.yml']
+    paths: ['research/v40*.py','research/tests/test_v40*.py','tests/test_v40*.py','.github/workflows/v40-direction-learning.yml']
+  workflow_dispatch:
 permissions:
   contents: read
 concurrency:
@@ -11,42 +12,63 @@ concurrency:
 jobs:
   learn:
     runs-on: ubuntu-latest
+    env:
+      OPENBLAS_NUM_THREADS: '1'
+      OMP_NUM_THREADS: '1'
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Causal feature and target tests
+      - name: Install explicit model dependencies
+        run: python -m pip install 'numpy==2.3.5' 'scikit-learn==1.8.0'
+      - name: Causal feature and model tests
         run: |
           mkdir -p v40_learning
           set -o pipefail
-          python -m unittest discover -s tests -p 'test_v40*.py' -v 2>&1 | tee v40_learning/tests.log
-      - name: Load exact previously frozen public data pin, never moving target
+          python -m unittest discover -s tests -p 'test_v40*.py' -v 2>&1 | tee v40_learning/feature_tests.log
+          python -m unittest discover -s research/tests -p 'test_v40*.py' -v 2>&1 | tee v40_learning/model_tests.log
+      - name: Load immutable initial experiment datasets
         run: |
           git fetch --quiet --depth=1 origin b028ba4e97dc8e25ddc0181e73eb0e603a98e9d0
           git show FETCH_HEAD:data/v36_shadow_state.json > v40_learning/v36_shadow_state.json
+          git show FETCH_HEAD:data/v22_evidence_state.json > v40_learning/v22_evidence_state.json
           git rev-parse HEAD > v40_learning/source_commit.txt
           echo b028ba4e97dc8e25ddc0181e73eb0e603a98e9d0 > v40_learning/data_commit.txt
-      - name: Recover original packets committed before each decision
+          git archive --format=zip --output=v40_learning/reviewed_source.zip HEAD research/v40_frozen_features.py research/v40_direction_model.py research/v40_context_learning.py research/v40_forward_validation.py research/tests/test_v40_learning.py tests/test_v40_frozen_features.py
+      - name: Reconstruct exact original packet features before each prediction
         env:
           GITHUB_TOKEN: ${{ github.token }}
+        run: python research/v40_frozen_features.py --state v40_learning/v36_shadow_state.json --out v40_learning/frozen_features.json
+      - name: Reproduce low-complexity learner on both fixed datasets
         run: |
-          python research/v40_frozen_features.py --state v40_learning/v36_shadow_state.json --out v40_learning/frozen_features.json
-      - name: Publish exact public dataset and source hashes for independent verification
+          set -o pipefail
+          python research/v40_direction_model.py --features v40_learning/frozen_features.json --state v40_learning/v36_shadow_state.json --out v40_learning/raw_model --asof-ms 1794054898000 | tee v40_learning/raw_model.log
+          python research/v40_context_learning.py --state v40_learning/v22_evidence_state.json --out v40_learning/context_model --asof-ms 1794054898000 | tee v40_learning/context_model.log
+          sha256sum v40_learning/context_model/models.json > v40_learning/frozen_model.sha256
+      - name: Verify same frozen weights on separate later-period data
+        run: |
+          set -o pipefail
+          git fetch --quiet --depth=1 origin main
+          git rev-parse FETCH_HEAD > v40_learning/later_data_commit.txt
+          git show FETCH_HEAD:data/v22_evidence_state.json > v40_learning/later_v22_state.json
+          ASOF=$(python -c 'import time;print(int(time.time()*1000))')
+          python research/v40_forward_validation.py --models v40_learning/context_model/models.json --state v40_learning/later_v22_state.json --cutoff-ms 1794054898000 --asof-ms "$ASOF" --out v40_learning/later_period.json | tee v40_learning/later_period.log
+          sha256sum -c v40_learning/frozen_model.sha256
+      - name: Freeze source hashes and honest outcomes including failed hypotheses
         if: always()
         run: |
           python - <<'PY'
           from pathlib import Path
           import hashlib,json
-          p=Path('v40_learning')
+          p=Path('v40_learning');p.mkdir(exist_ok=True)
           d={str(f.relative_to(p)):{'bytes':f.stat().st_size,'sha256':hashlib.sha256(f.read_bytes()).hexdigest()} for f in p.rglob('*') if f.is_file()}
-          (p/'manifest.json').write_text(json.dumps(d,indent=2))
-          print('V40_DATA_MANIFEST',json.dumps(d))
+          (p/'manifest.json').write_text(json.dumps(d,indent=2));print('V40_DATA_MANIFEST',json.dumps(d))
           PY
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: v40-frozen-features
+          name: v40-learned-direction-verification
           path: v40_learning/
           retention-days: 30
           if-no-files-found: error
