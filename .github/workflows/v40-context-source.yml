@@ -1,0 +1,32 @@
+name: V40 wider-context frozen source snapshot (NO LIVE CHANGES)
+on:
+  push:
+    branches: [research/irys-v39-direction-causal-audit-20261107]
+    paths: ['.github/workflows/v40-context-source.yml']
+permissions:
+  contents: read
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Export existing public prospective records at exact pin
+        run: |
+          mkdir -p context_snapshot/data
+          git fetch --quiet --depth=1 origin b028ba4e97dc8e25ddc0181e73eb0e603a98e9d0
+          for f in data/v22_evidence_state.json data/v26_direction_state.json v21_forecast_core.py v22_direction_core.py v21_runtime.py v26_direction_core.py; do
+            git show FETCH_HEAD:$f > context_snapshot/$f
+          done
+          echo b028ba4e97dc8e25ddc0181e73eb0e603a98e9d0 > context_snapshot/data_commit.txt
+          python - <<'PY'
+          from pathlib import Path
+          import hashlib,json
+          p=Path('context_snapshot');d={str(f.relative_to(p)):{'bytes':f.stat().st_size,'sha256':hashlib.sha256(f.read_bytes()).hexdigest()} for f in p.rglob('*') if f.is_file()}
+          (p/'manifest.json').write_text(json.dumps(d,indent=2));print('CONTEXT_SOURCE_MANIFEST',json.dumps(d))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: v40-context-frozen-data
+          path: context_snapshot/
+          retention-days: 30
+          if-no-files-found: error
