@@ -1,0 +1,32 @@
+name: IRYS V41 target-quote capture repair verification
+on:
+  push:
+    branches: [fix/irys-v41-target-quote-capture-20261108]
+    paths: ['.github/workflows/v41-quote-capture-repair.yml']
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Preserve exact baseline source and public-data checkpoint
+        run: |
+          mkdir -p v41_proof
+          git rev-parse HEAD > v41_proof/source_commit.txt
+          git ls-files -z '*.py' '*.mjs' 'research/v21_results/models.json' '.github/workflows/*' | tar --null -T - -czf v41_proof/source.tar.gz
+          cp data/v22_evidence_state.json v41_proof/baseline_v22_state.json
+          cp data/v22_evidence_latest.json v41_proof/baseline_v22_latest.json
+          python - <<'PY'
+          from pathlib import Path
+          import hashlib,json
+          p=Path('v41_proof');d={x.name:{'bytes':x.stat().st_size,'sha256':hashlib.sha256(x.read_bytes()).hexdigest()} for x in p.iterdir() if x.is_file()}
+          (p/'manifest.json').write_text(json.dumps(d,indent=2))
+          print(json.dumps(d))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: v41-source-and-quote-evidence
+          path: v41_proof/
+          retention-days: 30
+          if-no-files-found: error
