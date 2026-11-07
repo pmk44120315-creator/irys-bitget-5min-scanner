@@ -12,9 +12,11 @@ function validateAckSource(source,ackMs,symbol){
  if(!source||source.version!=='IRYS_V30_PUBLIC_PAIRED_DIRECTION_V1'||source.source!=='OFFICIAL_PUBLIC_RUNNER'||
  source.telegram_sent!==false||source.orders_sent!==false||!Number.isSafeInteger(source.at_ms)||
  source.at_ms>ackMs||ackMs-source.at_ms>120000||!Array.isArray(source.items))return null;
+ const approved=Array.isArray(source.checks)?source.checks.filter(x=>x?.symbol===symbol&&x.allowed===true):[];
+ if(approved.length!==1)return null;
  const matches=source.items.filter(x=>{
   const c=x.candidate||{},f=x.final||{},q=f.quote||{};
-  return c.symbol===symbol&&['LONG','SHORT','BUY'].includes(c.direction)&&
+  return c.symbol===symbol&&c.direction===approved[0].direction&&c.venue===approved[0].venue&&['LONG','SHORT','BUY'].includes(c.direction)&&
    approvedSymbol(c.venue,symbol)&&Number.isSafeInteger(f.observed_at_ms)&&f.observed_at_ms<=ackMs&&
    Number.isSafeInteger(q.at_ms)&&q.at_ms<=ackMs&&ackMs-q.at_ms<=45000&&
    finite(q.bid)&&finite(q.ask)&&q.bid>0&&q.ask>=q.bid;
