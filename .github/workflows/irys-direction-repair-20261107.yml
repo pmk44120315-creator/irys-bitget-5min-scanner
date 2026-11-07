@@ -1,0 +1,45 @@
+name: IRYS direction evidence repair - full source regression (NO DEPLOY)
+on:
+  push:
+    branches: [fix/irys-direction-evidence-20261107]
+    paths:
+      - 'deployment/v36*.mjs'
+      - 'deployment/v37*.mjs'
+      - 'deployment/direction_response_research.mjs'
+      - 'tests/test_direction*.mjs'
+      - '.github/workflows/irys-direction-repair-20261107.yml'
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Match local reviewed source bytes (sha256)
+        run: |
+          cat <<'CHECKSUMS' | sha256sum -c -
+          1b494334e5d58384b43a1fca57920cc10f527cdae4f5c88f90ae2d8b71690df8  deployment/direction_response_research.mjs
+          17f252b4b390eb6508ec0fb23163a7ac25c9d25ee04622420c2b460e480e1d76  deployment/v36_hypotheses.mjs
+          4e04edba266a929e10ca801d7b8c47797733b7234df7cfce7076ce2c3cb540b3  deployment/v36_shadow.mjs
+          347d6650c825b3ee4d5f16be814c6123c00dd1a2344c6f0d9c25bd7971b64540  deployment/v37_early.mjs
+          6453034d9df7c6e804d87dd28cc00375d590b44d72a4c2ea4c662214f0e8b67e  tests/test_direction_repair.mjs
+          d1653f239756b96fa6f5d004098b198bb4ce32812380cd20223fac028893f200  tests/test_direction_response_research.mjs
+          CHECKSUMS
+      - name: JavaScript syntax checks
+        run: |
+          for f in deployment/direction_response_research.mjs deployment/v36*.mjs deployment/v37*.mjs; do node --check "$f"; done
+      - name: Focused 60-test regression
+        run: node --test tests/test_v36_shadow.mjs tests/test_v37_early.mjs tests/test_direction_repair.mjs tests/test_direction_response_research.mjs
+      - name: Complete Node test regression
+        run: node --test tests/*.mjs
+      - name: Complete Python unittest regression
+        run: python -m unittest discover -s tests -v
+      - name: No live deployment or Telegram side effects
+        run: |
+          echo 'Research-only branch verification. No market-alert, order, or Cloudflare deployment steps exist in this workflow.'
