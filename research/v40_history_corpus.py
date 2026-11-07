@@ -31,6 +31,11 @@ def merge_snapshots(snapshots):
       'conflicting_frozen_events':len(bad_features),'conflicting_measured_events':len(bad_labels),
       'conflict_ids':[':'.join(map(str,k)) for k in sorted(remove)]}
 
+def older_commit_bound(stamp,requested_ms):
+    published=int(dt.datetime.fromisoformat(stamp.replace('Z','+00:00')).timestamp()*1000)
+    if published>requested_ms+1000:raise ValueError('COMMIT_OUTSIDE_REQUESTED_BOUND')
+    return min(requested_ms-1000,published-1000)
+
 def collect(initial_path,initial_commit,out_dir):
     base='https://api.github.com/repos/'+REPO;token=os.environ.get('GITHUB_TOKEN')
     def get(url):
@@ -49,15 +54,16 @@ def collect(initial_path,initial_commit,out_dir):
         if not commits:finished=True;break
         c=commits[0];sha=c['sha']
         if sha in used:
-            if bound>=oldest:bound=oldest-1;continue
-            errors.append({'stage':'REPEATED_COMMIT_WITHOUT_PROGRESS','sha':sha});break
+            try:bound=older_commit_bound(c['commit']['committer']['date'],bound)
+            except ValueError as e:errors.append({'stage':'HISTORY_BOUND_NOT_RESPECTED','sha':sha});break
+            continue
         used.add(sha)
         try:d,digest=get('https://raw.githubusercontent.com/'+REPO+'/'+sha+'/data/v22_evidence_state.json')
         except Exception as e:errors.append({'stage':'STATE_READ','sha':sha,'error_type':type(e).__name__});break
         valid=[e['issued_ms'] for e in events(d) if isinstance(e.get('issued_ms'),int)]
         if not valid:
             published=int(dt.datetime.fromisoformat(c['commit']['committer']['date'].replace('Z','+00:00')).timestamp()*1000)
-            receipts.append({'sha':sha,'sha256':digest,'events':0});bound=published-1;continue
+            receipts.append({'sha':sha,'sha256':digest,'events':0});bound=published-1000;continue
         first,last=min(valid),max(valid)
         states.append(d);receipts.append({'sha':sha,'sha256':digest,'events':len(valid),'first_issued_ms':first,'last_issued_ms':last})
         print('V40_HISTORY_SNAPSHOT',json.dumps(receipts[-1]),flush=True)
