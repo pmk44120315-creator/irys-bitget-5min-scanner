@@ -1,0 +1,37 @@
+name: V39 interrupted-work recovery source snapshot (NO LIVE CHANGES)
+on:
+  push:
+    branches: [research/irys-v39-direction-causal-audit-20261107]
+    paths: ['.github/workflows/v39-recovery-source.yml']
+permissions:
+  contents: read
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Pin existing source and public market records
+        run: |
+          mkdir -p recovery_snapshot/data
+          git rev-parse HEAD > recovery_snapshot/source_commit.txt
+          git archive --format=zip --output=recovery_snapshot/source.zip HEAD research deployment tests
+          git fetch --quiet --depth=1 origin main
+          git rev-parse FETCH_HEAD > recovery_snapshot/data_commit.txt
+          for f in v36_shadow_state.json v36_shadow_latest.json v30_direction_latest.json v30_state.json v37_early_state.json v38_continuation_state.json; do
+            git show FETCH_HEAD:data/$f > recovery_snapshot/data/$f
+          done
+          git fetch --quiet --depth=1 origin data/irys-v39-ack-feedback
+          git show FETCH_HEAD:data/v39_ack_feedback.json > recovery_snapshot/data/v39_ack_feedback.json
+          python - <<'PY'
+          import pathlib,hashlib,json
+          p=pathlib.Path('recovery_snapshot')
+          rows={str(x.relative_to(p)):{'bytes':x.stat().st_size,'sha256':hashlib.sha256(x.read_bytes()).hexdigest()} for x in p.rglob('*') if x.is_file()}
+          (p/'manifest.json').write_text(json.dumps(rows,indent=2))
+          print('RECOVERY_MANIFEST',json.dumps(rows))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: v39-recovery-source-public-data
+          path: recovery_snapshot/
+          retention-days: 7
+          if-no-files-found: error
