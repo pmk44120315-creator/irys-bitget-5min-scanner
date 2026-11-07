@@ -88,14 +88,14 @@ function ledgerStats(x,now){
  }
  return r;
 }
-async function run({state,latest,now,read,githubToken=null,maxRechecks=8}){
+async function run({state,latest,now,read,githubToken=null}){
  let ledger=state?.version===VERSION&&Array.isArray(state.events)?state:empty();
  const report={new_proofs:0,updated_proofs:0,conflicts:0,unverified:0,rechecked:0};
  const adopt=p=>{const v=incorporate(ledger,p,now);ledger=v.ledger;report.new_proofs+=v.added;report.updated_proofs+=v.updated;report.conflicts+=v.conflicts;report.unverified+=v.ignored;};
  adopt(latest);
- const pending=[...ledger.events].reverse().filter(x=>x.ack_at_ms+5*60000<=now&&x.ack_at_ms>=now-2*DAY&&
+ const pending=[...ledger.events].reverse().filter(x=>x.ack_at_ms+5*60000<=now&&x.ack_at_ms>=now-2*3600000&&
    H.some(h=>x.outcomes?.[h]?.status!=='MEASURED_MINUTE_CLOSE_PROXY'&&now>=x.ack_at_ms+h*60000));
- for(const e of pending.slice(0,Math.max(0,Math.min(30,maxRechecks)))){
+ for(const e of pending){
   try{adopt(await replay({ack:{last_api_ack_ms:e.ack_at_ms,last_api_ack_symbol:e.symbol},snapshotAtMs:now,githubToken,read}));}
   catch{report.unverified++;}
   report.rechecked++;
