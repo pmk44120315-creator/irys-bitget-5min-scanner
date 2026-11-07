@@ -8,13 +8,21 @@ const H=[5,15,30,60],DAY=86400000,HOUR=3600000,MINUTE=60000;
 const finite=x=>typeof x==='number'&&Number.isFinite(x);
 const directions=(v,d)=>v==='bitget'?['LONG','SHORT'].includes(d):v==='bithumb'&&d==='BUY';
 const other=(venue,d)=>venue==='bitget'?(d==='LONG'?'SHORT':'LONG'):null;
+const frozenAlternative=(e,name)=>{
+ const r=e.direction_response;
+ return r?.version==='IRYS_DIRECTION_RESPONSE_RESEARCH_V1' &&
+ r.decided_at_ms===e.issued_at_ms && r.source_observed_at_ms<=e.issued_at_ms &&
+ r.venue===e.venue && r.symbol===e.symbol &&
+ r.baseline_direction===e.direction && r.trade_permission===false ?
+ r.hypotheses?.[name]??null:null;
+};
 const policies={
  baseline:e=>e.direction,
  opposite_futures:e=>other(e.venue,e.direction),
- price_response:e=>e.direction_response?.hypotheses?.price_response??null,
- flow_follow:e=>e.direction_response?.hypotheses?.flow_follow??null,
- agreement:e=>e.direction_response?.hypotheses?.agreement??null,
- absorption:e=>e.direction_response?.hypotheses?.absorption??null
+ price_response:e=>frozenAlternative(e,'price_response'),
+ flow_follow:e=>frozenAlternative(e,'flow_follow'),
+ agreement:e=>frozenAlternative(e,'agreement'),
+ absorption:e=>frozenAlternative(e,'absorption')
 };
 function frozenValid(e,now){
  if(!e||typeof e.id!=='string'||!e.id||!directions(e.venue,e.direction)||typeof e.symbol!=='string'||
@@ -43,7 +51,7 @@ function referenceReturn(e,close,direction){
  return direction==='SHORT'?100*(entry-close)/entry:100*(close/entry-1);
 }
 function summarize(events,h,asof,policy,extra=()=>true){
- const x={eligible:0,measured:0,unmeasured:0,pending:0,invalid:0,coverage:0,correct:0,wrong:0,flat:0,
+ const x={eligible:0,measured:0,unmeasured:0,abstained:0,pending:0,invalid:0,coverage:0,correct:0,wrong:0,flat:0,
  gross_mean_pct:null,illustrative_cost_net_mean_pct:null,baseline_same_cases_correct:0,baseline_same_cases_wrong:0,
  baseline_same_cases_gross_mean_pct:null,directional_hit_rate:null,distinct_symbols:0,distinct_hour_buckets:0,distinct_days:0,
  no_private_orders:true,illustrative_extra_cost_pct:0.20,independent_samples_proven:false};
@@ -56,7 +64,7 @@ function summarize(events,h,asof,policy,extra=()=>true){
   if(label.status==='NO_MEASURED_CLOSE'){x.unmeasured++;continue;}
   if(label.status!=='MEASURED'){x.invalid++;continue;}
   const d=policy(e);
-  if(!directions(e.venue,d)){x.unmeasured++;continue;}
+  if(!directions(e.venue,d)){x.abstained++;continue;}
   const g=referenceReturn(e,label.close,d),b=referenceReturn(e,label.close,e.direction);
   if(!finite(g)||!finite(b)){x.invalid++;continue;}
   x.measured++;gross+=g;baseGross+=b;
