@@ -1,22 +1,27 @@
 /** Immutable prospective shadow. Never sends market alerts or orders. */
 import {v36Evidence} from './v36_hypotheses.mjs';
+import {directionResponseHypotheses} from './direction_response_research.mjs';
 import {v36Freeze,v36FreezeQuoteOnly,v36Label,v36LabelClose} from './v36_paths.mjs';
 const V36_VERSION='V36_CONTRA_PROSPECTIVE_SHADOW_V1',MAX_EVENTS=3000,EPISODE_MS=1800000;
 const key=e=>`${e.venue}:${e.symbol}:${e.direction}:${Math.floor(e.issued_at_ms/EPISODE_MS)}`;
 function validPacket(p,now,digest){
- return p?.version==='IRYS_V30_PUBLIC_PAIRED_DIRECTION_V1'&&p?.source==='OFFICIAL_PUBLIC_RUNNER'&&p.model_digest===digest&&
+ return Number.isSafeInteger(now)&&p?.version==='IRYS_V30_PUBLIC_PAIRED_DIRECTION_V1'&&p?.source==='OFFICIAL_PUBLIC_RUNNER'&&p.model_digest===digest&&
  p.orders_sent===false&&p.telegram_sent===false&&Array.isArray(p.items)&&Number.isSafeInteger(p.at_ms)&&p.at_ms<=now&&now-p.at_ms<=90000&&
  Number.isSafeInteger(p.started_at_ms)&&p.started_at_ms<=p.at_ms;
 }
 function v36Observe(old={}, {packet,now,baselineDigest,benchmark=null}={}){
  const state={version:V36_VERSION,events:Array.isArray(old.events)?structuredClone(old.events):[],last_asof_ms:old.last_asof_ms||0};
  if(!validPacket(packet,now,baselineDigest))return {status:'SOURCE_NOT_ELIGIBLE',events:[],state,source_asof_ms:packet?.at_ms??null};
+ if(packet.at_ms<=state.last_asof_ms)return {status:'SOURCE_ALREADY_OBSERVED',events:[],state,source_asof_ms:packet.at_ms};
  const ids=new Set(state.events.map(e=>e.id)),added=[];
  for(const item of packet.items){
-  const frozen=v36Freeze(item,packet.at_ms)||v36FreezeQuoteOnly(item,packet.at_ms);if(!frozen)continue;
-  const evidence=v36Evidence(item,packet.at_ms,benchmark||{});
+  const frozen=v36Freeze(item,now)||v36FreezeQuoteOnly(item,now);if(!frozen)continue;
+  const evidence=v36Evidence(item,now,benchmark||{});
   const id=key(frozen);if(ids.has(id))continue;ids.add(id);
-  const rec={...frozen,id,observed_hypothesis:evidence,baseline_model_digest:packet.model_digest,
+  const rec={...frozen,id,observed_hypothesis:evidence,direction_response:directionResponseHypotheses({...evidence,venue:frozen.venue,symbol:frozen.symbol,direction:frozen.direction},now),baseline_model_digest:packet.model_digest,
+   time_basis:'ACTUAL_EVALUATOR_DECISION_CLOCK',source_observed_at_ms:packet.at_ms,
+   source_to_decision_latency_ms:now-packet.at_ms,source_quote_at_ms:item.final.quote.at_ms,
+   entry_reference_is_live_executable:false,
    baseline_ready:packet.checks?.some(x=>x.venue===frozen.venue&&x.symbol===frozen.symbol&&x.direction===frozen.direction&&x.allowed===true)||false,
    outcomes:{},direction_outcomes:{},created_from_public_packet_at_ms:packet.at_ms};
   added.push(rec);state.events.push(rec);
@@ -48,6 +53,9 @@ function v36Gate({pairs=0,correct=0,total=0,baselineCorrect=0,coverage=0}={}){
 }
 function v36Summary(state){
  const events=state?.events||[],out={version:V36_VERSION,events:events.length,actual_alerts:0,signals_sent:0,orders_sent:false,auto_promote:false,directions:{}};
+ const verified=events.filter(e=>e.time_basis==='ACTUAL_EVALUATOR_DECISION_CLOCK'&&Number.isSafeInteger(e.issued_at_ms)&&Number.isSafeInteger(e.source_observed_at_ms)&&e.source_observed_at_ms<=e.issued_at_ms);
+ out.clock_verified=verified.length;out.legacy_unverified_clock=events.length-verified.length;
+ out.raw_candidate_statistics_not_alert_accuracy=true;out.retained_records_only=true;
  for(const venue of ['bithumb','bitget'])for(const direction of venue==='bithumb'?['BUY']:['LONG','SHORT']){
   const rows=events.filter(r=>r.venue===venue&&r.direction===direction),s={issued:rows.length,baseline_ready:rows.filter(r=>r.baseline_ready).length,horizons:{}};
   for(const h of [5,15,30,60]){

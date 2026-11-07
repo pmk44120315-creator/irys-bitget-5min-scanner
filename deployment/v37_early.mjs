@@ -3,6 +3,13 @@ import {v36LabelClose} from './v36_paths.mjs';
 const V37_EARLY_VERSION='V37_PREMOVE_OPPORTUNITY_SHADOW_V1';
 const MIN=60000,EPISODE=1800000,MAX_EVENTS=3000;
 const num=x=>typeof x==='number'&&Number.isFinite(x)?x:null;
+// Preserve cross-cycle evidence when enrollment and labeling each rebuild the state.
+function copyV37State(old,now){
+ const state=structuredClone(old||{});
+ state.version=V37_EARLY_VERSION;state.asof_ms=now;
+ if(!Array.isArray(state.events))state.events=[];
+ return state;
+}
 const median=x=>{const a=x.filter(Number.isFinite).sort((p,q)=>p-q);return a.length?(a.length%2?a[(a.length-1)/2]:(a[a.length/2-1]+a[a.length/2])/2):null};
 function v37AssessSnapshot(row,now){
  const fail=(status,reason)=>({version:V37_EARLY_VERSION,status,reason,phase:'UNCONFIRMED',direction:'UNCONFIRMED',trade_permit:false,entry_ready:false,probability:null,flow_acceleration:null});
@@ -52,7 +59,7 @@ function v37SelectEarly(rows,now,max=12){
  return [...by.values()].sort((a,b)=>b.early_score-a.early_score||a.symbol.localeCompare(b.symbol)).slice(0,max);
 }
 function v37BuildEvents(old,selected,now){
- const state={version:V37_EARLY_VERSION,events:structuredClone(old?.events||[]),asof_ms:now};
+ const state=copyV37State(old,now);
  const ids=new Set(state.events.map(x=>x.id)),added=[];
  for(const x of selected||[]){if(x.status!=='OBSERVED'||x.phase!=='EARLY_FLOW_LEAD'||x.trade_permit!==false||x.observed_at_ms>now)continue;
   const id=['EVAL',x.venue,x.symbol,x.direction,Math.floor(now/EPISODE)].join(':');
@@ -70,7 +77,7 @@ function v37BuildEvents(old,selected,now){
  state.events=state.events.slice(-MAX_EVENTS);return {state,added};
 }
 function v37LabelEvents(old,pages,now){
- const state={version:V37_EARLY_VERSION,events:structuredClone(old?.events||[]),asof_ms:now};
+ const state=copyV37State(old,now);
  const by=new Map((pages||[]).filter(x=>x?.source==='OFFICIAL_NATIVE_1M'&&Number.isSafeInteger(x.fetched_at_ms)&&x.fetched_at_ms<=now&&Array.isArray(x.bars))
  .map(x=>[x.venue+':'+x.symbol,x]));
  for(const e of state.events){const p=by.get(e.venue+':'+e.symbol);if(!p)continue;

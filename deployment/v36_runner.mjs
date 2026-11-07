@@ -2,6 +2,7 @@
 import {readFileSync,writeFileSync,renameSync} from 'node:fs';
 import {pathToFileURL} from 'node:url';
 import {v36Observe,v36Advance,v36Summary,v36Gate,V36_VERSION} from './v36_shadow.mjs';
+import {compareDirectionHypotheses} from './direction_response_research.mjs';
 const MIN=60000;
 function parsedBars(raw,venue,symbol,now){
  const rows=venue==='bitget'?raw?.code==='00000'&&Array.isArray(raw.data)?raw.data:null:Array.isArray(raw)?raw:null;
@@ -51,8 +52,9 @@ async function v36Process({old={},packet,baselineDigest,now,benchmark=null,readH
  const hist=await v36NativeHistory(markets,readHistory,now);
  state=v36Advance(state,hist.pages,now);
  const summary=v36Summary(state);
+ const comparisons=Object.fromEntries([5,15,30,60].map(h=>[String(h),compareDirectionHypotheses(state.events,{now,horizon:h})]));
  const public_output={version:V36_VERSION,source:'OFFICIAL_PUBLIC_SHADOW',source_packet_asof_ms:enrolled.source_asof_ms,at_ms:now,
-  status:enrolled.status,new_events:enrolled.events.length,tracked_episodes:summary.events,source_markets_attempted:markets.length,
+  status:enrolled.status,new_events:enrolled.events.length,tracked_episodes:summary.events,direction_response_comparisons:comparisons,source_markets_attempted:markets.length,
   successful_native_histories:hist.pages.length,source_errors:hist.errors,summary,prospective_only:true,
   actual_ack_performance_verified:false,shadow_only:true,orders_sent:false,telegram_sent:false,future_accuracy_proven:false,
   auto_promotion:false,release_gate:v36Gate({}),
