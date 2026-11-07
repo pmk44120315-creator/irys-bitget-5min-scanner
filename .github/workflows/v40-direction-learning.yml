@@ -1,0 +1,52 @@
+name: IRYS V40 frozen-data direction learner verification (NO LIVE CHANGE)
+on:
+  push:
+    branches: [research/irys-v39-direction-causal-audit-20261107]
+    paths: ['research/v40*.py','tests/test_v40*.py','.github/workflows/v40-direction-learning.yml']
+permissions:
+  contents: read
+concurrency:
+  group: irys-v40-frozen-learning
+  cancel-in-progress: false
+jobs:
+  learn:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Causal feature and target tests
+        run: |
+          mkdir -p v40_learning
+          set -o pipefail
+          python -m unittest discover -s tests -p 'test_v40*.py' -v 2>&1 | tee v40_learning/tests.log
+      - name: Load exact previously frozen public data pin, never moving target
+        run: |
+          git fetch --quiet --depth=1 origin b028ba4e97dc8e25ddc0181e73eb0e603a98e9d0
+          git show FETCH_HEAD:data/v36_shadow_state.json > v40_learning/v36_shadow_state.json
+          git rev-parse HEAD > v40_learning/source_commit.txt
+          echo b028ba4e97dc8e25ddc0181e73eb0e603a98e9d0 > v40_learning/data_commit.txt
+      - name: Recover original packets committed before each decision
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          python research/v40_frozen_features.py --state v40_learning/v36_shadow_state.json --out v40_learning/frozen_features.json
+      - name: Publish exact public dataset and source hashes for independent verification
+        if: always()
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import hashlib,json
+          p=Path('v40_learning')
+          d={str(f.relative_to(p)):{'bytes':f.stat().st_size,'sha256':hashlib.sha256(f.read_bytes()).hexdigest()} for f in p.rglob('*') if f.is_file()}
+          (p/'manifest.json').write_text(json.dumps(d,indent=2))
+          print('V40_DATA_MANIFEST',json.dumps(d))
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: v40-frozen-features
+          path: v40_learning/
+          retention-days: 30
+          if-no-files-found: error
