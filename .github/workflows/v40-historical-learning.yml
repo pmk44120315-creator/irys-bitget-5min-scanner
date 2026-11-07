@@ -1,0 +1,65 @@
+name: IRYS V40 archived-context direction learning (NO LIVE CHANGES)
+on:
+  push:
+    branches: [research/irys-v39-direction-causal-audit-20261107]
+    paths: ['.github/workflows/v40-historical-learning.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  history:
+    runs-on: ubuntu-latest
+    env:
+      OPENBLAS_NUM_THREADS: '1'
+      OMP_NUM_THREADS: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install 'numpy==2.3.5' 'scikit-learn==1.8.0'
+      - name: Unit and anti-leakage tests
+        run: |
+          mkdir -p v40_history
+          set -o pipefail
+          python -m unittest discover -s research/tests -p 'test_v40*.py' -v 2>&1 | tee v40_history/tests.log
+      - name: Restore all available earlier frozen ledgers through original commits
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          set -o pipefail
+          git fetch --quiet --depth=1 origin b028ba4e97dc8e25ddc0181e73eb0e603a98e9d0
+          git show FETCH_HEAD:data/v22_evidence_state.json > v40_history/initial_v22.json
+          python research/v40_history_corpus.py --initial v40_history/initial_v22.json --commit b028ba4e97dc8e25ddc0181e73eb0e603a98e9d0 --out v40_history/archive | tee v40_history/recovery.log
+      - name: Train and freeze the unchanged candidate learner set
+        run: |
+          set -o pipefail
+          python research/v40_context_learning.py --state v40_history/archive/corpus.json --out v40_history/learned --asof-ms 1794054898000 | tee v40_history/training.log
+          sha256sum v40_history/learned/models.json > v40_history/frozen_model.sha256
+      - name: Separate newer-period validation without adapting frozen weights
+        run: |
+          set -o pipefail
+          git fetch --quiet --depth=1 origin main
+          git rev-parse FETCH_HEAD > v40_history/later_data_commit.txt
+          git show FETCH_HEAD:data/v22_evidence_state.json > v40_history/later_state.json
+          ASOF=$(python -c 'import time;print(int(time.time()*1000))')
+          python research/v40_forward_validation.py --models v40_history/learned/models.json --state v40_history/later_state.json --cutoff-ms 1794054898000 --asof-ms "$ASOF" --out v40_history/later_period.json | tee v40_history/later_period.log
+          sha256sum -c v40_history/frozen_model.sha256
+      - name: Preserve all outcomes and immutable source references
+        if: always()
+        run: |
+          git rev-parse HEAD > v40_history/source_commit.txt
+          git archive --format=zip --output=v40_history/source.zip HEAD research/v40_frozen_features.py research/v40_direction_model.py research/v40_context_learning.py research/v40_forward_validation.py research/v40_history_corpus.py research/tests
+          python - <<'PY'
+          from pathlib import Path
+          import hashlib,json
+          p=Path('v40_history');d={str(f.relative_to(p)):{'bytes':f.stat().st_size,'sha256':hashlib.sha256(f.read_bytes()).hexdigest()} for f in p.rglob('*') if f.is_file()}
+          (p/'manifest.json').write_text(json.dumps(d,indent=2))
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: v40-historical-direction-verification
+          path: v40_history/
+          retention-days: 30
+          if-no-files-found: error
