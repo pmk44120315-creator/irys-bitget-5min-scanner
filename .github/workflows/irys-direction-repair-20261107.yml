@@ -61,12 +61,14 @@ jobs:
           347d6650c825b3ee4d5f16be814c6123c00dd1a2344c6f0d9c25bd7971b64540  deployment/v37_early.mjs
           6453034d9df7c6e804d87dd28cc00375d590b44d72a4c2ea4c662214f0e8b67e  tests/test_direction_repair.mjs
           d1653f239756b96fa6f5d004098b198bb4ce32812380cd20223fac028893f200  tests/test_direction_response_research.mjs
+          a8958c8b29a8932895418989322d70d7fe1d39511934b2ff455a8bdb5d107bbb  deployment/v36_runner.mjs
+          c3cbe60adf0172c7594f34b09250854827252616deba946fb3ebda76f1c08934  tests/test_direction_reporting.mjs
           CHECKSUMS
       - name: JavaScript syntax checks
         run: |
           for f in deployment/direction_response_research.mjs deployment/v36*.mjs deployment/v37*.mjs; do node --check "$f"; done
-      - name: Focused 60-test regression
-        run: node --test tests/test_v36_shadow.mjs tests/test_v37_early.mjs tests/test_direction_repair.mjs tests/test_direction_response_research.mjs
+      - name: Focused 62-test regression
+        run: node --test tests/test_v36_shadow.mjs tests/test_v37_early.mjs tests/test_direction_repair.mjs tests/test_direction_response_research.mjs tests/test_direction_reporting.mjs
       - name: Reconstruct prior exact Worker test fixtures (no deployment)
         run: |
           git fetch --quiet --depth=1 origin release/irys-v24-bitget-fallback-20261101
