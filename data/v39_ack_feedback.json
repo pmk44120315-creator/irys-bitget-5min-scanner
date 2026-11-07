@@ -1,6 +1,6 @@
 {
   "version": "IRYS_V39_PUBLIC_ACK_FEEDBACK_LEDGER_V1",
-  "asof_ms": 1794070752212,
+  "asof_ms": 1794084687792,
   "events": [
     {
       "id": "bitget:AKEUSDT:1794049888026",
@@ -90,6 +90,62 @@
         },
         "60": {
           "status": "PENDING_HORIZON"
+        }
+      }
+    },
+    {
+      "id": "bitget:ACTUSDT:1794076587701",
+      "venue": "bitget",
+      "symbol": "ACTUSDT",
+      "direction": "LONG",
+      "ack_at_ms": 1794076587701,
+      "source_commit": "a5a1b6921a3922b43aa98f8d84289254dc200c86",
+      "source_at_ms": 1794076580689,
+      "source_to_ack_ms": 7012,
+      "quote_to_ack_ms": 7096,
+      "preselection_5m_move_pct": 1.9798510731493746,
+      "first_taker_buy_share": 0.8600228259420819,
+      "second_taker_buy_share": 0.8871888819818586,
+      "outcomes": {
+        "5": {
+          "status": "MEASURED_MINUTE_CLOSE_PROXY",
+          "target_ms": 1794076887701,
+          "closed_at_ms": 1794076860000,
+          "signed_price_pct": -1.4039893844705165,
+          "scenario_after_0_20pct_cost": -1.6039893844705164,
+          "path_minutes_observed": 4,
+          "path_minutes_expected": 4,
+          "actual_execution_verified": false
+        },
+        "15": {
+          "status": "MEASURED_MINUTE_CLOSE_PROXY",
+          "target_ms": 1794077487701,
+          "closed_at_ms": 1794077460000,
+          "signed_price_pct": -0.556459207259663,
+          "scenario_after_0_20pct_cost": -0.756459207259663,
+          "path_minutes_observed": 14,
+          "path_minutes_expected": 14,
+          "actual_execution_verified": false
+        },
+        "30": {
+          "status": "MEASURED_MINUTE_CLOSE_PROXY",
+          "target_ms": 1794078387701,
+          "closed_at_ms": 1794078360000,
+          "signed_price_pct": -1.326941186542252,
+          "scenario_after_0_20pct_cost": -1.526941186542252,
+          "path_minutes_observed": 29,
+          "path_minutes_expected": 29,
+          "actual_execution_verified": false
+        },
+        "60": {
+          "status": "MEASURED_MINUTE_CLOSE_PROXY",
+          "target_ms": 1794080187701,
+          "closed_at_ms": 1794080160000,
+          "signed_price_pct": -1.326941186542252,
+          "scenario_after_0_20pct_cost": -1.526941186542252,
+          "path_minutes_observed": 59,
+          "path_minutes_expected": 59,
+          "actual_execution_verified": false
         }
       }
     }
