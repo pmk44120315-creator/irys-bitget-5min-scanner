@@ -1,4 +1,4 @@
-name: IRYS V39 causal direction audit and live health snapshot (READ ONLY)
+name: IRYS V39 actual-ACK direction feedback (NO LIVE ALERT CHANGES)
 on:
   schedule:
     - cron: '14,44 * * * *'
@@ -9,12 +9,17 @@ on:
       - 'research/v39_direction_outcome_audit.mjs'
       - 'research/v39_latest_ack_replay.mjs'
       - 'research/v39_actual_ack_kv_readonly_audit.mjs'
+      - 'research/v39_ack_feedback_ledger.mjs'
       - 'tests/test_v39_direction_audit.mjs'
       - 'tests/test_v39_latest_ack_replay.mjs'
       - 'tests/test_v39_actual_ack_kv_readonly_audit.mjs'
+      - 'tests/test_v39_ack_feedback_ledger.mjs'
       - '.github/workflows/v39-direction-causal-audit.yml'
 permissions:
-  contents: read
+  contents: write
+concurrency:
+  group: irys-v39-public-ack-feedback-branch
+  cancel-in-progress: false
 jobs:
   audit:
     runs-on: ubuntu-latest
@@ -28,7 +33,8 @@ jobs:
           node --check research/v39_direction_outcome_audit.mjs
           node --check research/v39_latest_ack_replay.mjs
           node --check research/v39_actual_ack_kv_readonly_audit.mjs
-          node --test tests/test_v39_direction_audit.mjs tests/test_v39_latest_ack_replay.mjs tests/test_v39_actual_ack_kv_readonly_audit.mjs
+          node --check research/v39_ack_feedback_ledger.mjs
+          node --test tests/test_v39_direction_audit.mjs tests/test_v39_latest_ack_replay.mjs tests/test_v39_actual_ack_kv_readonly_audit.mjs tests/test_v39_ack_feedback_ledger.mjs
       - name: Fetch recent native forward-outcome ledger from main (read only)
         run: |
           mkdir -p v39_direction_audit
@@ -120,6 +126,36 @@ jobs:
           console.log('V39_ACTUAL_ACK_SAFE_RECEIPT',JSON.stringify({status:x.status,records:x.safe_summary?.actual_ack_records||0,
             groups:x.safe_summary?.groups||{},latest:x.safe_summary?.latest_signals||[]}));
           JS
+      - name: Reconcile public ACK into separate evidence-only GitHub ledger snapshot
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          git fetch --quiet origin data/irys-v39-ack-feedback
+          git show FETCH_HEAD:data/v39_ack_feedback.json > data/v39_ack_feedback.json
+          node research/v39_ack_feedback_ledger.mjs
+          node --input-type=module <<'JS'
+          import assert from 'node:assert/strict';
+          import {readFileSync} from 'node:fs';
+          const d=JSON.parse(readFileSync('v39_direction_audit/v39_ack_feedback_next.json','utf8'));
+          assert.equal(d.research_only,true);assert.equal(d.telegram_sent,false);
+          assert.equal(d.orders_sent,false);assert.equal(d.all_alerts_captured_proven,false);
+          console.log('V39_ACK_LEDGER_RECONCILED',JSON.stringify({events:d.events.length,asof_ms:d.asof_ms}));
+          JS
+      - name: Publish only sanitized ACK ledger to dedicated data branch (never main or Cloudflare)
+        if: github.event_name == 'schedule'
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git fetch --quiet origin data/irys-v39-ack-feedback
+          git checkout -B data/irys-v39-ack-feedback FETCH_HEAD
+          cp v39_direction_audit/v39_ack_feedback_next.json data/v39_ack_feedback.json
+          git add data/v39_ack_feedback.json
+          if git diff --staged --quiet; then
+            echo 'V39_ACK_LEDGER_NO_NEW_EVIDENCE'
+          else
+            git commit -m 'data(v39): immutable actual ACK and future-label observations'
+            git push origin HEAD:data/irys-v39-ack-feedback
+          fi
       - name: Preserve read-only evidence and exact source pin
         if: always()
         uses: actions/upload-artifact@v4
