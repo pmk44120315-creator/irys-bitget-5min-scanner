@@ -1,6 +1,6 @@
 {
   "version": "IRYS_V39_PUBLIC_ACK_FEEDBACK_LEDGER_V1",
-  "asof_ms": 1794056360886,
+  "asof_ms": 1794070752212,
   "events": [
     {
       "id": "bitget:AKEUSDT:1794049888026",
@@ -55,6 +55,41 @@
           "path_minutes_observed": 59,
           "path_minutes_expected": 59,
           "actual_execution_verified": false
+        }
+      }
+    },
+    {
+      "id": "bitget:AKEUSDT:1794070288613",
+      "venue": "bitget",
+      "symbol": "AKEUSDT",
+      "direction": "SHORT",
+      "ack_at_ms": 1794070288613,
+      "source_commit": "b90c0f2ae8523efca5964239e82dca6e1d7a1fb8",
+      "source_at_ms": 1794070280194,
+      "source_to_ack_ms": 8419,
+      "quote_to_ack_ms": 8502,
+      "preselection_5m_move_pct": -0.8824143692564679,
+      "first_taker_buy_share": 0.40795905148546535,
+      "second_taker_buy_share": 0.2096848699272422,
+      "outcomes": {
+        "5": {
+          "status": "MEASURED_MINUTE_CLOSE_PROXY",
+          "target_ms": 1794070588613,
+          "closed_at_ms": 1794070560000,
+          "signed_price_pct": -0.30706785493692657,
+          "scenario_after_0_20pct_cost": -0.5070678549369265,
+          "path_minutes_observed": 4,
+          "path_minutes_expected": 4,
+          "actual_execution_verified": false
+        },
+        "15": {
+          "status": "PENDING_HORIZON"
+        },
+        "30": {
+          "status": "PENDING_HORIZON"
+        },
+        "60": {
+          "status": "PENDING_HORIZON"
         }
       }
     }
