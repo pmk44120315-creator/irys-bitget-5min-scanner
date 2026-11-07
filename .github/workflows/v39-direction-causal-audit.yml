@@ -1,0 +1,85 @@
+name: IRYS V39 causal direction audit and live health snapshot (READ ONLY)
+on:
+  push:
+    branches: [research/irys-v39-direction-causal-audit-20261107]
+    paths:
+      - 'research/v39_direction_outcome_audit.mjs'
+      - 'tests/test_v39_direction_audit.mjs'
+      - '.github/workflows/v39-direction-causal-audit.yml'
+permissions:
+  contents: read
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Pure prospective-label audit tests
+        run: |
+          node --check research/v39_direction_outcome_audit.mjs
+          node --test tests/test_v39_direction_audit.mjs
+      - name: Fetch recent native forward-outcome ledger from main (read only)
+        run: |
+          mkdir -p v39_direction_audit
+          git fetch --quiet --depth=1 origin main
+          git rev-parse origin/main > v39_direction_audit/main_source_commit.txt
+          git show origin/main:data/v36_shadow_state.json > data/v36_shadow_state.json
+          node --input-type=module <<'JS'
+          import {readFileSync} from 'node:fs';
+          import assert from 'node:assert/strict';
+          const d=JSON.parse(readFileSync('data/v36_shadow_state.json','utf8'));
+          assert.equal(d.version,'V36_CONTRA_PROSPECTIVE_SHADOW_V1');
+          assert(Array.isArray(d.events)&&d.events.length>0);
+          console.log('V39_OFFICIAL_FORWARD_SOURCE',JSON.stringify({events:d.events.length,asof_ms:d.asof_ms,last_source_at_ms:d.last_asof_ms}));
+          JS
+      - name: Analyze time-separated paired directions, costs and evidence coverage
+        run: |
+          node research/v39_direction_outcome_audit.mjs
+          node --input-type=module <<'JS'
+          import assert from 'node:assert/strict';import {readFileSync} from 'node:fs';
+          const d=JSON.parse(readFileSync('v39_direction_audit/result.json','utf8'));
+          assert.equal(d.research_only,true);
+          assert.equal(d.auto_promote,false);
+          assert.equal(d.live_model_changed,false);
+          assert.equal(d.actual_fills_verified,false);
+          assert(d.records_total>=d.records_eligible);
+          console.log('V39_CAUSAL_AUDIT_RECEIPT',JSON.stringify({eligible:d.records_eligible,records:d.records_total,first:d.first_issued_at_ms,last:d.last_issued_at_ms,baseline5:d.reports['5'].baseline.all,
+             inverse5:d.reports['5'].opposite_futures.all,price_response5:d.reports['5'].price_response.all}));
+          JS
+      - name: Public Cloudflare Worker health, exact ACK and feed freshness (GET only)
+        run: |
+          node --input-type=module <<'JS'
+          import {writeFileSync} from 'node:fs';
+          const result={checked_at_utc:new Date().toISOString(),read_only:true,worker_url:'https://irys-surge-monitor.vhehwpfl.workers.dev/',status:'NOT_VERIFIED'};
+          try{
+            const resp=await fetch(result.worker_url+'?v39readonly='+Date.now(),{headers:{accept:'application/json'},signal:AbortSignal.timeout(20000)});
+            result.http=resp.status;
+            if(!resp.ok)throw Error('HTTP_'+resp.status);
+            const h=await resp.json(),l=h.last||{},d=l.v30DirectionalDelivery||{},risk=l.v34MarketRisk||{},ack=l.telegramLastApiReceipt||{};
+            result.status='OBSERVED';result.code_version=l.codeVersion??null;result.natural_tick_kst=l.time??null;result.last_status=l.status??null;
+            result.github_dispatch_status=l.githubDispatchStatus??null;
+            result.entry_notifications_enabled=h.marketNotificationsEnabled??null;
+            result.risk_notifications_enabled=h.marketRiskWarningsEnabled??null;
+            result.delivery_status=d.status??null;result.entry_feed_ok=d.feed?.ok??null;
+            result.risk_status=risk.status??null;result.risk_feed_ok=risk.feed?.ok??null;
+            result.last_api_ack_symbol=ack.symbol??null;
+            result.last_api_ack_ms=ack.ack_received_at_ms??ack.recorded_send_ms??null;
+            result.last_cycle_api_ack=l.telegramApiAckedThisRun??null;
+            result.delivery_sent_this_cycle=d.sent??null;
+            result.observed_alert_outcomes=d.actual_alert_outcomes??null;
+            result.phone_delivery_verified=false;
+            // No Bot key, token, chat ID, Telegram message text, or account records exported.
+          }catch(e){result.status='PUBLIC_HEALTH_UNAVAILABLE';result.error=String(e?.message||e).slice(0,110);}
+          writeFileSync('v39_direction_audit/worker_health_sanitized.json',JSON.stringify(result,null,2));
+          console.log('V39_WORKER_HEALTH_SANITIZED',JSON.stringify(result));
+          JS
+      - name: Preserve read-only evidence and exact source pin
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: v39-causal-direction-health-readonly
+          path: v39_direction_audit/
+          retention-days: 7
+          if-no-files-found: error
