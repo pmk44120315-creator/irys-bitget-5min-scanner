@@ -16,7 +16,8 @@ function summarizeLiveRows(rows,now){
   !(a.venue==='bithumb'?a.direction==='BUY':['LONG','SHORT'].includes(a.direction))||
   typeof a.symbol!=='string'||!Number.isSafeInteger(a.issued_at_ms)||
   a.issued_at_ms>now||!finite(a.entry_quote?.bid)||!finite(a.entry_quote?.ask)||
-  a.entry_quote.bid<=0||a.entry_quote.ask<a.entry_quote.bid){out.unverified_fields_skipped++;continue;}
+  a.entry_quote.bid<=0||a.entry_quote.ask<a.entry_quote.bid||
+  !Number.isSafeInteger(a.entry_quote.at_ms)||a.entry_quote.at_ms>a.issued_at_ms||a.issued_at_ms-a.entry_quote.at_ms>45000){out.unverified_fields_skipped++;continue;}
   const entry=a.direction==='SHORT'?a.entry_quote.bid:a.entry_quote.ask;
   safe.push({venue:a.venue,symbol:a.symbol,direction:a.direction,issued_at_ms:a.issued_at_ms,entry_reference:entry,
     minute_outcomes:a.minute_outcomes||{}});
@@ -26,7 +27,7 @@ function summarizeLiveRows(rows,now){
   const rs=safe.filter(e=>e.venue===venue&&e.direction===direction);
   const group={events:rs.length,horizons:{}};
   for(const h of [5,15,30,60]){
-   let measured=0,positive=0,netPositive=0,missing=0,pending=0,grossSum=0,extremeAdverse=0;
+   let measured=0,positive=0,netPositive=0,missing=0,pending=0,grossSum=0,extremeAdverse=Infinity;
    for(const e of rs){
     const t=e.issued_at_ms+h*60000,lab=e.minute_outcomes?.[String(h)];
     if(now<t){pending++;continue;}
