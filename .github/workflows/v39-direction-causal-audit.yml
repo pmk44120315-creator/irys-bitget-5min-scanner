@@ -8,8 +8,10 @@ on:
     paths:
       - 'research/v39_direction_outcome_audit.mjs'
       - 'research/v39_latest_ack_replay.mjs'
+      - 'research/v39_actual_ack_kv_readonly_audit.mjs'
       - 'tests/test_v39_direction_audit.mjs'
       - 'tests/test_v39_latest_ack_replay.mjs'
+      - 'tests/test_v39_actual_ack_kv_readonly_audit.mjs'
       - '.github/workflows/v39-direction-causal-audit.yml'
 permissions:
   contents: read
@@ -25,7 +27,8 @@ jobs:
         run: |
           node --check research/v39_direction_outcome_audit.mjs
           node --check research/v39_latest_ack_replay.mjs
-          node --test tests/test_v39_direction_audit.mjs tests/test_v39_latest_ack_replay.mjs
+          node --check research/v39_actual_ack_kv_readonly_audit.mjs
+          node --test tests/test_v39_direction_audit.mjs tests/test_v39_latest_ack_replay.mjs tests/test_v39_actual_ack_kv_readonly_audit.mjs
       - name: Fetch recent native forward-outcome ledger from main (read only)
         run: |
           mkdir -p v39_direction_audit
@@ -99,6 +102,22 @@ jobs:
             quote_to_ack_ms:x.quote_to_ack_ms,source_sha:x.source_commit,
             first_buy_share:x.independent_first_taker_share,second_buy_share:x.independent_second_taker_share,
             preselection_5m_move_pct:x.preselection_5m_move_pct,outcomes:x.outcomes}));
+          JS
+      - name: Read owner-controlled actual ACK state through Cloudflare official KV GET only
+        env:
+          IRYS_CF_ACCOUNT: ${{ secrets.IRYS_REALTIME_CF_ACCOUNT_ID }}
+          IRYS_CF_TOKEN: ${{ secrets.IRYS_V7_CF_API_TOKEN }}
+        run: |
+          node research/v39_actual_ack_kv_readonly_audit.mjs
+          node --input-type=module <<'JS'
+          import assert from 'node:assert/strict';
+          import {readFileSync} from 'node:fs';
+          const x=JSON.parse(readFileSync('v39_direction_audit/actual_ack_kv_summary.json','utf8'));
+          assert.equal(x.no_write_requests,true);
+          assert.equal(x.no_private_credentials_exported,true);
+          assert.equal(x.no_raw_kv_state_exported,true);
+          console.log('V39_ACTUAL_ACK_SAFE_RECEIPT',JSON.stringify({status:x.status,records:x.safe_summary?.actual_ack_records||0,
+            groups:x.safe_summary?.groups||{},latest:x.safe_summary?.latest_signals||[]}));
           JS
       - name: Preserve read-only evidence and exact source pin
         if: always()
