@@ -137,6 +137,12 @@ function main(){
  mkdirSync('v39_direction_audit',{recursive:true});
  writeFileSync('v39_direction_audit/result.json',JSON.stringify(out,null,2));
  const abr=Object.fromEntries(Object.entries(out.reports['5']).map(([k,v])=>[k,{all:v.all,holdout:v.holdout}]));
+ const byHorizon=Object.fromEntries(Object.entries(out.reports).map(([h,methods])=>[h,
+   Object.fromEntries(Object.entries(methods).map(([name,p])=>[name,{
+     all:{measured:p.all.measured,correct:p.all.correct,wrong:p.all.wrong,mean_ref_pct:p.all.gross_mean_pct,illustrative_net_pct:p.all.illustrative_cost_net_mean_pct},
+     holdout:{measured:p.holdout.measured,correct:p.holdout.correct,wrong:p.holdout.wrong,mean_ref_pct:p.holdout.gross_mean_pct,illustrative_net_pct:p.holdout.illustrative_cost_net_mean_pct}
+   }]))]));
+ console.log('V39_HORIZON_MATRIX',JSON.stringify(byHorizon));
  console.log('V39_DIRECTION_AUDIT',JSON.stringify({at_ms:now,records:out.records_total,eligible:out.records_eligible,
    invalid:out.invalid,frozen:out.available_frozen_predictions,class_breakdown:out.class_breakdown,five_minute:abr}));
 }
