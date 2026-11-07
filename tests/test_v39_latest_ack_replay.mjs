@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {validateAckSource,parseBars,markOutcomes,replay} from '../research/v39_latest_ack_replay.mjs';
 const ACK=1794042086397,MIN=60000,END=ACK+2*3600000,SYMBOL='CTUSDT';
 const source=()=>({version:'IRYS_V30_PUBLIC_PAIRED_DIRECTION_V1',source:'OFFICIAL_PUBLIC_RUNNER',
- orders_sent:false,telegram_sent:false,at_ms:ACK-30000,items:[{
+ orders_sent:false,telegram_sent:false,at_ms:ACK-30000,checks:[{venue:'bitget',symbol:SYMBOL,direction:'LONG',allowed:true}],items:[{
  candidate:{venue:'bitget',symbol:SYMBOL,direction:'LONG',change_pct:1.2,priority:1.2},
  first:{observed_at_ms:ACK-55000,trades:[{price:99,size:2,side:'BUY'},{price:99,size:1,side:'SELL'}]},
  second:{observed_at_ms:ACK-25000,trades:[{price:100,size:1,side:'BUY'},{price:100,size:3,side:'SELL'}]},
