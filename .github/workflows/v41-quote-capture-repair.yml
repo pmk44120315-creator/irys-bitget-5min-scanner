@@ -1,0 +1,128 @@
+name: IRYS V41 target-quote capture repair verification
+on:
+  push:
+    branches: [fix/irys-v41-target-quote-capture-20261108]
+    paths: ['v41_quote_capture.py','v22_runtime.py','tests/test_v41*.py','research/v41_live_quote_capture.py','.github/workflows/v41-quote-capture-repair.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    env:
+      OPENBLAS_NUM_THREADS: '1'
+      OMP_NUM_THREADS: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install 'numpy==2.3.5' 'scikit-learn==1.8.0'
+      - name: Reproduce real baseline failure and restore candidate
+        run: |
+          mkdir -p v41_proof
+          cp v22_runtime.py /tmp/v41_candidate_runtime.py
+          git fetch --quiet --depth=1 origin 477ba59457bb4c4f899462583f0c769f553d6234
+          git show FETCH_HEAD:v22_runtime.py > v22_runtime.py
+          set +e
+          python -m unittest discover -s tests -p test_v41_runtime_capture.py -v > v41_proof/baseline_failure.log 2>&1
+          RED=$?
+          set -e
+          cp /tmp/v41_candidate_runtime.py v22_runtime.py
+          test "$RED" -ne 0
+          grep -q 'AssertionError: 0 != 1' v41_proof/baseline_failure.log
+          grep -q 'Ran 2 tests' v41_proof/baseline_failure.log
+          echo V41_BASELINE_EARLY_QUOTE_LOSS_REPRODUCED
+      - name: Verify timing repair and old contracts
+        run: |
+          set -o pipefail
+          python -m unittest discover -s tests -p 'test_v41*.py' -v 2>&1 | tee v41_proof/targeted_tests.log
+          python -m unittest discover -s tests -p 'test_v22*.py' -v 2>&1 | tee v41_proof/v22_regression.log
+      - uses: actions/download-artifact@v4
+        with:
+          name: v351-delivery-first-production-proof
+          run-id: 42156639897
+          github-token: ${{ github.token }}
+          path: /tmp/v351
+      - uses: actions/download-artifact@v4
+        with:
+          name: v35-deployed-natural-proof
+          run-id: 42083867409
+          github-token: ${{ github.token }}
+          path: /tmp/v35
+      - uses: actions/download-artifact@v4
+        with:
+          name: v31-guarded-production-natural-proof
+          run-id: 41814867318
+          github-token: ${{ github.token }}
+          path: /tmp/v31
+      - uses: actions/download-artifact@v4
+        with:
+          name: v30-selective-production-natural-proof
+          run-id: 41693577194
+          github-token: ${{ github.token }}
+          path: /tmp/v30
+      - uses: actions/download-artifact@v4
+        with:
+          name: v28-production-and-natural-verification
+          run-id: 41450016477
+          github-token: ${{ github.token }}
+          path: /tmp/v28
+      - name: Reconstruct exact baseline Worker fixtures, no deployment
+        run: |
+          git fetch --quiet --depth=1 origin release/irys-v24-bitget-fallback-20261101
+          git show FETCH_HEAD:deployment/IRYS_V24_BITGET_FALLBACK_WORKER.mjs > /tmp/v24.mjs
+          python deployment/build_v27_worker.py /tmp/v24.mjs deployment/IRYS_V27_RESPONSE_WORKER.mjs
+          python deployment/build_v28_worker.py deployment/IRYS_V27_RESPONSE_WORKER.mjs deployment/IRYS_V28_BUILDUP_WORKER.mjs
+          python deployment/build_v29_worker.py deployment/IRYS_V28_BUILDUP_WORKER.mjs deployment/IRYS_V29_DIRECTION_REVIEW_WORKER.mjs
+          cp /tmp/v30/IRYS_V30_SELECTIVE_DIRECTION_WORKER.mjs deployment/
+          cp /tmp/v31/IRYS_V31_TIMELY_WORKER.mjs deployment/
+          python deployment/build_v34_worker.py deployment/IRYS_V31_TIMELY_WORKER.mjs deployment/IRYS_V34_CRASH_WARNING_WORKER.mjs
+          cp /tmp/v35/IRYS_V35_LIFECYCLE_WORKER.mjs deployment/
+          cp /tmp/v351/IRYS_V351_DELIVERY_FIRST_WORKER.mjs deployment/
+          echo '6356cf5919e5dd05808d9b84bf92378393cc0b9a9da31e964d93566cc86c0d13  deployment/IRYS_V351_DELIVERY_FIRST_WORKER.mjs' | sha256sum -c -
+      - name: All existing Python and Node tests plus learner isolation tests
+        env:
+          V27_BASE_WORKER: /tmp/v24.mjs
+          V28_BASE_WORKER: deployment/IRYS_V27_RESPONSE_WORKER.mjs
+          V28_RELEASE_BASE_WORKER: /tmp/v28/IRYS_V28_BUILDUP_WORKER.mjs
+          V29_BASE_WORKER: deployment/IRYS_V28_BUILDUP_WORKER.mjs
+          V30_BASE_WORKER: deployment/IRYS_V29_DIRECTION_REVIEW_WORKER.mjs
+          V34_BASE_WORKER: deployment/IRYS_V31_TIMELY_WORKER.mjs
+          V35_BASE_WORKER: deployment/IRYS_V34_CRASH_WARNING_WORKER.mjs
+        run: |
+          set -o pipefail
+          python -m unittest discover -s tests -v 2>&1 | tee v41_proof/python_regression.log
+          python -m unittest discover -s research/tests -p 'test_v40*.py' -v 2>&1 | tee v41_proof/learner_regression.log
+          node --test tests/*.mjs 2>&1 | tee v41_proof/node_regression.log
+      - name: Fresh real-market pending target capture, read only
+        run: |
+          set -o pipefail
+          git fetch --quiet --depth=1 origin main
+          git rev-parse FETCH_HEAD > v41_proof/data_commit.txt
+          git show FETCH_HEAD:data/v22_evidence_state.json > data/v22_evidence_state.json
+          python -u research/v41_live_quote_capture.py | tee v41_proof/live_capture.log
+      - name: Preserve exact source and evidence hashes
+        if: always()
+        run: |
+          mkdir -p v41_proof
+          git rev-parse HEAD > v41_proof/source_commit.txt
+          git archive --format=zip --output=v41_proof/source.zip HEAD v22_runtime.py v41_quote_capture.py tests/test_v41_quote_capture.py tests/test_v41_runtime_capture.py research/v41_live_quote_capture.py .github/workflows/v41-quote-capture-repair.yml
+          python - <<'PY'
+          from pathlib import Path
+          import hashlib,json
+          p=Path('v41_proof');d={x.name:{'bytes':x.stat().st_size,'sha256':hashlib.sha256(x.read_bytes()).hexdigest()} for x in p.iterdir() if x.is_file()}
+          (p/'manifest.json').write_text(json.dumps(d,indent=2))
+          print('V41_MANIFEST',json.dumps(d))
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: v41-repair-verified-evidence
+          path: v41_proof/
+          retention-days: 30
+          if-no-files-found: error

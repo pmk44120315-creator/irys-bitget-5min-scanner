@@ -15,6 +15,7 @@ import pathlib
 import time
 
 import collector
+from v41_quote_capture import capture_outcomes, outcome_key
 from v21_forecast_core import futures_features,spot_features,clip,number,logpos
 from v21_runtime import (fetch_quotes,probabilities,verified_models,valid_quote,
                          _ms,load)
@@ -114,6 +115,19 @@ def run(market,flow,market_state,old,raw_models,now,api):
     observed_quotes,quote_errors=fetch_quotes(
         {(x['venue'],x['symbol']) for x in existing+rows},api,now)
     snapshot_now=max(now,int(time.time()*1000))
+    capture=capture_outcomes(existing,observed_quotes,
+        {(x['venue'],x['symbol']) for x in existing+rows},snapshot_now,
+        read=lambda pairs,stamp:fetch_quotes(pairs,api,stamp),
+        clock_ms=lambda:int(time.time()*1000),sleeper=time.sleep)
+    observed_quotes=capture['quotes']
+    snapshot_now=capture['sampled_at_ms']
+    quote_errors=list(quote_errors)+capture['receipt']['errors']
+    # The new prediction clock comes AFTER all outcomes that update its weights.
+    # Do not stamp a near-target wait onto stale feature eligibility.
+    if capture['receipt']['read_batches']:
+        rows,prices,source_status,eligible=build_candidates(
+            market,flow,market_state,(old or {}).get('previous_prices') or {},snapshot_now)
+        if source_status!='MARKET_SOURCE_NOT_FRESH':state['previous_prices']=prices
     weights={venue+'_'+str(h):_weights(state,venue,h)
              for venue in ('bitget','bithumb') for h in HORIZONS}
     new_results=[];still=[];unmeasured=0
@@ -124,8 +138,9 @@ def run(market,flow,market_state,old,raw_models,now,api):
         for h in HORIZONS:
             if str(h) in outcomes:continue
             target=row['issued_ms']+h*MIN
-            report=evaluate_outcome(row['entry_quote'],quote,row['issued_ms'],h,
-                                    snapshot_now) if quote else None
+            # Preserve an outcome at its original receipt time even when a later
+            # target required another read. Never substitute the last batch.
+            report=capture['outcomes'].get(outcome_key(row,h))
             if report is not None:
                 outcomes[str(h)]=report
                 k=row['venue']+'_'+str(h)
@@ -213,6 +228,7 @@ def run(market,flow,market_state,old,raw_models,now,api):
        'status':('QUOTE_FEED_UNAVAILABLE' if rows and not observed_quotes else
          'RESEARCH_ACTIVE' if not errors and not quote_errors else 'RESEARCH_PARTIAL'),
        'model_integrity_errors':errors,'quote_errors':quote_errors,
+       'target_quote_capture':capture['receipt'],
        'eligible_candidates':eligible,'selected_for_quote_research':len(rows),
        'quotes_available':len(observed_quotes),
        'new_events':len(fresh),'newly_completed_quotes':len(new_results),
