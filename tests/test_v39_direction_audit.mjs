@@ -39,7 +39,7 @@ test('baseline/inverse/price-response count identical measured future event with
  assert.equal(c.baseline_same_cases_correct,1);
 });
 test('spot no-buy alternative is abstention, never fabricated spot short return',()=>{
- const e=ev('spot',{venue:'bithumb'});
+ const e=ev('spot',{venue:'bithumb',side:'BUY'});
  e.direction_response.hypotheses.price_response='NO_BUY';
  const a=summarize([e],5,T+2*3600000,policies.price_response);
  assert.equal(a.abstained,1);assert.equal(a.measured,0);assert.equal(a.unmeasured,0);
@@ -59,7 +59,7 @@ test('mismatched future close time rejected before using label',()=>{
  assert.equal(observation(e,5,T+2*3600000).status,'INVALID_CLOSE');
 });
 test('conflicting duplicate ID is never allowed to cherry-pick winning copy',()=>{
- const a=ev(),b=ev();b.original_ask=99;b.entry_price=99;
+ const a=ev(),b=ev();b.original_ask=101;b.entry_price=101;
  const r=audit([a,b],T+2*3600000);
  assert.equal(r.records_eligible,0);assert.equal(r.invalid.conflicting_duplicate,2);
 });
