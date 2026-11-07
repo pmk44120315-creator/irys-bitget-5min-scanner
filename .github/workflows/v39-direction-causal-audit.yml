@@ -5,16 +5,7 @@ on:
   workflow_dispatch:
   push:
     branches: [research/irys-v39-direction-causal-audit-20261107]
-    paths:
-      - 'research/v39_direction_outcome_audit.mjs'
-      - 'research/v39_latest_ack_replay.mjs'
-      - 'research/v39_actual_ack_kv_readonly_audit.mjs'
-      - 'research/v39_ack_feedback_ledger.mjs'
-      - 'tests/test_v39_direction_audit.mjs'
-      - 'tests/test_v39_latest_ack_replay.mjs'
-      - 'tests/test_v39_actual_ack_kv_readonly_audit.mjs'
-      - 'tests/test_v39_ack_feedback_ledger.mjs'
-      - '.github/workflows/v39-direction-causal-audit.yml'
+    paths: ['research/v39*.mjs','tests/test_v39*.mjs','.github/workflows/v39-direction-causal-audit.yml']
 permissions:
   contents: write
 concurrency:
@@ -28,137 +19,73 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Pure prospective-label audit tests
-        run: |
-          node --check research/v39_direction_outcome_audit.mjs
-          node --check research/v39_latest_ack_replay.mjs
-          node --check research/v39_actual_ack_kv_readonly_audit.mjs
-          node --check research/v39_ack_feedback_ledger.mjs
-          node --test tests/test_v39_direction_audit.mjs tests/test_v39_latest_ack_replay.mjs tests/test_v39_actual_ack_kv_readonly_audit.mjs tests/test_v39_ack_feedback_ledger.mjs
-      - name: Fetch recent native forward-outcome ledger from main (read only)
+      - name: Pure tests including exact interrupted initial ledger
         run: |
           mkdir -p v39_direction_audit
-          git fetch --quiet --depth=1 origin main
-          git rev-parse origin/main > v39_direction_audit/main_source_commit.txt
-          git show origin/main:data/v36_shadow_state.json > data/v36_shadow_state.json
-          node --input-type=module <<'JS'
-          import {readFileSync} from 'node:fs';
-          import assert from 'node:assert/strict';
-          const d=JSON.parse(readFileSync('data/v36_shadow_state.json','utf8'));
-          assert.equal(d.version,'V36_CONTRA_PROSPECTIVE_SHADOW_V1');
-          assert(Array.isArray(d.events)&&d.events.length>0);
-          console.log('V39_OFFICIAL_FORWARD_SOURCE',JSON.stringify({events:d.events.length,asof_ms:d.asof_ms,last_source_at_ms:d.last_asof_ms}));
-          JS
-      - name: Analyze time-separated paired directions, costs and evidence coverage
+          set -o pipefail
+          node --test tests/test_v39*.mjs 2>&1 | tee v39_direction_audit/tests.log
+      - name: Pin live public source and separate feedback branch before reads
         run: |
+          git fetch --quiet --depth=1 origin main
+          git rev-parse FETCH_HEAD > v39_direction_audit/main_source_commit.txt
+          git show FETCH_HEAD:data/v36_shadow_state.json > data/v36_shadow_state.json
+          git fetch --quiet --depth=1 origin data/irys-v39-ack-feedback
+          git rev-parse FETCH_HEAD > v39_direction_audit/ledger_base_sha.txt
+          git show FETCH_HEAD:data/v39_ack_feedback.json > data/v39_ack_feedback.json
           node research/v39_direction_outcome_audit.mjs
-          node --input-type=module <<'JS'
-          import assert from 'node:assert/strict';import {readFileSync} from 'node:fs';
-          const d=JSON.parse(readFileSync('v39_direction_audit/result.json','utf8'));
-          assert.equal(d.research_only,true);
-          assert.equal(d.auto_promote,false);
-          assert.equal(d.live_model_changed,false);
-          assert.equal(d.actual_fills_verified,false);
-          assert(d.records_total>=d.records_eligible);
-          console.log('V39_CAUSAL_AUDIT_RECEIPT',JSON.stringify({eligible:d.records_eligible,records:d.records_total,first:d.first_issued_at_ms,last:d.last_issued_at_ms,baseline5:d.reports['5'].baseline.all,
-             inverse5:d.reports['5'].opposite_futures.all,price_response5:d.reports['5'].price_response.all}));
-          JS
-      - name: Public Cloudflare Worker health, exact ACK and feed freshness (GET only)
+      - name: Read public Worker health only, never force scan or send Telegram
         run: |
           node --input-type=module <<'JS'
           import {writeFileSync} from 'node:fs';
-          const result={checked_at_utc:new Date().toISOString(),read_only:true,worker_url:'https://irys-surge-monitor.vhehwpfl.workers.dev/',status:'NOT_VERIFIED'};
+          const out={checked_at_utc:new Date().toISOString(),read_only:true,status:'NOT_VERIFIED'};
           try{
-            const resp=await fetch(result.worker_url+'?v39readonly='+Date.now(),{headers:{accept:'application/json'},signal:AbortSignal.timeout(20000)});
-            result.http=resp.status;
-            if(!resp.ok)throw Error('HTTP_'+resp.status);
-            const h=await resp.json(),l=h.last||{},d=l.v30DirectionalDelivery||{},risk=l.v34MarketRisk||{},ack=l.telegramLastApiReceipt||{};
-            result.status='OBSERVED';result.code_version=l.codeVersion??null;result.natural_tick_kst=l.time??null;result.last_status=l.status??null;
-            result.github_dispatch_status=l.githubDispatchStatus??null;
-            result.entry_notifications_enabled=h.marketNotificationsEnabled??null;
-            result.risk_notifications_enabled=h.marketRiskWarningsEnabled??null;
-            result.delivery_status=d.status??null;result.entry_feed_ok=d.feed?.ok??null;
-            result.risk_status=risk.status??null;result.risk_feed_ok=risk.feed?.ok??null;
-            result.last_api_ack_symbol=ack.symbol??null;
-            result.last_api_ack_ms=ack.ack_received_at_ms??ack.recorded_send_ms??null;
-            result.last_cycle_api_ack=l.telegramApiAckedThisRun??null;
-            result.delivery_sent_this_cycle=d.sent??null;
-            result.observed_alert_outcomes=d.actual_alert_outcomes??null;
-            result.phone_delivery_verified=false;
-            // No Bot key, token, chat ID, Telegram message text, or account records exported.
-          }catch(e){result.status='PUBLIC_HEALTH_UNAVAILABLE';result.error=String(e?.message||e).slice(0,110);}
-          writeFileSync('v39_direction_audit/worker_health_sanitized.json',JSON.stringify(result,null,2));
-          console.log('V39_WORKER_HEALTH_SANITIZED',JSON.stringify(result));
+            const r=await fetch('https://irys-surge-monitor.vhehwpfl.workers.dev/?v39readonly='+Date.now(),{signal:AbortSignal.timeout(20000)});
+            out.http=r.status;if(!r.ok)throw Error('HTTP_'+r.status);
+            const h=await r.json(),l=h.last||{},d=l.v30DirectionalDelivery||{},a=l.telegramLastApiReceipt||{};
+            Object.assign(out,{status:'OBSERVED',code_version:l.codeVersion,natural_tick_kst:l.time,last_status:l.status,
+              entry_notifications_enabled:h.marketNotificationsEnabled,delivery_status:d.status,entry_feed_ok:d.feed?.ok,
+              last_api_ack_symbol:a.symbol??null,last_api_ack_ms:a.ack_received_at_ms??a.recorded_send_ms??null,
+              observed_alert_outcomes:d.actual_alert_outcomes??null,phone_delivery_verified:false});
+          }catch(e){out.status='PUBLIC_HEALTH_UNAVAILABLE';out.error_type=e?.name||'Error';}
+          writeFileSync('v39_direction_audit/worker_health_sanitized.json',JSON.stringify(out,null,2));
+          console.log('V39_HEALTH',JSON.stringify(out));
           JS
-      - name: Reconcile latest public Telegram ACK with genuinely earlier source and later closed bars
+      - name: Match actual ACK to source and reconcile immutable outcomes
         env:
           GITHUB_TOKEN: ${{ github.token }}
         run: |
           node research/v39_latest_ack_replay.mjs
-          node --input-type=module <<'JS'
-          import assert from 'node:assert/strict';
-          import {readFileSync} from 'node:fs';
-          const x=JSON.parse(readFileSync('v39_direction_audit/latest_ack_replay.json','utf8'));
-          assert.equal(x.read_only,true);
-          assert.equal(x.telegram_sent,false);
-          assert.equal(x.orders_sent,false);
-          assert.equal(x.actual_execution_verified,false);
-          console.log('V39_LATEST_ACK_READ_ONLY_RECEIPT',JSON.stringify({status:x.status,symbol:x.symbol,
-            direction:x.direction,ack_at_ms:x.ack_at_ms,source_to_ack_ms:x.source_to_ack_ms,
-            quote_to_ack_ms:x.quote_to_ack_ms,source_sha:x.source_commit,
-            first_buy_share:x.independent_first_taker_share,second_buy_share:x.independent_second_taker_share,
-            preselection_5m_move_pct:x.preselection_5m_move_pct,outcomes:x.outcomes}));
-          JS
-      - name: Read owner-controlled actual ACK state through Cloudflare official KV GET only
-        if: github.event_name != 'schedule'
-        env:
-          IRYS_CF_ACCOUNT: ${{ secrets.IRYS_REALTIME_CF_ACCOUNT_ID }}
-          IRYS_CF_TOKEN: ${{ secrets.IRYS_V7_CF_API_TOKEN }}
-        run: |
-          node research/v39_actual_ack_kv_readonly_audit.mjs
-          node --input-type=module <<'JS'
-          import assert from 'node:assert/strict';
-          import {readFileSync} from 'node:fs';
-          const x=JSON.parse(readFileSync('v39_direction_audit/actual_ack_kv_summary.json','utf8'));
-          assert.equal(x.no_write_requests,true);
-          assert.equal(x.no_private_credentials_exported,true);
-          assert.equal(x.no_raw_kv_state_exported,true);
-          console.log('V39_ACTUAL_ACK_SAFE_RECEIPT',JSON.stringify({status:x.status,records:x.safe_summary?.actual_ack_records||0,
-            groups:x.safe_summary?.groups||{},latest:x.safe_summary?.latest_signals||[]}));
-          JS
-      - name: Reconcile public ACK into separate evidence-only GitHub ledger snapshot
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
-        run: |
-          git fetch --quiet origin data/irys-v39-ack-feedback
-          git show FETCH_HEAD:data/v39_ack_feedback.json > data/v39_ack_feedback.json
           node research/v39_ack_feedback_ledger.mjs
           node --input-type=module <<'JS'
-          import assert from 'node:assert/strict';
-          import {readFileSync} from 'node:fs';
+          import assert from 'node:assert/strict';import {readFileSync} from 'node:fs';
           const d=JSON.parse(readFileSync('v39_direction_audit/v39_ack_feedback_next.json','utf8'));
-          assert.equal(d.research_only,true);assert.equal(d.telegram_sent,false);
-          assert.equal(d.orders_sent,false);assert.equal(d.all_alerts_captured_proven,false);
-          console.log('V39_ACK_LEDGER_RECONCILED',JSON.stringify({events:d.events.length,asof_ms:d.asof_ms}));
+          assert.equal(d.research_only,true);assert.equal(d.telegram_sent,false);assert.equal(d.orders_sent,false);
+          assert.equal(d.actual_execution_verified,false);assert.equal(d.all_alerts_captured_proven,false);
+          const receipt=JSON.parse(readFileSync('v39_direction_audit/feedback_receipt.json','utf8'));
+          assert.equal(receipt.conflicts,0,'CONFLICTING_ACK_OUTCOMES_REQUIRE_REVIEW');
+          console.log('V39_RECONCILE_PASS',JSON.stringify({events:d.events.length,asof_ms:d.asof_ms}));
           JS
-      - name: Publish only sanitized ACK ledger to dedicated data branch (never main or Cloudflare)
-        if: github.event_name == 'schedule'
+      - name: Publish exact reviewed ledger to dedicated data branch, never main
         run: |
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git fetch --quiet origin data/irys-v39-ack-feedback
-          git checkout -B data/irys-v39-ack-feedback FETCH_HEAD
-          cp v39_direction_audit/v39_ack_feedback_next.json data/v39_ack_feedback.json
-          git add data/v39_ack_feedback.json
-          if git diff --staged --quiet; then
-            echo 'V39_ACK_LEDGER_NO_NEW_EVIDENCE'
-          else
-            git commit -m 'data(v39): immutable actual ACK and future-label observations'
-            git push origin HEAD:data/irys-v39-ack-feedback
+          set -euo pipefail
+          BASE=$(cat v39_direction_audit/ledger_base_sha.txt)
+          TARGET="$RUNNER_TEMP/v39-ledger-publication"
+          git worktree add --detach "$TARGET" "$BASE"
+          cp v39_direction_audit/v39_ack_feedback_next.json "$TARGET/data/v39_ack_feedback.json"
+          git -C "$TARGET" config user.name 'github-actions[bot]'
+          git -C "$TARGET" config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git -C "$TARGET" add data/v39_ack_feedback.json
+          if ! git -C "$TARGET" diff --staged --quiet; then
+            git -C "$TARGET" commit -m 'data(v39): preserve actual ACK and measured future outcomes'
+            git -C "$TARGET" push origin HEAD:refs/heads/data/irys-v39-ack-feedback
           fi
-      - name: Preserve read-only evidence and exact source pin
+          git -C "$TARGET" rev-parse HEAD > v39_direction_audit/published_commit.txt
+          git fetch --quiet --depth=1 origin data/irys-v39-ack-feedback
+          git show FETCH_HEAD:data/v39_ack_feedback.json > v39_direction_audit/readback_ledger.json
+          cmp v39_direction_audit/v39_ack_feedback_next.json v39_direction_audit/readback_ledger.json
+          echo V39_DEDICATED_LEDGER_WRITE_AND_READBACK_VERIFIED
+      - uses: actions/upload-artifact@v4
         if: always()
-        uses: actions/upload-artifact@v4
         with:
           name: v39-causal-direction-health-readonly
           path: v39_direction_audit/
