@@ -4,56 +4,131 @@ on:
     branches: [repair/direction-evidence-20261107]
     paths:
       - '.github/workflows/direction-recovery-audit.yml'
-      - 'deployment/v36_*.mjs'
-      - 'deployment/v37_*.mjs'
-      - 'deployment/v39_*.mjs'
-      - 'tests/*v39*'
-      - 'tests/*direction_recovery*'
+      - 'diagnostics/apply_direction_recovery.py'
+      - 'diagnostics/direction_recovery_expected.json'
 permissions:
-  contents: read
+  contents: write
+  actions: read
+concurrency:
+  group: direction-recovery-isolated-verification
+  cancel-in-progress: false
 jobs:
   inspect:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          persist-credentials: false
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Preserve versioned source and public evidence
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Apply research-only repair and verify exact locally tested bytes
+        run: |
+          mkdir -p direction-audit
+          python diagnostics/apply_direction_recovery.py
+          python - <<'PY'
+          import pathlib,hashlib,json
+          expected=json.loads(pathlib.Path('diagnostics/direction_recovery_expected.json').read_text())
+          errors=[]
+          for name,want in expected.items():
+            got=hashlib.sha256(pathlib.Path(name).read_bytes()).hexdigest()
+            if got!=want: errors.append({'file':name,'expected':want,'got':got})
+          pathlib.Path('direction-audit/byte-verification.json').write_text(json.dumps({'checked':len(expected),'mismatches':errors},indent=2))
+          if errors: raise SystemExit(json.dumps(errors))
+          print('EXACT_SOURCE_VERIFIED',len(expected))
+          PY
+          node --input-type=module -e "import {v30ModelDigest} from './deployment/v30_producer.mjs';const d=v30ModelDigest();if(d!=='baea9920208c677a338827a451cd8e0e5bf8a45d0600f84812b33aa743b4d9b9')throw Error('PRODUCTION_PRODUCER_CHANGED');console.log('PRODUCTION_PRODUCER_UNCHANGED',d)"
+      - uses: actions/download-artifact@v4
+        with:
+          name: v35-deployed-natural-proof
+          run-id: 42083867409
+          github-token: ${{ github.token }}
+          path: /tmp/v35_prior
+      - uses: actions/download-artifact@v4
+        with:
+          name: v31-guarded-production-natural-proof
+          run-id: 41814867318
+          github-token: ${{ github.token }}
+          path: /tmp/v31_prior
+      - uses: actions/download-artifact@v4
+        with:
+          name: v30-selective-production-natural-proof
+          run-id: 41693577194
+          github-token: ${{ github.token }}
+          path: /tmp/v30_prior
+      - uses: actions/download-artifact@v4
+        with:
+          name: v28-production-and-natural-verification
+          run-id: 41450016477
+          github-token: ${{ github.token }}
+          path: /tmp/v28_prior
+      - name: Reconstruct exact historical fixtures without deploying anything
+        run: |
+          git fetch --quiet --depth=1 origin release/irys-v24-bitget-fallback-20261101
+          git show FETCH_HEAD:deployment/IRYS_V24_BITGET_FALLBACK_WORKER.mjs > /tmp/v24.mjs
+          python deployment/build_v27_worker.py /tmp/v24.mjs deployment/IRYS_V27_RESPONSE_WORKER.mjs
+          python deployment/build_v28_worker.py deployment/IRYS_V27_RESPONSE_WORKER.mjs deployment/IRYS_V28_BUILDUP_WORKER.mjs
+          python deployment/build_v29_worker.py deployment/IRYS_V28_BUILDUP_WORKER.mjs deployment/IRYS_V29_DIRECTION_REVIEW_WORKER.mjs
+          cp /tmp/v30_prior/IRYS_V30_SELECTIVE_DIRECTION_WORKER.mjs deployment/
+          cp /tmp/v31_prior/IRYS_V31_TIMELY_WORKER.mjs deployment/
+          python deployment/build_v34_worker.py deployment/IRYS_V31_TIMELY_WORKER.mjs deployment/IRYS_V34_CRASH_WARNING_WORKER.mjs
+          cp /tmp/v35_prior/IRYS_V35_LIFECYCLE_WORKER.mjs deployment/
+          echo '949cc9b7392e7f6bbf7ce710509b804ce734cf6b123294b1a2c530cfdc2669aa  deployment/IRYS_V35_LIFECYCLE_WORKER.mjs' | sha256sum -c -
+          python deployment/build_v351_worker.py deployment/IRYS_V35_LIFECYCLE_WORKER.mjs deployment/IRYS_V351_DELIVERY_FIRST_WORKER.mjs
+          echo '6356cf5919e5dd05808d9b84bf92378393cc0b9a9da31e964d93566cc86c0d13  deployment/IRYS_V351_DELIVERY_FIRST_WORKER.mjs' | sha256sum -c -
+      - name: Full original Node and Python regression, no live services
+        env:
+          V27_BASE_WORKER: /tmp/v24.mjs
+          V28_BASE_WORKER: deployment/IRYS_V27_RESPONSE_WORKER.mjs
+          V28_RELEASE_BASE_WORKER: /tmp/v28_prior/IRYS_V28_BUILDUP_WORKER.mjs
+          V29_BASE_WORKER: deployment/IRYS_V28_BUILDUP_WORKER.mjs
+          V30_BASE_WORKER: deployment/IRYS_V29_DIRECTION_REVIEW_WORKER.mjs
+          V34_BASE_WORKER: deployment/IRYS_V31_TIMELY_WORKER.mjs
+          V35_BASE_WORKER: deployment/IRYS_V34_CRASH_WARNING_WORKER.mjs
+        run: |
+          set +e
+          node --test tests/*.mjs > direction-audit/node-tests.txt 2>&1
+          NODE_STATUS=$?
+          python -m unittest discover -s tests -v > direction-audit/python-tests.txt 2>&1
+          PYTHON_STATUS=$?
+          printf '{"node_exit":%s,"python_exit":%s}\n' "$NODE_STATUS" "$PYTHON_STATUS" > direction-audit/test-status.json
+          tail -20 direction-audit/node-tests.txt
+          tail -8 direction-audit/python-tests.txt
+          test "$NODE_STATUS" = 0 && test "$PYTHON_STATUS" = 0
+      - name: Publish only verified research source to isolated branch
+        run: |
+          test "$GITHUB_REF_NAME" = 'repair/direction-evidence-20261107'
+          git fetch --quiet origin "$GITHUB_REF_NAME"
+          test "$(git rev-parse FETCH_HEAD)" = "$GITHUB_SHA"
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add deployment/v36_runner.mjs deployment/v36_shadow.mjs deployment/v37_early.mjs deployment/v37_runner.mjs .github/workflows/v36-public-shadow.yml .github/workflows/v37-shadow.yml
+          git diff --staged --check
+          git commit -m 'fix: preserve futures state and audit causal response hypotheses [skip ci]'
+          git push origin HEAD:repair/direction-evidence-20261107
+      - name: Preserve verifiable source and test evidence
+        if: always()
         run: |
           mkdir -p direction-audit
           python - <<'PY'
-          import pathlib, subprocess, zipfile, json, hashlib
-          root=pathlib.Path('.')
-          paths=subprocess.check_output(['git','ls-files','-z']).decode().split('\0')
-          manifest=[]
-          with zipfile.ZipFile('direction-audit/source-and-public-evidence.zip','w',zipfile.ZIP_DEFLATED) as z:
-            for name in paths:
-              p=pathlib.Path(name)
-              if not name or not p.is_file(): continue
-              if p.parts[0] not in {'deployment','tests','data','docs','diagnostics','.github','research'} and not (len(p.parts)==1 and p.suffix in {'.py','.md','.json'}): continue
-              raw=p.read_bytes(); z.writestr(name,raw)
-              manifest.append({'path':name,'size':len(raw),'sha256':hashlib.sha256(raw).hexdigest()})
-          pathlib.Path('direction-audit/manifest.json').write_text(json.dumps({'commit':subprocess.check_output(['git','rev-parse','HEAD']).decode().strip(),'files':manifest},indent=2))
-          print('Versioned files archived:',len(manifest))
-          PY
-      - name: Baseline direction regression tests
-        run: |
-          python - <<'PY'
-          import pathlib,subprocess,json
-          tests=[str(p) for p in pathlib.Path('tests').rglob('*.mjs') if any(x in p.name.lower() for x in ('v36','v37','v38','v39','direction_recovery'))]
-          if not tests: raise SystemExit('No relevant regression tests found')
-          p=subprocess.run(['node','--test',*sorted(tests)],stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True)
-          pathlib.Path('direction-audit/tests.txt').write_text(p.stdout)
-          pathlib.Path('direction-audit/test-status.json').write_text(json.dumps({'exit_code':p.returncode,'files':sorted(tests)}))
-          print(p.stdout)
-          raise SystemExit(p.returncode)
+          import pathlib,subprocess,json,hashlib,zipfile
+          p=pathlib.Path('diagnostics/direction_recovery_expected.json')
+          expected=json.loads(p.read_text()) if p.exists() else {}
+          files=[]
+          with zipfile.ZipFile('direction-audit/verified-research-source.zip','w',zipfile.ZIP_DEFLATED) as z:
+            for name in expected:
+              q=pathlib.Path(name)
+              if q.is_file():
+                raw=q.read_bytes();z.writestr(name,raw)
+                files.append({'path':name,'sha256':hashlib.sha256(raw).hexdigest(),'git_blob':subprocess.check_output(['git','hash-object',name]).decode().strip()})
+            for q in pathlib.Path('deployment').glob('IRYS_*_WORKER.mjs'):z.write(q,str(q))
+          pathlib.Path('direction-audit/receipt.json').write_text(json.dumps({'head':subprocess.check_output(['git','rev-parse','HEAD']).decode().strip(),'files':files,'production_worker_deployed':False,'telegram_sent':False,'orders_sent':False,'forecast_accuracy_proven':False},indent=2))
+          print('RECEIPT',pathlib.Path('direction-audit/receipt.json').read_text())
           PY
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: direction-recovery-evidence
+          name: direction-recovery-verified
           path: direction-audit/
-          retention-days: 3
+          retention-days: 7
