@@ -37,7 +37,11 @@ function v36Evidence(item,now,benchmark={}){
  const dir=c.direction==='SHORT'?-1:1,spreadPct=100*qa.spread/qa.mid;
  const move=dir*100*(qf.mid/qa.mid-1),one=dir*(2*first.buy_share-1),two=dir*(2*recent.buy_share-1),delta=two-one;
  const response1=dir*first.price_response_pct,response2=dir*recent.price_response_pct;
- const base=Number.isFinite(benchmark?.market_move_pct)&&Number.isSafeInteger(benchmark.source_at_ms)&&benchmark.source_at_ms<=now&&now-benchmark.source_at_ms<=90000?dir*benchmark.market_move_pct:null;
+ // Relative strength is comparable only over the same quote-to-quote interval.
+ const aligned=Number.isSafeInteger(benchmark?.window_start_ms)&&Number.isSafeInteger(benchmark?.window_end_ms)&&
+ benchmark.window_start_ms===qa.at&&benchmark.window_end_ms===qf.at&&qa.at<qf.at&&
+ benchmark.window_end_ms<=benchmark.source_at_ms;
+ const base=aligned&&Number.isFinite(benchmark?.market_move_pct)&&Number.isSafeInteger(benchmark.source_at_ms)&&benchmark.source_at_ms<=now&&now-benchmark.source_at_ms<=90000?dir*benchmark.market_move_pct:null;
  const relative=base===null?null:move-base,z=Math.max(.02,spreadPct);
  const support=Math.max(0,one)*1.2+Math.max(0,two)*2+Math.max(0,move/z)*.5+
  Math.max(0,response2/z)*.25+(relative===null?0:Math.max(0,clip(relative))*.15);
@@ -48,6 +52,6 @@ function v36Evidence(item,now,benchmark={}){
  probability:null,future_direction_proven:false,trade_permission:false,
  evidence:{signed_quote_move_pct:move,first_buy_share:first.buy_share,new_buy_share:recent.buy_share,first_response_pct:response1,
  new_response_pct:response2,signed_pressure_change:delta,spread_pct:spreadPct,relative_to_market_pct:relative,
- first_trade_count:first.count,new_trade_count:recent.count,sampled_taker_not_full_cvd:true,market_baseline_available:base!==null}};
+ first_trade_count:first.count,new_trade_count:recent.count,sampled_taker_not_full_cvd:true,market_baseline_available:base!==null,market_baseline_alignment:base!==null?'MATCHED_QUOTE_INTERVAL':'MISSING_OR_UNALIGNED_INTERVAL'}};
 }
 export {V36_HYPOTHESIS_VERSION,v36Evidence,tapeSummary};
