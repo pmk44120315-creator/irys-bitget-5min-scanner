@@ -18,7 +18,7 @@ const frozenAlternative=(e,name)=>{
 };
 const preDecisionFlow=e=>{
  const h=e.observed_hypothesis,f=h?.evidence;
- if(h?.status!=='OBSERVED'||h.observed_at_ms>e.issued_at_ms||
+ if(h?.status!=='OBSERVED'||!Number.isSafeInteger(h.observed_at_ms)||h.observed_at_ms>e.issued_at_ms||
  !finite(f?.first_buy_share)||!finite(f?.new_buy_share)||
  f.first_buy_share<0||f.first_buy_share>1||f.new_buy_share<0||f.new_buy_share>1)return null;
  return f;
