@@ -1,0 +1,52 @@
+name: V41 main runtime and persisted label readback (READ ONLY)
+on:
+  push:
+    branches: [fix/irys-v41-target-quote-capture-20261108]
+    paths: ['.github/workflows/v41-main-readback.yml']
+permissions:
+  contents: read
+jobs:
+  readback:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Assert actual runtime version and persisted original provider timestamps
+        run: |
+          mkdir -p v41_readback
+          git rev-parse HEAD > v41_readback/main_commit.txt
+          python - <<'PY'
+          import json,hashlib,pathlib,collections,subprocess
+          p=pathlib.Path('v41_readback')
+          def read(name):
+            b=pathlib.Path(name).read_bytes();return json.loads(b),hashlib.sha256(b).hexdigest()
+          report,rh=read('data/v22_evidence_latest.json')
+          state,sh=read('data/v22_evidence_state.json')
+          assert report['target_quote_capture']['version']=='V41_TARGET_CLOCK_CAPTURE_V1'
+          assert report['quote_errors']==[] and report['target_quote_capture']['errors']==[]
+          found=[]
+          for e in state.get('completed',[])+state.get('pending',[]):
+            for h,o in e.get('outcomes',{}).items():
+              if o.get('capture_version')!='V41_TARGET_CLOCK_CAPTURE_V1':continue
+              assert o.get('both_sides_measured') is True
+              assert o.get('actual_fills_verified') is False
+              target=e['issued_ms']+int(h)*60000
+              assert target<=o['exit_quote']['at_ms']<=target+150000
+              assert 0<=o['received_at_ms']-o['exit_quote']['at_ms']<=60000
+              found.append({'venue':e['venue'],'symbol':e['symbol'],'issued_ms':e['issued_ms'],'horizon':int(h),'capture_kind':o['capture_kind'],'target_ms':target,'quote_at_ms':o['exit_quote']['at_ms'],'received_at_ms':o['received_at_ms']})
+          assert found,'NO_V41_LABELS_PERSISTED'
+          codes={f:subprocess.check_output(['git','hash-object',f],text=True).strip() for f in ['v22_runtime.py','v41_quote_capture.py']}
+          assert codes['v22_runtime.py']=='219d61091b836e7b6c738d4ccc22affeb7ace8d5'
+          assert codes['v41_quote_capture.py']=='29ff6cd5d9a62a12ad9c787346e87112e671394d'
+          out={'version':'V41_POST_MERGE_PERSISTENCE_VERIFIED','report_asof_utc':report['asof_utc'],'status':report['status'],'report_sha256':rh,'state_sha256':sh,'code_blobs':codes,'capture_receipt':report['target_quote_capture'],'persisted_v41_labels':len(found),'per_venue_horizon':dict(collections.Counter(x['venue']+':'+str(x['horizon']) for x in found)),'telegram_direction_policy_changed':False,'accuracy_improvement_proven':False}
+          (p/'verification.json').write_text(json.dumps(out,indent=2));(p/'persisted_labels.json').write_text(json.dumps(found,indent=2));(p/'report.json').write_text(json.dumps(report,indent=2))
+          print('V41_MAIN_PERSISTENCE_PROOF',json.dumps(out))
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: v41-main-persistence-proof
+          path: v41_readback/
+          retention-days: 30
+          if-no-files-found: error
