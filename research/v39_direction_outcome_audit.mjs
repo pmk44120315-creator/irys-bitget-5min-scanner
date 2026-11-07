@@ -16,13 +16,34 @@ const frozenAlternative=(e,name)=>{
  r.baseline_direction===e.direction && r.trade_permission===false ?
  r.hypotheses?.[name]??null:null;
 };
+const preDecisionFlow=e=>{
+ const h=e.observed_hypothesis,f=h?.evidence;
+ if(h?.status!=='OBSERVED'||h.observed_at_ms>e.issued_at_ms||
+ !finite(f?.first_buy_share)||!finite(f?.new_buy_share)||
+ f.first_buy_share<0||f.first_buy_share>1||f.new_buy_share<0||f.new_buy_share>1)return null;
+ return f;
+};
+const flowShift=e=>{
+ const f=preDecisionFlow(e);if(!f||f.new_buy_share===f.first_buy_share)return null;
+ return e.venue==='bitget'?(f.new_buy_share>f.first_buy_share?'LONG':'SHORT'):(f.new_buy_share>f.first_buy_share?'BUY':null);
+};
+const impactDecay=e=>{
+ const f=preDecisionFlow(e);
+ if(!f||!finite(f.first_response_pct)||!finite(f.new_response_pct)||
+ !finite(f.spread_pct)||f.spread_pct<0||f.new_response_pct===f.first_response_pct)return null;
+ // Existing evidence responses are already signed in the candidate's direction.
+ // A weakening signed price reaction is a research reversal hypothesis, not a live signal.
+ return f.new_response_pct<f.first_response_pct?other(e.venue,e.direction):e.direction;
+};
 const policies={
  baseline:e=>e.direction,
  opposite_futures:e=>other(e.venue,e.direction),
  price_response:e=>frozenAlternative(e,'price_response'),
  flow_follow:e=>frozenAlternative(e,'flow_follow'),
  agreement:e=>frozenAlternative(e,'agreement'),
- absorption:e=>frozenAlternative(e,'absorption')
+ absorption:e=>frozenAlternative(e,'absorption'),
+ pressure_shift:flowShift,
+ impact_decay:impactDecay
 };
 function frozenValid(e,now){
  if(!e||typeof e.id!=='string'||!e.id||!directions(e.venue,e.direction)||typeof e.symbol!=='string'||
