@@ -1,0 +1,59 @@
+name: Direction recovery isolated audit (NO ALERTS)
+on:
+  push:
+    branches: [repair/direction-evidence-20261107]
+    paths:
+      - '.github/workflows/direction-recovery-audit.yml'
+      - 'deployment/v36_*.mjs'
+      - 'deployment/v37_*.mjs'
+      - 'deployment/v39_*.mjs'
+      - 'tests/*v39*'
+      - 'tests/*direction_recovery*'
+permissions:
+  contents: read
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Preserve versioned source and public evidence
+        run: |
+          mkdir -p direction-audit
+          python - <<'PY'
+          import pathlib, subprocess, zipfile, json, hashlib
+          root=pathlib.Path('.')
+          paths=subprocess.check_output(['git','ls-files','-z']).decode().split('\0')
+          manifest=[]
+          with zipfile.ZipFile('direction-audit/source-and-public-evidence.zip','w',zipfile.ZIP_DEFLATED) as z:
+            for name in paths:
+              p=pathlib.Path(name)
+              if not name or not p.is_file(): continue
+              if p.parts[0] not in {'deployment','tests','data','docs','diagnostics','.github','research'} and not (len(p.parts)==1 and p.suffix in {'.py','.md','.json'}): continue
+              raw=p.read_bytes(); z.writestr(name,raw)
+              manifest.append({'path':name,'size':len(raw),'sha256':hashlib.sha256(raw).hexdigest()})
+          pathlib.Path('direction-audit/manifest.json').write_text(json.dumps({'commit':subprocess.check_output(['git','rev-parse','HEAD']).decode().strip(),'files':manifest},indent=2))
+          print('Versioned files archived:',len(manifest))
+          PY
+      - name: Baseline direction regression tests
+        run: |
+          python - <<'PY'
+          import pathlib,subprocess,json
+          tests=[str(p) for p in pathlib.Path('tests').rglob('*.mjs') if any(x in p.name.lower() for x in ('v36','v37','v38','v39','direction_recovery'))]
+          if not tests: raise SystemExit('No relevant regression tests found')
+          p=subprocess.run(['node','--test',*sorted(tests)],stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True)
+          pathlib.Path('direction-audit/tests.txt').write_text(p.stdout)
+          pathlib.Path('direction-audit/test-status.json').write_text(json.dumps({'exit_code':p.returncode,'files':sorted(tests)}))
+          print(p.stdout)
+          raise SystemExit(p.returncode)
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: direction-recovery-evidence
+          path: direction-audit/
+          retention-days: 3
