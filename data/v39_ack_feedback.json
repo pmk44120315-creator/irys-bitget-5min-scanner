@@ -1,9 +1,70 @@
 {
   "version": "IRYS_V39_PUBLIC_ACK_FEEDBACK_LEDGER_V1",
-  "asof_ms": 0,
-  "events": [],
+  "asof_ms": 1794056360886,
+  "events": [
+    {
+      "id": "bitget:AKEUSDT:1794049888026",
+      "venue": "bitget",
+      "symbol": "AKEUSDT",
+      "direction": "SHORT",
+      "ack_at_ms": 1794049888026,
+      "source_commit": "a61aa5cc57d9d7b4e5567b5334114ece45b8bb45",
+      "source_at_ms": 1794049880095,
+      "source_to_ack_ms": 7931,
+      "quote_to_ack_ms": 8009,
+      "preselection_5m_move_pct": -0.7879763109437388,
+      "first_taker_buy_share": 0.17342483158693564,
+      "second_taker_buy_share": 0.4862589001564309,
+      "outcomes": {
+        "5": {
+          "status": "MEASURED_MINUTE_CLOSE_PROXY",
+          "target_ms": 1794050188026,
+          "closed_at_ms": 1794050160000,
+          "signed_price_pct": -1.6799959760575467,
+          "scenario_after_0_20pct_cost": -1.8799959760575466,
+          "path_minutes_observed": 4,
+          "path_minutes_expected": 4,
+          "actual_execution_verified": false
+        },
+        "15": {
+          "status": "MEASURED_MINUTE_CLOSE_PROXY",
+          "target_ms": 1794050788026,
+          "closed_at_ms": 1794050760000,
+          "signed_price_pct": -2.0069413007393955,
+          "scenario_after_0_20pct_cost": -2.2069413007393957,
+          "path_minutes_observed": 14,
+          "path_minutes_expected": 14,
+          "actual_execution_verified": false
+        },
+        "30": {
+          "status": "MEASURED_MINUTE_CLOSE_PROXY",
+          "target_ms": 1794051688026,
+          "closed_at_ms": 1794051660000,
+          "signed_price_pct": 0.2548496889827834,
+          "scenario_after_0_20pct_cost": 0.05484968898278336,
+          "path_minutes_observed": 29,
+          "path_minutes_expected": 29,
+          "actual_execution_verified": false
+        },
+        "60": {
+          "status": "MEASURED_MINUTE_CLOSE_PROXY",
+          "target_ms": 1794053488026,
+          "closed_at_ms": 1794053460000,
+          "signed_price_pct": -0.3588015358047203,
+          "scenario_after_0_20pct_cost": -0.5588015358047203,
+          "path_minutes_observed": 59,
+          "path_minutes_expected": 59,
+          "actual_execution_verified": false
+        }
+      }
+    }
+  ],
   "source": "PUBLIC_TELEGRAM_API_ACK_AND_OFFICIAL_PRE_ACK_V30_COMMIT",
   "scope": "RESEARCH_ONLY_NO_TELEGRAM_SEND_OR_ORDER",
   "complete_ack_history_verified": false,
-  "actual_execution_verified": false
+  "actual_execution_verified": false,
+  "research_only": true,
+  "telegram_sent": false,
+  "orders_sent": false,
+  "all_alerts_captured_proven": false
 }
