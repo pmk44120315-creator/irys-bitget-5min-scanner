@@ -102,6 +102,32 @@ jobs:
           V34_BASE_WORKER: deployment/IRYS_V31_TIMELY_WORKER.mjs
           V35_BASE_WORKER: deployment/IRYS_V34_CRASH_WARNING_WORKER.mjs
         run: node --test tests/*.mjs
+      - name: Current official-market shadow smoke (no remote writes or alerts)
+        run: |
+          git fetch --quiet origin main
+          for f in data/v30_direction_latest.json data/v36_shadow_state.json data/v30_state.json data/v24_bitget_fast_latest.json data/v37_early_state.json; do
+            git show origin/main:"$f" > "$f"
+          done
+          node deployment/v36_runner.mjs
+          node deployment/v37_runner.mjs
+          node --input-type=module <<'JS'
+          import assert from 'node:assert/strict';
+          import {readFileSync} from 'node:fs';
+          const v36=JSON.parse(readFileSync('data/v36_shadow_latest.json','utf8'));
+          const v37=JSON.parse(readFileSync('data/v37_early_latest.json','utf8'));
+          const state=JSON.parse(readFileSync('data/v37_early_state.json','utf8'));
+          assert.equal(v36.version,'V36_CONTRA_PROSPECTIVE_SHADOW_V1');
+          assert.equal(v37.version,'V37_PREMOVE_OPPORTUNITY_SHADOW_V1');
+          assert(v36.direction_response_comparisons && v36.direction_response_comparisons['5']);
+          for(const x of [v36,v37]){
+            assert.equal(x.telegram_sent,false);
+            assert.equal(x.orders_sent,false);
+            assert.equal(x.shadow_only,true);
+            assert.equal(x.prediction_accuracy_proven===true,false);
+          }
+          assert(state.futuresHistory&&typeof state.futuresHistory==='object');
+          console.log('IRYS_PUBLIC_READ_ONLY_SMOKE',JSON.stringify({v36_status:v36.status,v36_new_events:v36.new_events,v36_measured5:v36.direction_response_comparisons['5'].measured_records,v37_spot:v37.spot_candidates_observed,v37_futures:v37.futures_candidates_observed,v37_selected:v37.selected_early_count,v37_history_symbols:Object.keys(state.futuresHistory).length,source_errors_v36:v36.source_errors?.length,source_errors_v37:v37.source_errors?.length}));
+          JS
       - name: No live deployment or Telegram side effects
         run: |
           echo 'Research-only branch verification. No market-alert, order, or Cloudflare deployment steps exist in this workflow.'
