@@ -69,7 +69,7 @@ async function replay({ack,snapshotAtMs=Date.now(),githubToken=null,read=fetchJs
  orders_sent:false,actual_execution_verified:false,same_pre_ack_evidence_verified:false,forecast_accuracy_improvement_proven:false,
  status:'NO_CURRENT_PUBLIC_ACK',source_commit:null,source_at_ms:null,ack_at_ms:null,symbol:null,outcomes:{}};
  const ms=ack?.last_api_ack_ms,symbol=ack?.last_api_ack_symbol;
- if(!Number.isSafeInteger(ms)||ms<=0||ms>snapshotAtMs||!typeof symbol==='string')return base;
+ if(!Number.isSafeInteger(ms)||ms<=0||ms>snapshotAtMs||typeof symbol!=='string')return base;
  // Correct malformed symbol input is rejected before constructing any request.
  if(typeof symbol!=='string'||!/^(KRW-)?[A-Z0-9]{1,25}(USDT)?$/.test(symbol))return {...base,status:'INVALID_PUBLIC_ACK_REFERENCE'};
  const until=new Date(ms).toISOString();
@@ -89,9 +89,16 @@ async function replay({ack,snapshotAtMs=Date.now(),githubToken=null,read=fetchJs
  }
  if(!evidence)return {...base,status:'NO_MATCHING_PRE_ACK_FROZEN_SOURCE',ack_at_ms:ms,symbol};
  const c=evidence.candidate,q=evidence.final.quote,venue=c.venue;
+ const first=evidence.first||{},second=evidence.second||{};
+ const buyShare=arr=>{if(!Array.isArray(arr)||!arr.length)return null;let buy=0,all=0;for(const t of arr){if(!finite(t?.price)||!finite(t?.size)||!['BUY','SELL'].includes(t?.side))continue;const v=t.price*t.size;if(v<=0)continue;all+=v;if(t.side==='BUY')buy+=v;}return all>0?buy/all:null;};
  const out={...base,status:'PRE_ACK_SOURCE_MATCHED',same_pre_ack_evidence_verified:true,source_commit:sourceSha,
   source_at_ms:sourceDoc.at_ms,source_to_ack_ms:ms-sourceDoc.at_ms,
   quote_to_ack_ms:ms-q.at_ms,ack_at_ms:ms,symbol,venue,direction:c.direction,
+  preselection_5m_move_pct:finite(c.change_pct)?c.change_pct:null,
+  preselection_price_priority:finite(c.priority)?c.priority:null,
+  independent_first_taker_share:buyShare(first.trades),independent_second_taker_share:buyShare(second.trades),
+  first_taker_sample_size:Array.isArray(first.trades)?first.trades.length:null,
+  second_taker_sample_size:Array.isArray(second.trades)?second.trades.length:null,
   first_observed_at_ms:evidence.first?.observed_at_ms??null,
   second_observed_at_ms:evidence.second?.observed_at_ms??null,
   last_quote: {bid:q.bid,ask:q.ask,at_ms:q.at_ms},
@@ -102,7 +109,7 @@ async function replay({ack,snapshotAtMs=Date.now(),githubToken=null,read=fetchJs
   if(venue==='bitget')url='https://api.bitget.com/api/v2/mix/market/history-candles?'+
      new URLSearchParams({symbol,productType:'USDT-FUTURES',granularity:'1m',endTime:String(end),limit:'160'});
   else{
-   const to=new Date(end).toISOString().slice(0,19);
+   const to=new Date(end+9*3600000).toISOString().slice(0,19);
    url='https://api.bithumb.com/v1/candles/minutes/1?'+new URLSearchParams({market:symbol,to,count:'160'});
   }
   const parsed=parseBars(await read(url),venue,snapshotAtMs);
