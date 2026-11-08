@@ -1,0 +1,164 @@
+name: V43 source-pinned regression and real public-stream verification
+on:
+  push:
+    branches: [feature/irys-v43-stream-entry-20261108]
+    paths: ['deployment/v43*.mjs','tests/test_v43*','.github/v43_source_lease.json','.github/workflows/v43-integration.yml']
+permissions:
+  contents: read
+  actions: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    env:
+      OPENBLAS_NUM_THREADS: '1'
+      OMP_NUM_THREADS: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify independently reviewed source bytes
+        run: |
+          mkdir -p v43_verified
+          python - <<'PY'
+          import json,subprocess
+          from pathlib import Path
+          data=json.loads(Path('.github/v43_source_lease.json').read_text())
+          for p,sha in data.items():
+            actual=subprocess.check_output(['git','hash-object',p],text=True).strip()
+            assert actual==sha,(p,actual,sha)
+          print('V43_REVIEWED_SOURCE_MATCH',len(data))
+          PY
+      - run: python -m pip install 'numpy==2.3.5' 'scikit-learn==1.8.0' 'PyYAML==6.0.2'
+      - uses: actions/download-artifact@v4
+        with:
+          name: v421-transport-verified-proof
+          run-id: 42466573774
+          github-token: ${{ github.token }}
+          path: /tmp/v421
+      - uses: actions/download-artifact@v4
+        with:
+          name: v42-live-dispatch-upgrade-proof
+          run-id: 42459877506
+          github-token: ${{ github.token }}
+          path: /tmp/v42
+      - uses: actions/download-artifact@v4
+        with:
+          name: v351-delivery-first-production-proof
+          run-id: 42156639897
+          github-token: ${{ github.token }}
+          path: /tmp/v351
+      - uses: actions/download-artifact@v4
+        with:
+          name: v35-deployed-natural-proof
+          run-id: 42083867409
+          github-token: ${{ github.token }}
+          path: /tmp/v35
+      - uses: actions/download-artifact@v4
+        with:
+          name: v31-guarded-production-natural-proof
+          run-id: 41814867318
+          github-token: ${{ github.token }}
+          path: /tmp/v31
+      - uses: actions/download-artifact@v4
+        with:
+          name: v30-selective-production-natural-proof
+          run-id: 41693577194
+          github-token: ${{ github.token }}
+          path: /tmp/v30
+      - uses: actions/download-artifact@v4
+        with:
+          name: v28-production-and-natural-verification
+          run-id: 41450016477
+          github-token: ${{ github.token }}
+          path: /tmp/v28
+      - name: Restore exact unchanged original runtime fixtures
+        run: |
+          git fetch --quiet --depth=1 origin release/irys-v24-bitget-fallback-20261101
+          git show FETCH_HEAD:deployment/IRYS_V24_BITGET_FALLBACK_WORKER.mjs > /tmp/v24.mjs
+          python deployment/build_v27_worker.py /tmp/v24.mjs deployment/IRYS_V27_RESPONSE_WORKER.mjs
+          python deployment/build_v28_worker.py deployment/IRYS_V27_RESPONSE_WORKER.mjs deployment/IRYS_V28_BUILDUP_WORKER.mjs
+          python deployment/build_v29_worker.py deployment/IRYS_V28_BUILDUP_WORKER.mjs deployment/IRYS_V29_DIRECTION_REVIEW_WORKER.mjs
+          cp /tmp/v30/IRYS_V30_SELECTIVE_DIRECTION_WORKER.mjs deployment/
+          cp /tmp/v31/IRYS_V31_TIMELY_WORKER.mjs deployment/
+          python deployment/build_v34_worker.py deployment/IRYS_V31_TIMELY_WORKER.mjs deployment/IRYS_V34_CRASH_WARNING_WORKER.mjs
+          cp /tmp/v35/IRYS_V35_LIFECYCLE_WORKER.mjs deployment/
+          cp /tmp/v351/IRYS_V351_DELIVERY_FIRST_WORKER.mjs deployment/
+          cp /tmp/v42/IRYS_V42_DISPATCH_WORKER.mjs deployment/
+          cp /tmp/v421/IRYS_V421_DISPATCH_WORKER.mjs deployment/
+          echo '99845f001c17542fbe1c5c1a7dde9beadef1881d6f31f1c1e0f7765109b9e3bb  deployment/IRYS_V421_DISPATCH_WORKER.mjs' | sha256sum -c -
+      - name: Full original and new tests, no market alerts or deploy
+        env:
+          V27_BASE_WORKER: /tmp/v24.mjs
+          V28_BASE_WORKER: deployment/IRYS_V27_RESPONSE_WORKER.mjs
+          V28_RELEASE_BASE_WORKER: /tmp/v28/IRYS_V28_BUILDUP_WORKER.mjs
+          V29_BASE_WORKER: deployment/IRYS_V28_BUILDUP_WORKER.mjs
+          V30_BASE_WORKER: deployment/IRYS_V29_DIRECTION_REVIEW_WORKER.mjs
+          V34_BASE_WORKER: deployment/IRYS_V31_TIMELY_WORKER.mjs
+          V35_BASE_WORKER: deployment/IRYS_V34_CRASH_WARNING_WORKER.mjs
+        run: |
+          set -o pipefail
+          python -m unittest discover -s tests -v 2>&1 | tee v43_verified/python.log
+          python -m unittest discover -s research/tests -p 'test_v40*.py' -v 2>&1 | tee v43_verified/learning.log
+          node --test tests/*.mjs 2>&1 | tee v43_verified/node.log
+      - name: Preserve exact source and test evidence
+        if: always()
+        run: |
+          mkdir -p v43_verified
+          git rev-parse HEAD > v43_verified/source_commit.txt
+          git archive --format=zip --output=v43_verified/source.zip HEAD deployment tests .github
+          cp .github/v43_source_lease.json v43_verified/
+          python - <<'PY'
+          from pathlib import Path
+          import hashlib,json
+          p=Path('v43_verified');d={str(f.relative_to(p)):{'bytes':f.stat().st_size,'sha256':hashlib.sha256(f.read_bytes()).hexdigest()} for f in p.rglob('*') if f.is_file()}
+          (p/'manifest.json').write_text(json.dumps(d,indent=2))
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: v43-full-regression-proof
+          path: v43_verified/
+          retention-days: 30
+          if-no-files-found: error
+  public_stream:
+    needs: verify
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Observe one real discovery cycle, collect every watched public frame
+        run: |
+          node deployment/v43_stream_runner.mjs --duration-ms 300000 --out v43_stream
+      - name: Verify exact raw artifacts and future-only target semantics
+        if: always()
+        run: |
+          node --input-type=module <<'JS'
+          import {readFileSync,writeFileSync} from 'node:fs';import {createHash} from 'node:crypto';import assert from 'node:assert/strict';
+          const s=JSON.parse(readFileSync('v43_stream/session.json'));
+          assert.equal(s.orders_sent,false);assert.equal(s.telegram_sent,false);assert.equal(s.live_alert_engine_modified,false);
+          for(const [f,hash] of [['raw_frames.jsonl.gz',s.raw_sha256],['frozen_features.jsonl.gz',s.features_sha256]])assert.equal(createHash('sha256').update(readFileSync('v43_stream/'+f)).digest('hex'),hash);
+          const q=JSON.parse(readFileSync('v43_stream/quote_outcomes.json'));
+          for(const e of q.events)for(const [h,o] of Object.entries(e.quote_outcomes))if(o.status==='MEASURED_WS_QUOTE'){
+            assert(o.provider_at_ms>=e.issued_at_ms+Number(h)*60000);assert(o.target_delay_ms<=q.target_tolerance_ms);assert.equal(o.actual_execution_verified,false);
+          }
+          console.log('V43_REAL_COLLECTION_RECEIPT',JSON.stringify({status:s.status,frames:s.frames,accepted:s.accepted_events,quotes:s.quotes_observed,features:s.features_frozen,source_errors:s.source_errors,frame_errors:s.frame_errors,quote_summary:q.summary}));
+          JS
+          python - <<'PY'
+          from pathlib import Path
+          import hashlib,json
+          p=Path('v43_stream');d={str(f.relative_to(p)):{'bytes':f.stat().st_size,'sha256':hashlib.sha256(f.read_bytes()).hexdigest()} for f in p.rglob('*') if f.is_file()}
+          (p/'manifest.json').write_text(json.dumps(d,indent=2))
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: v43-real-stream-proof
+          path: v43_stream/
+          retention-days: 7
+          if-no-files-found: error
