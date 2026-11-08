@@ -51,6 +51,27 @@ jobs:
           done
           echo '::error::V30 output not published; do not label prior generation fresh'
           exit 1
+      - name: Publish genuinely newer Bitget quotes through existing trusted runner transport
+        id: dispatch_quotes
+        if: steps.producer.outcome == 'success'
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          export V30_PUBLISHED_COMMIT=$(git rev-parse HEAD)
+          git fetch --quiet origin data/irys-v421-dispatch-quotes
+          BASE=$(git rev-parse FETCH_HEAD)
+          TARGET="$RUNNER_TEMP/v421-quotes"
+          git worktree add --detach "$TARGET" "$BASE"
+          node deployment/v421_quote_producer.mjs "$TARGET/data/v421_dispatch_quotes.json"
+          git -C "$TARGET" config user.name 'github-actions[bot]'
+          git -C "$TARGET" config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git -C "$TARGET" add data/v421_dispatch_quotes.json
+          git -C "$TARGET" commit -m 'data(v421): newer original official quotes after paired-evidence publication'
+          git -C "$TARGET" push origin HEAD:refs/heads/data/irys-v421-dispatch-quotes
+          git fetch --quiet origin data/irys-v421-dispatch-quotes
+          git show FETCH_HEAD:data/v421_dispatch_quotes.json > "$RUNNER_TEMP/v421-readback.json"
+          cmp "$TARGET/data/v421_dispatch_quotes.json" "$RUNNER_TEMP/v421-readback.json"
+          echo V421_CURRENT_QUOTE_PUBLICATION_READBACK_VERIFIED
       - name: Historical prices after current evidence has already been published
         if: steps.producer.outcome == 'success'
         run: |
@@ -72,3 +93,8 @@ jobs:
       - name: Never hide a failed provider collection behind successful commit
         if: steps.producer.outcome == 'failure'
         run: exit 1
+      - name: Surface quote-transport errors after preserving historical collection
+        if: steps.dispatch_quotes.outcome == 'failure'
+        run: |
+          echo '::error::V42.1 post-publication quote transport failed; do not reuse old quotes'
+          exit 1

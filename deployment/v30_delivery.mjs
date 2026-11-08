@@ -71,7 +71,7 @@ async function v30ReviewAndDeliver(env,state,requestedAt,options){
    let current=r;
    if(typeof options.refreshFinalQuote==='function'){
     let liveItem;
-    try{liveItem=await options.refreshFinalQuote(r.item);}
+    try{liveItem=await options.refreshFinalQuote(r.item,doc);}
     catch{output.dispatch_rejected=(output.dispatch_rejected||0)+1;if(options.onDispatchRecheck)options.onDispatchRecheck(false,'DISPATCH_QUOTE_UNAVAILABLE_OR_INVALID');continue;}
     const liveProof=v30Qualify(liveItem,clock());
     if(options.onDispatchRecheck)options.onDispatchRecheck(liveProof.allowed,liveProof.reason);
