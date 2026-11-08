@@ -1,6 +1,6 @@
 {
   "version": "V42_COMPLETE_ACTUAL_ACK_OUTCOMES_V1",
-  "asof_ms": 1794160906639,
+  "asof_ms": 1794161495540,
   "source": "PUBLIC_WORKER_RETAINED_ACTUAL_ACK_RECORDS_AND_OFFICIAL_NATIVE_CANDLES",
   "events": [
     {
@@ -7583,7 +7583,26 @@
       "reference_quote_age_ms": 4250,
       "outcomes": {
         "5": {
-          "status": "PENDING_HORIZON"
+          "status": "MEASURED_MINUTE_CLOSE_PROXY",
+          "target_ms": 1794161190777,
+          "closed_at_ms": 1794161220000,
+          "target_offset_ms": 29223,
+          "horizon_reference": "FIRST_CLOSED_MINUTE_AT_OR_AFTER_TARGET",
+          "direction": "SHORT",
+          "reference_entry_bid_or_ask": 0.16823,
+          "target_close": 0.16807,
+          "signed_price_pct": 0.09510788801045944,
+          "positive_direction": true,
+          "scenario_after_0_20pct_cost": -0.10489211198954057,
+          "actual_execution_verified": false,
+          "path_minutes_observed": 5,
+          "path_minutes_expected": 5,
+          "max_favorable_pct": 0.36854306604052756,
+          "max_adverse_pct": -0.02377697200262041,
+          "first_reference_break_close_ms": null,
+          "path_scope": "FULL_POST_ACK_MINUTES_ONLY",
+          "intraminute_order_known": false,
+          "observed_extrema_are_bounds_not_complete_tick_path": true
         },
         "15": {
           "status": "PENDING_HORIZON"
@@ -7602,19 +7621,19 @@
     "invalid": 0,
     "conflicts": 0,
     "provider_errors": 0,
-    "new_events": 1,
-    "labels_added": 0
+    "new_events": 0,
+    "labels_added": 1
   },
   "summary": {
     "actual_ack_records": 72,
     "horizons": {
       "5": {
-        "measured": 71,
-        "directional_positive": 22,
+        "measured": 72,
+        "directional_positive": 23,
         "flat": 0,
-        "pending": 1,
+        "pending": 0,
         "missing": 0,
-        "mean_signed_price_pct": -0.3256531480355985
+        "mean_signed_price_pct": -0.31980924475718103
       },
       "15": {
         "measured": 71,
