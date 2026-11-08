@@ -9,7 +9,7 @@ const V30_SEND_CAP=2,V30_SYMBOL_COOLDOWN_MS=90*60000;
 const v30Permits=new WeakSet();
 function v30ConsumePermit(p,now=Date.now()){
  if(!p||typeof p!=='object'||!v30Permits.has(p))return false;
- v30Permits.delete(p);return v30Qualify(p.item,now).allowed===true;
+ v30Permits.delete(p);if(p.item?.dispatch_snapshot?.version==='V42_DISPATCH_QUOTE_AND_COMPLETE_ACK_V1'&&(!Number.isSafeInteger(p.item?.final?.quote?.at_ms)||now-p.item.final.quote.at_ms>15000))return false;return v30Qualify(p.item,now).allowed===true;
 }
 function v30FormatSignal(p,now){
  const f=x=>Number(x).toLocaleString('ko-KR',{maximumFractionDigits:10}),q=p.final_quote;
@@ -68,10 +68,20 @@ async function v30ReviewAndDeliver(env,state,requestedAt,options){
    const durable=await env.IRYS_KV.get('irys:v30:last-symbol:'+key);
    if(durable){const d=JSON.parse(durable);if(!Number.isSafeInteger(d.at_ms))throw Error('INVALID_SYMBOL_STATE');if(now-d.at_ms<V30_SYMBOL_COOLDOWN_MS)continue;}
    if(await env.IRYS_KV.get('irys:v30:outbox:'+r.proof.evidence_id))continue;
-   chosen=r;break;
+   let current=r;
+   if(typeof options.refreshFinalQuote==='function'){
+    let liveItem;
+    try{liveItem=await options.refreshFinalQuote(r.item);}
+    catch{output.dispatch_rejected=(output.dispatch_rejected||0)+1;if(options.onDispatchRecheck)options.onDispatchRecheck(false,'DISPATCH_QUOTE_UNAVAILABLE_OR_INVALID');continue;}
+    const liveProof=v30Qualify(liveItem,clock());
+    if(options.onDispatchRecheck)options.onDispatchRecheck(liveProof.allowed,liveProof.reason);
+    if(!liveProof.allowed){output.dispatch_rejected=(output.dispatch_rejected||0)+1;continue;}
+    current={item:liveItem,proof:liveProof};
+   }
+   chosen=current;break;
   }
  }catch(_e){output.status='DELIVERY_STATE_UNVERIFIED';return output;}
- if(!chosen){output.status='DUPLICATE_OR_SYMBOL_COOLDOWN';return output;}
+ if(!chosen){output.status=output.dispatch_rejected?'DISPATCH_EVIDENCE_NO_LONGER_VALID':'DUPLICATE_OR_SYMBOL_COOLDOWN';return output;}
  const {item}=chosen;let proof=v30Qualify(item,clock());
  if(!proof.allowed){output.status='EVIDENCE_EXPIRED_BEFORE_SEND';return output;}
  const outboxKey='irys:v30:outbox:'+proof.evidence_id,symbolKey=proof.venue+':'+proof.symbol;
@@ -80,8 +90,9 @@ async function v30ReviewAndDeliver(env,state,requestedAt,options){
   hourly.attempts++;await env.IRYS_KV.put(hourKey,JSON.stringify(hourly),{expirationTtl:7200});state.v30Hourly={...hourly};
  }catch(_e){output.status='DELIVERY_RESERVATION_FAILED';return output;}
  proof=v30Qualify(item,clock());if(!proof.allowed){output.status='EVIDENCE_EXPIRED_DURING_RESERVATION';return output;}
+ if(item.dispatch_snapshot?.version==='V42_DISPATCH_QUOTE_AND_COMPLETE_ACK_V1'&&clock()-item.final.quote.at_ms>15000){output.status='DISPATCH_QUOTE_EXPIRED_DURING_RESERVATION';return output;}
  const permit={item};v30Permits.add(permit);let ack;
- try{ack=await options.send(v30FormatSignal(proof,clock()),permit);}
+ try{ack=await options.send((options.formatSignal||v30FormatSignal)(proof,clock()),permit);}
  catch(_e){
   v30Permits.delete(permit);output.status='DELIVERY_UNCERTAIN';
   // Telegram has no caller-supplied idempotency key. An uncertain POST is not

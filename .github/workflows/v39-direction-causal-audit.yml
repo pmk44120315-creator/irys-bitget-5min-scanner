@@ -5,7 +5,7 @@ on:
   workflow_dispatch:
   push:
     branches: [research/irys-v39-direction-causal-audit-20261107]
-    paths: ['research/v39*.mjs','tests/test_v39*.mjs','.github/workflows/v39-direction-causal-audit.yml']
+    paths: ['research/v39*.mjs','research/v42_actual_ack_evaluation.mjs','tests/test_v42_ack_feedback.mjs','.github/workflows/v39-direction-causal-audit.yml']
 permissions:
   contents: write
 concurrency:
@@ -19,71 +19,52 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Pure tests including exact interrupted initial ledger
+      - name: Verify original and complete actual-ACK contracts
         run: |
           mkdir -p v39_direction_audit
           set -o pipefail
-          node --test tests/test_v39*.mjs 2>&1 | tee v39_direction_audit/tests.log
-      - name: Pin live public source and separate feedback branch before reads
+          node --test tests/test_v39*.mjs tests/test_v42_ack_feedback.mjs 2>&1 | tee v39_direction_audit/tests.log
+      - name: Pin current public research source and durable actual-ACK ledger
         run: |
           git fetch --quiet --depth=1 origin main
           git rev-parse FETCH_HEAD > v39_direction_audit/main_source_commit.txt
           git show FETCH_HEAD:data/v36_shadow_state.json > data/v36_shadow_state.json
           git fetch --quiet --depth=1 origin data/irys-v39-ack-feedback
           git rev-parse FETCH_HEAD > v39_direction_audit/ledger_base_sha.txt
-          git show FETCH_HEAD:data/v39_ack_feedback.json > data/v39_ack_feedback.json
+          if git cat-file -e FETCH_HEAD:data/v42_actual_ack_evaluation.json 2>/dev/null; then
+            git show FETCH_HEAD:data/v42_actual_ack_evaluation.json > data/v42_actual_ack_evaluation.json
+          else
+            rm -f data/v42_actual_ack_evaluation.json
+          fi
           node research/v39_direction_outcome_audit.mjs
-      - name: Read public Worker health only, never force scan or send Telegram
+      - name: Evaluate every retained actual ACK and unfinished historical horizon
         run: |
-          node --input-type=module <<'JS'
-          import {writeFileSync} from 'node:fs';
-          const out={checked_at_utc:new Date().toISOString(),read_only:true,status:'NOT_VERIFIED'};
-          try{
-            const r=await fetch('https://irys-surge-monitor.vhehwpfl.workers.dev/?v39readonly='+Date.now(),{signal:AbortSignal.timeout(20000)});
-            out.http=r.status;if(!r.ok)throw Error('HTTP_'+r.status);
-            const h=await r.json(),l=h.last||{},d=l.v30DirectionalDelivery||{},a=l.telegramLastApiReceipt||{};
-            Object.assign(out,{status:'OBSERVED',code_version:l.codeVersion,natural_tick_kst:l.time,last_status:l.status,
-              entry_notifications_enabled:h.marketNotificationsEnabled,delivery_status:d.status,entry_feed_ok:d.feed?.ok,
-              last_api_ack_symbol:a.symbol??null,last_api_ack_ms:a.ack_received_at_ms??a.recorded_send_ms??null,
-              observed_alert_outcomes:d.actual_alert_outcomes??null,phone_delivery_verified:false});
-          }catch(e){out.status='PUBLIC_HEALTH_UNAVAILABLE';out.error_type=e?.name||'Error';}
-          writeFileSync('v39_direction_audit/worker_health_sanitized.json',JSON.stringify(out,null,2));
-          console.log('V39_HEALTH',JSON.stringify(out));
-          JS
-      - name: Match actual ACK to source and reconcile immutable outcomes
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
-        run: |
-          node research/v39_latest_ack_replay.mjs
-          node research/v39_ack_feedback_ledger.mjs
+          node research/v42_actual_ack_evaluation.mjs
           node --input-type=module <<'JS'
           import assert from 'node:assert/strict';import {readFileSync} from 'node:fs';
-          const d=JSON.parse(readFileSync('v39_direction_audit/v39_ack_feedback_next.json','utf8'));
-          assert.equal(d.research_only,true);assert.equal(d.telegram_sent,false);assert.equal(d.orders_sent,false);
-          assert.equal(d.actual_execution_verified,false);assert.equal(d.all_alerts_captured_proven,false);
-          const receipt=JSON.parse(readFileSync('v39_direction_audit/feedback_receipt.json','utf8'));
-          assert.equal(receipt.conflicts,0,'CONFLICTING_ACK_OUTCOMES_REQUIRE_REVIEW');
-          console.log('V39_RECONCILE_PASS',JSON.stringify({events:d.events.length,asof_ms:d.asof_ms}));
+          const d=JSON.parse(readFileSync('v39_direction_audit/v42_actual_ack_evaluation_next.json'));
+          assert.equal(d.version,'V42_COMPLETE_ACTUAL_ACK_OUTCOMES_V1');assert.equal(d.telegram_sent,false);assert.equal(d.orders_sent,false);
+          assert.equal(d.actual_execution_verified,false);assert.equal(d.diagnostics.conflicts,0);
+          console.log('V42_ACK_COMPLETE_COHORT',JSON.stringify({diagnostics:d.diagnostics,summary:d.summary}));
           JS
-      - name: Publish exact reviewed ledger to dedicated data branch, never main
+      - name: Persist complete public evidence separately; retain old V39 ledger unchanged
         run: |
           set -euo pipefail
           BASE=$(cat v39_direction_audit/ledger_base_sha.txt)
-          TARGET="$RUNNER_TEMP/v39-ledger-publication"
+          TARGET="$RUNNER_TEMP/v42-ledger-publication"
           git worktree add --detach "$TARGET" "$BASE"
-          cp v39_direction_audit/v39_ack_feedback_next.json "$TARGET/data/v39_ack_feedback.json"
+          cp v39_direction_audit/v42_actual_ack_evaluation_next.json "$TARGET/data/v42_actual_ack_evaluation.json"
           git -C "$TARGET" config user.name 'github-actions[bot]'
           git -C "$TARGET" config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git -C "$TARGET" add data/v39_ack_feedback.json
+          git -C "$TARGET" add data/v42_actual_ack_evaluation.json
           if ! git -C "$TARGET" diff --staged --quiet; then
-            git -C "$TARGET" commit -m 'data(v39): preserve actual ACK and measured future outcomes'
+            git -C "$TARGET" commit -m 'data(v42): complete actual ACK outcomes and post-alert path evidence'
             git -C "$TARGET" push origin HEAD:refs/heads/data/irys-v39-ack-feedback
           fi
-          git -C "$TARGET" rev-parse HEAD > v39_direction_audit/published_commit.txt
           git fetch --quiet --depth=1 origin data/irys-v39-ack-feedback
-          git show FETCH_HEAD:data/v39_ack_feedback.json > v39_direction_audit/readback_ledger.json
-          cmp v39_direction_audit/v39_ack_feedback_next.json v39_direction_audit/readback_ledger.json
-          echo V39_DEDICATED_LEDGER_WRITE_AND_READBACK_VERIFIED
+          git show FETCH_HEAD:data/v42_actual_ack_evaluation.json > v39_direction_audit/readback_ledger.json
+          cmp v39_direction_audit/v42_actual_ack_evaluation_next.json v39_direction_audit/readback_ledger.json
+          echo V42_COMPLETE_ACK_LEDGER_WRITE_AND_READBACK_VERIFIED
       - uses: actions/upload-artifact@v4
         if: always()
         with:

@@ -1,0 +1,179 @@
+name: IRYS V42 verified dispatch upgrade and complete actual ACK feedback
+on:
+  push:
+    branches: [fix/irys-v42-ack-direction-review-20261108]
+    paths: ['deployment/v42*.mjs','deployment/v30_delivery.mjs','deployment/build_v42_worker.py','deployment/release_v42_guarded.mjs','research/v42_actual_ack_evaluation.mjs','tests/test_v42*.mjs','.github/workflows/v42-ack-direction-review.yml']
+permissions:
+  contents: write
+  actions: read
+jobs:
+  verify_release:
+    runs-on: ubuntu-latest
+    concurrency:
+      group: irys-v27-guarded-worker-source
+      cancel-in-progress: false
+    env:
+      OPENBLAS_NUM_THREADS: '1'
+      OMP_NUM_THREADS: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify exact locally reviewed source bytes
+        run: |
+          mkdir -p v42_release
+          cat <<'SUMS' | sha256sum -c -
+          f93355d7b86c45ce3d3ae51f56c2c3c8d66b734bfe5d08a3559bc32641985551  deployment/v30_delivery.mjs
+          99f01f45161f0ef63c5353da0b850d1f18b8974da5ef33a9563c1afccd927e66  deployment/v42_dispatch_evidence.mjs
+          c67e60771e88320d79454d30d2b6530003a8985ca4d159ec4bcaeed8324d8288  deployment/build_v42_worker.py
+          a728e97cadb64c52f2d14805a3d4d731b9234189547e6798a46cb34b2979c07f  deployment/release_v42_guarded.mjs
+          206cb1d3e367eb15e959748da1928d6b73df22c4eb88107f720d8abcf33cdf40  research/v42_actual_ack_evaluation.mjs
+          2e1607235b674aa4bc80f1d86e60cf43b14d11e087d0c83d2c05e7cf6d97e6cf  tests/test_v42_ack_feedback.mjs
+          70b9a8fc4bf2cd7b724898a5107c4690415c36b158e0c7e826873c5f800bc60a  tests/test_v42_dispatch_evidence.mjs
+          f5c181c0dd8698f488f446787a4f9e560052487dadb41d63addcf99f41e9ffee  tests/test_v42_release_guard.mjs
+          a49dc1d394d7267e78ded3c0807b753416f435facf6e4ce2f0fa3e8bfe32d82c  tests/test_v42_worker.mjs
+          24e4b042db646324598259df29b72d4be5bdf6595c5b875174cc9e17a16f93ad  .github/workflows/v39-direction-causal-audit.yml
+          SUMS
+      - run: python -m pip install 'numpy==2.3.5' 'scikit-learn==1.8.0'
+      - uses: actions/download-artifact@v4
+        with:
+          name: v351-delivery-first-production-proof
+          run-id: 42156639897
+          github-token: ${{ github.token }}
+          path: /tmp/v351
+      - uses: actions/download-artifact@v4
+        with:
+          name: v35-deployed-natural-proof
+          run-id: 42083867409
+          github-token: ${{ github.token }}
+          path: /tmp/v35
+      - uses: actions/download-artifact@v4
+        with:
+          name: v31-guarded-production-natural-proof
+          run-id: 41814867318
+          github-token: ${{ github.token }}
+          path: /tmp/v31
+      - uses: actions/download-artifact@v4
+        with:
+          name: v30-selective-production-natural-proof
+          run-id: 41693577194
+          github-token: ${{ github.token }}
+          path: /tmp/v30
+      - uses: actions/download-artifact@v4
+        with:
+          name: v28-production-and-natural-verification
+          run-id: 41450016477
+          github-token: ${{ github.token }}
+          path: /tmp/v28
+      - name: Restore immutable old Worker fixtures and build exact V42 candidate
+        run: |
+          git fetch --quiet --depth=1 origin release/irys-v24-bitget-fallback-20261101
+          git show FETCH_HEAD:deployment/IRYS_V24_BITGET_FALLBACK_WORKER.mjs > /tmp/v24.mjs
+          python deployment/build_v27_worker.py /tmp/v24.mjs deployment/IRYS_V27_RESPONSE_WORKER.mjs
+          python deployment/build_v28_worker.py deployment/IRYS_V27_RESPONSE_WORKER.mjs deployment/IRYS_V28_BUILDUP_WORKER.mjs
+          python deployment/build_v29_worker.py deployment/IRYS_V28_BUILDUP_WORKER.mjs deployment/IRYS_V29_DIRECTION_REVIEW_WORKER.mjs
+          cp /tmp/v30/IRYS_V30_SELECTIVE_DIRECTION_WORKER.mjs deployment/
+          cp /tmp/v31/IRYS_V31_TIMELY_WORKER.mjs deployment/
+          python deployment/build_v34_worker.py deployment/IRYS_V31_TIMELY_WORKER.mjs deployment/IRYS_V34_CRASH_WARNING_WORKER.mjs
+          cp /tmp/v35/IRYS_V35_LIFECYCLE_WORKER.mjs deployment/
+          cp /tmp/v351/IRYS_V351_DELIVERY_FIRST_WORKER.mjs deployment/
+          echo '6356cf5919e5dd05808d9b84bf92378393cc0b9a9da31e964d93566cc86c0d13  deployment/IRYS_V351_DELIVERY_FIRST_WORKER.mjs' | sha256sum -c -
+          python deployment/build_v42_worker.py deployment/IRYS_V351_DELIVERY_FIRST_WORKER.mjs deployment/IRYS_V42_DISPATCH_WORKER.mjs
+          echo 'cc1414e1883546c1eb1fe53ea449e81b721de3089c1689fc636b65fa0470459e  deployment/IRYS_V42_DISPATCH_WORKER.mjs' | sha256sum -c -
+          node --check deployment/IRYS_V42_DISPATCH_WORKER.mjs
+      - name: All original and new regression tests before any deployment
+        env:
+          V27_BASE_WORKER: /tmp/v24.mjs
+          V28_BASE_WORKER: deployment/IRYS_V27_RESPONSE_WORKER.mjs
+          V28_RELEASE_BASE_WORKER: /tmp/v28/IRYS_V28_BUILDUP_WORKER.mjs
+          V29_BASE_WORKER: deployment/IRYS_V28_BUILDUP_WORKER.mjs
+          V30_BASE_WORKER: deployment/IRYS_V29_DIRECTION_REVIEW_WORKER.mjs
+          V34_BASE_WORKER: deployment/IRYS_V31_TIMELY_WORKER.mjs
+          V35_BASE_WORKER: deployment/IRYS_V34_CRASH_WARNING_WORKER.mjs
+        run: |
+          set -o pipefail
+          python -m unittest discover -s tests -v 2>&1 | tee v42_release/python_tests.log
+          python -m unittest discover -s research/tests -p 'test_v40*.py' -v 2>&1 | tee v42_release/learning_tests.log
+          node --test tests/*.mjs 2>&1 | tee v42_release/node_tests.log
+      - name: Exact reviewed code-only deployment, rollback guard and natural Cron verification
+        env:
+          CF_ACCOUNT: ${{ secrets.IRYS_REALTIME_CF_ACCOUNT_ID }}
+          CF_TOKEN: ${{ secrets.IRYS_V7_CF_API_TOKEN }}
+        run: |
+          set -o pipefail
+          node deployment/release_v42_guarded.mjs 2>&1 | tee v42_release/release.log
+      - name: Preserve source and sanitized verification, never credentials or private KV
+        if: always()
+        run: |
+          mkdir -p v42_release
+          git rev-parse HEAD > v42_release/tested_commit.txt
+          git archive --format=zip --output=v42_release/reviewed_source.zip HEAD
+          if test -f deployment/IRYS_V42_DISPATCH_WORKER.mjs; then cp deployment/IRYS_V42_DISPATCH_WORKER.* v42_release/; fi
+          python - <<'PY'
+          from pathlib import Path
+          import hashlib,json
+          p=Path('v42_release');d={str(f.relative_to(p)):{'bytes':f.stat().st_size,'sha256':hashlib.sha256(f.read_bytes()).hexdigest()} for f in p.rglob('*') if f.is_file()}
+          (p/'manifest.json').write_text(json.dumps(d,indent=2))
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: v42-live-dispatch-upgrade-proof
+          path: v42_release/
+          retention-days: 30
+          if-no-files-found: error
+  complete_feedback:
+    needs: verify_release
+    runs-on: ubuntu-latest
+    concurrency:
+      group: irys-v39-public-ack-feedback-branch
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Pin prior complete feedback without rewriting old V39 evidence
+        run: |
+          mkdir -p v39_direction_audit
+          git fetch --quiet --depth=1 origin data/irys-v39-ack-feedback
+          git rev-parse FETCH_HEAD > v39_direction_audit/ledger_base_sha.txt
+          if git cat-file -e FETCH_HEAD:data/v42_actual_ack_evaluation.json 2>/dev/null; then
+            git show FETCH_HEAD:data/v42_actual_ack_evaluation.json > data/v42_actual_ack_evaluation.json
+          else
+            rm -f data/v42_actual_ack_evaluation.json
+          fi
+      - name: Evaluate actual acknowledged cohort against native closed bars and path extrema
+        run: |
+          set -o pipefail
+          node research/v42_actual_ack_evaluation.mjs 2>&1 | tee v39_direction_audit/actual_outcomes.log
+      - name: Persist and read back the complete actual-ACK evidence
+        run: |
+          set -euo pipefail
+          BASE=$(cat v39_direction_audit/ledger_base_sha.txt)
+          TARGET="$RUNNER_TEMP/v42-initial-feedback"
+          git worktree add --detach "$TARGET" "$BASE"
+          cp v39_direction_audit/v42_actual_ack_evaluation_next.json "$TARGET/data/v42_actual_ack_evaluation.json"
+          git -C "$TARGET" config user.name 'github-actions[bot]'
+          git -C "$TARGET" config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git -C "$TARGET" add data/v42_actual_ack_evaluation.json
+          if ! git -C "$TARGET" diff --staged --quiet; then
+            git -C "$TARGET" commit -m 'data(v42): verified actual ACK history and post-alert paths'
+            git -C "$TARGET" push origin HEAD:refs/heads/data/irys-v39-ack-feedback
+          fi
+          git fetch --quiet --depth=1 origin data/irys-v39-ack-feedback
+          git show FETCH_HEAD:data/v42_actual_ack_evaluation.json > v39_direction_audit/readback.json
+          cmp v39_direction_audit/v42_actual_ack_evaluation_next.json v39_direction_audit/readback.json
+          git rev-parse FETCH_HEAD > v39_direction_audit/persisted_commit.txt
+          echo V42_COMPLETE_ACK_READBACK_VERIFIED
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: v42-complete-actual-ack-results
+          path: v39_direction_audit/
+          retention-days: 30
+          if-no-files-found: error
