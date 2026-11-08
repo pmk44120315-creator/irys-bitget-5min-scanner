@@ -1,6 +1,6 @@
 {
   "version": "IRYS_V39_PUBLIC_ACK_FEEDBACK_LEDGER_V1",
-  "asof_ms": 1794097887913,
+  "asof_ms": 1794120091732,
   "events": [
     {
       "id": "bitget:AKEUSDT:1794049888026",
@@ -189,6 +189,55 @@
           "closed_at_ms": 1794097260000,
           "signed_price_pct": 0.7087730351236443,
           "scenario_after_0_20pct_cost": 0.5087730351236444,
+          "path_minutes_observed": 29,
+          "path_minutes_expected": 29,
+          "actual_execution_verified": false
+        },
+        "60": {
+          "status": "PENDING_HORIZON"
+        }
+      }
+    },
+    {
+      "id": "bithumb:KRW-CYBER:1794117087568",
+      "venue": "bithumb",
+      "symbol": "KRW-CYBER",
+      "direction": "BUY",
+      "ack_at_ms": 1794117087568,
+      "source_commit": "5d5d180f6f97460bb64d6c3522de75de11a76178",
+      "source_at_ms": 1794117078873,
+      "source_to_ack_ms": 8695,
+      "quote_to_ack_ms": 9492,
+      "preselection_5m_move_pct": 5.6947608200455635,
+      "first_taker_buy_share": 0.6868493226280319,
+      "second_taker_buy_share": 0.7134794783624588,
+      "outcomes": {
+        "5": {
+          "status": "MEASURED_MINUTE_CLOSE_PROXY",
+          "target_ms": 1794117387568,
+          "closed_at_ms": 1794117360000,
+          "signed_price_pct": -11.513859275053306,
+          "scenario_after_0_20pct_cost": -11.713859275053306,
+          "path_minutes_observed": 4,
+          "path_minutes_expected": 4,
+          "actual_execution_verified": false
+        },
+        "15": {
+          "status": "MEASURED_MINUTE_CLOSE_PROXY",
+          "target_ms": 1794117987568,
+          "closed_at_ms": 1794117960000,
+          "signed_price_pct": -11.513859275053306,
+          "scenario_after_0_20pct_cost": -11.713859275053306,
+          "path_minutes_observed": 14,
+          "path_minutes_expected": 14,
+          "actual_execution_verified": false
+        },
+        "30": {
+          "status": "MEASURED_MINUTE_CLOSE_PROXY",
+          "target_ms": 1794118887568,
+          "closed_at_ms": 1794118860000,
+          "signed_price_pct": -14.498933901918976,
+          "scenario_after_0_20pct_cost": -14.698933901918975,
           "path_minutes_observed": 29,
           "path_minutes_expected": 29,
           "actual_execution_verified": false
