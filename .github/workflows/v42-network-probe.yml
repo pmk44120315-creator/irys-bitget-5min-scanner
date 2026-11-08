@@ -1,0 +1,80 @@
+name: V42 official quote network diagnosis (ISOLATED PREVIEW ONLY)
+on:
+  push:
+    branches: [fix/irys-v42-ack-direction-review-20261108]
+    paths: ['.github/workflows/v42-network-probe.yml']
+permissions:
+  contents: read
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Create binding-free read-only preview module
+        run: |
+          mkdir -p /tmp/v42-probe v42_network
+          cat > /tmp/v42-probe/worker.mjs <<'JS'
+          const endpoints=[['bitget_ticker','https://api.bitget.com/api/v2/mix/market/ticker?symbol=BTCUSDT&productType=USDT-FUTURES'],['bitget_tickers','https://api.bitget.com/api/v2/mix/market/tickers?productType=USDT-FUTURES'],['bithumb_book','https://api.bithumb.com/v1/orderbook?markets=KRW-CYBER']];
+          export async function inspect(){
+            const results=[];
+            for(const [name,url] of endpoints){const start=Date.now();try{
+              const request=new Request(url,{headers:{accept:'application/json','cache-control':'no-cache'}});request.headers.delete('cf-workers-preview-token');
+              const response=await fetch(request,{signal:AbortSignal.timeout(15000),cf:{cacheTtl:0}});
+              const at=Date.now();const out={name,http:response.status,elapsed_ms:at-start};
+              if(response.ok){const d=await response.json();const row=name==='bithumb_book'?d[0]:Array.isArray(d.data)?d.data.find(x=>x.symbol==='BTCUSDT'):d.data;
+                Object.assign(out,{code:d.code??null,array_data:Array.isArray(d.data),symbol:row?.symbol??row?.market??null,provider_at_ms:Number(row?.ts??row?.timestamp),quote_age_ms:at-Number(row?.ts??row?.timestamp),bid:row?.bidPr??row?.orderbook_units?.[0]?.bid_price??null,ask:row?.askPr??row?.orderbook_units?.[0]?.ask_price??null});
+              }
+              results.push(out);
+            }catch(e){results.push({name,error_name:e.name,error_message:String(e.message).slice(0,120)})}}
+            return {checked_at_utc:new Date().toISOString(),public_get_only:true,no_bindings:true,no_order_or_telegram_calls:true,results};
+          }
+          export default {async fetch(request){if(new URL(request.url).pathname==='/ready')return new Response('ready');return Response.json(await inspect())}};
+          JS
+          cat > /tmp/v42-probe/wrangler.json <<'JSON'
+          {"name":"irys-v42-isolated-netprobe","main":"worker.mjs","compatibility_date":"2026-11-01","workers_dev":false,"send_metrics":false}
+          JSON
+          node --input-type=module <<'JS'
+          import {inspect} from '/tmp/v42-probe/worker.mjs';import {writeFileSync} from 'node:fs';
+          const r=await inspect();writeFileSync('v42_network/github_network.json',JSON.stringify(r,null,2));console.log('V42_GITHUB_NETWORK',JSON.stringify(r));
+          JS
+      - name: Use ephemeral Cloudflare preview with no production bindings
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.IRYS_REALTIME_CF_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.IRYS_V7_CF_API_TOKEN }}
+          WRANGLER_SEND_METRICS: 'false'
+        run: |
+          set -euo pipefail
+          npm install --prefix /tmp/v42-probe --no-audit --no-fund wrangler@4.146.0 >/tmp/v42-probe/npm.log 2>&1
+          /tmp/v42-probe/node_modules/.bin/wrangler dev --remote --config /tmp/v42-probe/wrangler.json --ip 127.0.0.1 --port 8787 --log-level error >/tmp/v42-probe/wrangler.log 2>&1 &
+          PID=$!
+          trap 'kill "$PID" 2>/dev/null || true' EXIT
+          node --input-type=module <<'JS'
+          import {writeFileSync} from 'node:fs';
+          const deadline=Date.now()+120000;let ready=false;
+          while(Date.now()<deadline){try{const r=await fetch('http://127.0.0.1:8787/ready',{signal:AbortSignal.timeout(3000)});if(r.ok&&(await r.text())==='ready'){ready=true;break}}catch{}await new Promise(r=>setTimeout(r,1000));}
+          if(!ready){const o={status:'PREVIEW_START_UNVERIFIED',no_production_changes:true};writeFileSync('v42_network/cloudflare_network.json',JSON.stringify(o));console.log('V42_PREVIEW_UNAVAILABLE');process.exitCode=1;}
+          else {const r=await fetch('http://127.0.0.1:8787/',{signal:AbortSignal.timeout(55000)});if(!r.ok)throw Error('PREVIEW_HTTP_'+r.status);const d=await r.json();writeFileSync('v42_network/cloudflare_network.json',JSON.stringify(d,null,2));console.log('V42_CLOUDFLARE_NETWORK',JSON.stringify(d));}
+          JS
+      - name: Record sanitized diagnostics without tokens or preview-session URLs
+        if: always()
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re,json,hashlib
+          p=Path('/tmp/v42-probe/wrangler.log');text=p.read_text() if p.exists() else ''
+          classes=re.findall(r'\[code: (\d+)\]|(Authentication error|Unauthorized|Forbidden|Preview configuration)',text)
+          out=Path('v42_network');out.mkdir(exist_ok=True)
+          (out/'preview_status.json').write_text(json.dumps({'error_classes':classes,'raw_log_exported':False,'no_production_script_upload':True}))
+          m={f.name:{'sha256':hashlib.sha256(f.read_bytes()).hexdigest(),'bytes':f.stat().st_size} for f in out.iterdir() if f.is_file()}
+          (out/'manifest.json').write_text(json.dumps(m,indent=2))
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: v42-official-quote-network-diagnosis
+          path: v42_network/
+          retention-days: 30
+          if-no-files-found: error
