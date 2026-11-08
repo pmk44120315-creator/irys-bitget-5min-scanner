@@ -1,0 +1,52 @@
+name: IRYS continuous-evidence feasibility probe (PUBLIC READ ONLY)
+on:
+  push:
+    branches: [audit/irys-goal-review-20261108-2032]
+    paths: ['.github/workflows/irys-stream-feasibility-20261108.yml']
+permissions:
+  contents: read
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Short isolated public market-stream capability test
+        run: |
+          mkdir -p stream_probe
+          node --input-type=module <<'JS'
+          import {writeFileSync} from 'node:fs';
+          const spec=[{venue:'bitget',url:'wss://ws.bitget.com/v2/ws/public',subscribe:{op:'subscribe',args:[{instType:'USDT-FUTURES',channel:'trade',instId:'JCTUSDT'},{instType:'USDT-FUTURES',channel:'books5',instId:'JCTUSDT'},{instType:'USDT-FUTURES',channel:'trade',instId:'BTCUSDT'},{instType:'USDT-FUTURES',channel:'books5',instId:'BTCUSDT'}]}},{venue:'bithumb',url:'wss://ws-api.bithumb.com/websocket/v1',subscribe:[{ticket:'irys-readonly-'+Date.now()},{type:'trade',codes:['KRW-CYBER','KRW-BTC'],isOnlyRealtime:true},{type:'orderbook',codes:['KRW-CYBER','KRW-BTC'],isOnlyRealtime:true}]}];
+          async function probe(s){return await new Promise(resolve=>{
+            const out={venue:s.venue,started_at_ms:Date.now(),connected:false,open_at_ms:null,ended_at_ms:null,messages:0,parse_errors:0,channels:{},errors:[],public_only:true,orders_sent:false,telegram_sent:false,long_run_stability_verified:false};
+            const ws=new WebSocket(s.url);let timer,heartbeat,settled=false;
+            const finish=()=>{if(settled)return;settled=true;clearTimeout(timer);clearInterval(heartbeat);out.ended_at_ms=Date.now();try{ws.close()}catch{}resolve(out)};
+            timer=setTimeout(finish,45000);
+            ws.onopen=()=>{out.connected=true;out.open_at_ms=Date.now();ws.send(JSON.stringify(s.subscribe));if(s.venue==='bitget')heartbeat=setInterval(()=>{if(ws.readyState===WebSocket.OPEN)ws.send('ping')},15000)};
+            ws.onmessage=async ev=>{try{const text=typeof ev.data==='string'?ev.data:await ev.data.text();if(text==='pong')return;const d=JSON.parse(text);out.messages++;
+              if(d.event==='error'||d.error){out.errors.push(d);return;}
+              if(d.event)return;
+              const channel=(d.arg?.channel||d.type||'UNKNOWN')+':'+(d.arg?.instId||d.code||'UNKNOWN');
+              const q=out.channels[channel]??={frames:0,rows:0,actions:{},first_receive_ms:Date.now(),last_receive_ms:0,first_provider_ms:null,last_provider_ms:null,samples:[]};
+              q.frames++;q.last_receive_ms=Date.now();const rows=Array.isArray(d.data)?d.data:[d];q.rows+=rows.length;
+              const action=d.action||d.stream_type||'UNKNOWN';q.actions[action]=(q.actions[action]||0)+1;
+              const ts=Number(rows.at(-1)?.ts??rows.at(-1)?.trade_timestamp??rows.at(-1)?.timestamp??d.ts);
+              if(Number.isFinite(ts)){q.first_provider_ms??=ts;q.last_provider_ms=ts;}
+              if(q.samples.length<2)q.samples.push(d);
+            }catch{out.parse_errors++}};
+            ws.onerror=e=>{out.errors.push({type:'WEBSOCKET_ERROR',message:String(e.message||'CONNECTIVITY_ERROR').slice(0,120)})};
+            ws.onclose=e=>{out.close_code=e.code;finish()};
+          })}
+          const results=await Promise.all(spec.map(probe));
+          const report={version:'IRYS_PUBLIC_STREAM_FEASIBILITY_V1',checked_at_utc:new Date().toISOString(),research_only:true,no_production_changes:true,continuous_production_collection_deployed:false,results};
+          writeFileSync('stream_probe/result.json',JSON.stringify(report,null,2));
+          console.log('IRYS_STREAM_FEASIBILITY',JSON.stringify({...report,results:results.map(r=>({...r,channels:Object.fromEntries(Object.entries(r.channels).map(([k,v])=>[k,{...v,samples:undefined}]))}))}));
+          JS
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: irys-official-stream-feasibility
+          path: stream_probe/
+          retention-days: 30
+          if-no-files-found: error
