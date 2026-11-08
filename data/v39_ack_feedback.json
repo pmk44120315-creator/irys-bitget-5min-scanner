@@ -1,6 +1,6 @@
 {
   "version": "IRYS_V39_PUBLIC_ACK_FEEDBACK_LEDGER_V1",
-  "asof_ms": 1794084687792,
+  "asof_ms": 1794097887913,
   "events": [
     {
       "id": "bitget:AKEUSDT:1794049888026",
@@ -146,6 +146,55 @@
           "path_minutes_observed": 59,
           "path_minutes_expected": 59,
           "actual_execution_verified": false
+        }
+      }
+    },
+    {
+      "id": "bithumb:KRW-A8:1794095487733",
+      "venue": "bithumb",
+      "symbol": "KRW-A8",
+      "direction": "BUY",
+      "ack_at_ms": 1794095487733,
+      "source_commit": "b372ec4ada2abea418ad2ce406e5a1d864fc2a2b",
+      "source_at_ms": 1794095479796,
+      "source_to_ack_ms": 7937,
+      "quote_to_ack_ms": 12028,
+      "preselection_5m_move_pct": 6.169272603670972,
+      "first_taker_buy_share": 0.6089072286086615,
+      "second_taker_buy_share": 0.6000738975688755,
+      "outcomes": {
+        "5": {
+          "status": "MEASURED_MINUTE_CLOSE_PROXY",
+          "target_ms": 1794095787733,
+          "closed_at_ms": 1794095760000,
+          "signed_price_pct": 1.071034808631266,
+          "scenario_after_0_20pct_cost": 0.871034808631266,
+          "path_minutes_observed": 4,
+          "path_minutes_expected": 4,
+          "actual_execution_verified": false
+        },
+        "15": {
+          "status": "MEASURED_MINUTE_CLOSE_PROXY",
+          "target_ms": 1794096387733,
+          "closed_at_ms": 1794096360000,
+          "signed_price_pct": 0.25200819026618415,
+          "scenario_after_0_20pct_cost": 0.05200819026618414,
+          "path_minutes_observed": 14,
+          "path_minutes_expected": 14,
+          "actual_execution_verified": false
+        },
+        "30": {
+          "status": "MEASURED_MINUTE_CLOSE_PROXY",
+          "target_ms": 1794097287733,
+          "closed_at_ms": 1794097260000,
+          "signed_price_pct": 0.7087730351236443,
+          "scenario_after_0_20pct_cost": 0.5087730351236444,
+          "path_minutes_observed": 29,
+          "path_minutes_expected": 29,
+          "actual_execution_verified": false
+        },
+        "60": {
+          "status": "PENDING_HORIZON"
         }
       }
     }
