@@ -1,5 +1,8 @@
 name: IRYS V39 actual-ACK direction feedback (NO LIVE ALERT CHANGES)
 on:
+  workflow_run:
+    workflows: ['IRYS V30 official paired directional evidence (NO MESSAGES)']
+    types: [completed]
   schedule:
     - cron: '14,44 * * * *'
   workflow_dispatch:
@@ -13,9 +16,16 @@ concurrency:
   cancel-in-progress: false
 jobs:
   audit:
+    if: >-
+      github.event_name != 'workflow_run' ||
+      (github.event.workflow_run.head_branch == 'main' &&
+       github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.head_repository.full_name == github.repository)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: main
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
