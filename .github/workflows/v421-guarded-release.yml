@@ -1,0 +1,69 @@
+name: V42.1 exact-source transport deployment and natural proof
+on:
+  push:
+    branches: [fix/irys-v421-runner-quote-transport-20261108]
+    paths: ['deployment/release_v421_guarded.mjs','tests/test_v421_release_guard.mjs','.github/workflows/v421-guarded-release.yml']
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: irys-v27-guarded-worker-source
+  cancel-in-progress: false
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/download-artifact@v4
+        with:
+          name: v421-transport-verified-proof
+          run-id: 42465231135
+          github-token: ${{ github.token }}
+          path: /tmp/v421
+      - uses: actions/download-artifact@v4
+        with:
+          name: v42-live-dispatch-upgrade-proof
+          run-id: 42459877506
+          github-token: ${{ github.token }}
+          path: /tmp/v42
+      - name: Reuse exact full-regression candidate and verify lease/rollback delta tests
+        run: |
+          mkdir -p v421_release
+          git fetch --quiet --depth=1 origin 2d4fc3395ccf13f7e6bb3623ae6a0b2a2b110b7f
+          git diff --exit-code FETCH_HEAD HEAD -- deployment/v421_runner_quote.mjs deployment/v421_quote_producer.mjs deployment/v30_delivery.mjs deployment/build_v421_worker.py .github/workflows/v30-public-direction-producer.yml
+          cp /tmp/v421/IRYS_V421_DISPATCH_WORKER.mjs deployment/
+          cp /tmp/v42/IRYS_V42_DISPATCH_WORKER.mjs deployment/
+          echo '99845f001c17542fbe1c5c1a7dde9beadef1881d6f31f1c1e0f7765109b9e3bb  deployment/IRYS_V421_DISPATCH_WORKER.mjs' | sha256sum -c -
+          echo '791ccbb7275d87b4fe6353387f51b5e7d8f23ebcf18eeca2333a60a086166d59  deployment/release_v421_guarded.mjs' | sha256sum -c -
+          echo 'dca4c4e9c9259c2184c18c752501fda7a79d57413602e8e06850de71d85aaa76  tests/test_v421_release_guard.mjs' | sha256sum -c -
+          node --test tests/test_v421*.mjs > v421_release/transport_and_guard_tests.log
+      - name: Guarded code-only deployment with next original Cron verification
+        env:
+          CF_ACCOUNT: ${{ secrets.IRYS_REALTIME_CF_ACCOUNT_ID }}
+          CF_TOKEN: ${{ secrets.IRYS_V7_CF_API_TOKEN }}
+        run: |
+          set -o pipefail
+          node deployment/release_v421_guarded.mjs 2>&1 | tee v421_release/release.log
+      - name: Preserve exact source and natural runtime evidence
+        if: always()
+        run: |
+          mkdir -p v421_release
+          git rev-parse HEAD > v421_release/source_commit.txt
+          git archive --format=zip --output=v421_release/source.zip HEAD
+          if test -f deployment/IRYS_V421_DISPATCH_WORKER.mjs; then cp deployment/IRYS_V421_DISPATCH_WORKER.mjs v421_release/; fi
+          python - <<'PY'
+          from pathlib import Path
+          import hashlib,json
+          p=Path('v421_release');d={str(f.relative_to(p)):{'bytes':f.stat().st_size,'sha256':hashlib.sha256(f.read_bytes()).hexdigest()} for f in p.rglob('*') if f.is_file()}
+          (p/'manifest.json').write_text(json.dumps(d,indent=2))
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: v421-live-transport-deployment-proof
+          path: v421_release/
+          retention-days: 30
+          if-no-files-found: error
