@@ -1,0 +1,77 @@
+name: V43 main integration and natural event readback (NO LIVE CHANGES)
+on:
+  push:
+    branches: [feature/irys-v43-stream-entry-20261108]
+    paths: ['.github/workflows/v43-main-readback.yml']
+permissions:
+  contents: read
+  actions: read
+jobs:
+  readback:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify integrated code and unchanged original alert implementation
+        run: |
+          mkdir -p v43_main_proof
+          git rev-parse HEAD > v43_main_proof/main_commit.txt
+          git fetch --quiet --depth=1 origin 02ca2e8e543120f2a914426b29c02a7152d9208f
+          git diff --exit-code FETCH_HEAD HEAD -- deployment/v43_stream_core.mjs deployment/v43_stream_runner.mjs deployment/v43_quote_outcomes.mjs deployment/v43_collection_state.mjs deployment/v43_direction_entry.mjs deployment/v43_publish_snapshot.mjs .github/workflows/v39-direction-causal-audit.yml .github/workflows/v43-observation.yml
+          git fetch --quiet --depth=1 origin c334aab5ceb61c8877e711827ccd11ee2af85165
+          git diff --exit-code FETCH_HEAD HEAD -- deployment/v30_delivery.mjs deployment/v30_core.mjs deployment/v421_runner_quote.mjs deployment/release_v421_guarded.mjs .github/workflows/v30-public-direction-producer.yml
+      - name: Observe natural source-completion feedback and stream publications without dispatch or force-scan
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          node --input-type=module <<'JS'
+          import {writeFileSync} from 'node:fs';import assert from 'node:assert/strict';
+          const repo='pmk44120315-creator/irys-bitget-5min-scanner',api='https://api.github.com/repos/'+repo;
+          const now=Date.now(),deadline=now+12*60000,mergeCutoff=Date.parse('2026-11-08T13:10:00Z');
+          const get=async u=>{const r=await fetch(u,{headers:{accept:'application/json','User-Agent':'IRYS-V43-read-only-proof',...(u.startsWith(api)?{authorization:'Bearer '+process.env.GITHUB_TOKEN}:{})},signal:AbortSignal.timeout(20000)});if(!r.ok)throw Error('READ_HTTP_'+r.status);return r.json()};
+          let final=null;
+          while(Date.now()<deadline){
+            const h=await get('https://irys-surge-monitor.vhehwpfl.workers.dev/?v43readonly='+Date.now()),l=h.last||{},d=l.v30DirectionalDelivery||{};
+            const feedback=await get(api+'/actions/workflows/v39-direction-causal-audit.yml/runs?per_page=6');
+            const observations=await get(api+'/actions/workflows/v43-observation.yml/runs?per_page=6');
+            const ack=await get('https://raw.githubusercontent.com/'+repo+'/data/irys-v39-ack-feedback/data/v42_actual_ack_evaluation.json?readback='+Date.now());
+            const latest=await get('https://raw.githubusercontent.com/'+repo+'/data/irys-v43-stream-evidence/data/v43_stream_latest.json?readback='+Date.now());
+            const select=rs=>rs.workflow_runs.filter(x=>x.event==='workflow_run'&&x.head_branch==='main'&&Date.parse(x.created_at)>=mergeCutoff).map(x=>({id:x.id,head_sha:x.head_sha,status:x.status,conclusion:x.conclusion,created_at:x.created_at,url:x.html_url}));
+            final={checked_at_utc:new Date().toISOString(),read_only:true,no_forced_scans:true,orders_sent:false,telegram_sent:false,
+              health:{version:l.codeVersion,time:l.time,status:l.status,entry_enabled:h.marketNotificationsEnabled,risk_enabled:h.marketRiskWarningsEnabled,delivery_status:d.status,dispatch:d.dispatch_revalidation},
+              feedback_runs:select(feedback),observation_runs:select(observations),actual_ack_ledger:{asof_ms:ack.asof_ms,summary:ack.summary,diagnostics:ack.diagnostics},
+              latest_stream:{session:latest.session,started_at_ms:latest.started_at_ms,ended_at_ms:latest.ended_at_ms,status:latest.status,frames:latest.frames,quotes:latest.quotes_observed,features:latest.features_frozen,source_errors:latest.source_errors,frame_errors:latest.frame_errors,inter_session_gap_ms:latest.inter_session_gap_ms},
+              forecast_accuracy_improvement_proven:false};
+            writeFileSync('v43_main_proof/current_readback.json',JSON.stringify(final,null,2));
+            assert.equal(l.codeVersion,'IRYS-V42.1-TRUSTED-RUNNER-DISPATCH-20261108');assert.equal(l.status,'PASS');
+            assert.equal(h.marketNotificationsEnabled,true);assert.equal(h.marketRiskWarningsEnabled,true);
+            const f=final.feedback_runs.find(x=>x.conclusion==='success'),o=final.observation_runs.find(x=>x.conclusion==='success');
+            if(f&&o&&ack.asof_ms>=mergeCutoff&&latest.ended_at_ms>=mergeCutoff){
+              final.natural_event_feedback_verified=true;final.natural_stream_publication_verified=true;
+              writeFileSync('v43_main_proof/current_readback.json',JSON.stringify(final,null,2));
+              console.log('V43_NATURAL_MAIN_INTEGRATION_VERIFIED',JSON.stringify(final));break;
+            }
+            await new Promise(r=>setTimeout(r,15000));
+          }
+          if(!final?.natural_event_feedback_verified||!final?.natural_stream_publication_verified)throw Error('NATURAL_EVENT_PUBLICATION_NOT_YET_VERIFIED');
+          JS
+      - name: Hash readback evidence
+        if: always()
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import hashlib,json
+          p=Path('v43_main_proof');p.mkdir(exist_ok=True);d={f.name:{'bytes':f.stat().st_size,'sha256':hashlib.sha256(f.read_bytes()).hexdigest()} for f in p.iterdir() if f.is_file()}
+          (p/'manifest.json').write_text(json.dumps(d,indent=2))
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: v43-natural-main-integration-proof
+          path: v43_main_proof/
+          retention-days: 30
+          if-no-files-found: error
