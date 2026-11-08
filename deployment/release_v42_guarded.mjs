@@ -72,5 +72,5 @@ async function main(){
   }};
  console.log('V42_EXACT_DEPLOYMENT',JSON.stringify(await release(io,readFileSync('deployment/IRYS_V42_DISPATCH_WORKER.mjs'))));
 }
-if(process.argv[1]&&import.meta.url===pathToFileURL(process.argv[1]).href)main().catch(e=>{console.error('V42_RELEASE_FAILED',String(e.message||e));process.exitCode=1;});
+if(process.argv[1]&&import.meta.url===pathToFileURL(process.argv[1]).href)main().catch(e=>{console.error('V42_RELEASE_FAILED',String(e.message||e));process.exitCode=1});
 export {release,OLD,NEW,MODEL,VERSION};
