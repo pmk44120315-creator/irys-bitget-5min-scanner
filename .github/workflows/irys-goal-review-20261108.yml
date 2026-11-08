@@ -1,0 +1,93 @@
+name: IRYS goal-focused runtime and actual alert review (READ ONLY)
+on:
+  push:
+    branches: [audit/irys-goal-review-20261108-2032]
+    paths: ['.github/workflows/irys-goal-review-20261108.yml']
+permissions:
+  contents: read
+  actions: read
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Pin existing source and public datasets without changing main
+        run: |
+          mkdir -p goal_review/data goal_review/paths
+          git rev-parse HEAD > goal_review/source_commit.txt
+          for f in v30_direction_latest.json v36_shadow_latest.json v37_early_latest.json v38_continuation_latest.json v22_evidence_latest.json; do
+            if test -f data/$f; then cp data/$f goal_review/data/; fi
+          done
+          git archive --format=zip --output=goal_review/source.zip HEAD deployment research .github/workflows
+      - name: Current runtime, recent jobs and all retained ACK outcomes (GET only)
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          node --input-type=module <<'JS'
+          import {writeFileSync} from 'node:fs';
+          import {evaluateAckHistory} from './research/v42_actual_ack_evaluation.mjs';
+          import {parseBars} from './research/v39_latest_ack_replay.mjs';
+          const repo='pmk44120315-creator/irys-bitget-5min-scanner';
+          const save=(n,d)=>writeFileSync('goal_review/'+n,JSON.stringify(d,null,2));
+          const get=async(url,auth=false)=>{const r=await fetch(url,{headers:{accept:'application/json',...(auth?{authorization:'Bearer '+process.env.GITHUB_TOKEN}:{}),'User-Agent':'IRYS-readonly-goal-review'},signal:AbortSignal.timeout(25000)});if(!r.ok)throw Error('HTTP_'+r.status);return r.json()};
+          const api='https://api.github.com/repos/'+repo;
+          const asof=Date.now(),errors=[];
+          const runs=await get(api+'/actions/runs?per_page=100',true);
+          const jobs=runs.workflow_runs.map(r=>({id:r.id,name:r.name,branch:r.head_branch,event:r.event,status:r.status,conclusion:r.conclusion,created_at:r.created_at,updated_at:r.updated_at,head_sha:r.head_sha,url:r.html_url}));
+          save('recent_runs.json',{queried_at_ms:asof,total_count:runs.total_count,page_scope:'LATEST_100',runs:jobs});
+          const ackJobs=await get(api+'/actions/workflows/v39-direction-causal-audit.yml/runs?per_page=8',true);
+          const detailed=[];
+          for(const r of ackJobs.workflow_runs||[]){const j=await get(api+'/actions/runs/'+r.id+'/jobs?per_page=100',true);detailed.push({id:r.id,created_at:r.created_at,updated_at:r.updated_at,event:r.event,status:r.status,conclusion:r.conclusion,url:r.html_url,jobs:j.jobs.map(x=>({id:x.id,conclusion:x.conclusion,steps:x.steps.map(s=>({name:s.name,status:s.status,conclusion:s.conclusion}))}))});}
+          save('feedback_runs.json',detailed);
+          let old=null;
+          try{old=await get('https://raw.githubusercontent.com/'+repo+'/data/irys-v39-ack-feedback/data/v42_actual_ack_evaluation.json');save('persisted_ack.json',old)}catch(e){errors.push({stage:'PERSISTED_ACK',error:e.message})}
+          let health=null;
+          try{
+            const h=await get('https://irys-surge-monitor.vhehwpfl.workers.dev/?goalreadonly='+Date.now()),l=h.last||{},d=l.v30DirectionalDelivery||{},risk=l.v34MarketRisk||{},ack=l.telegramLastApiReceipt||{};
+            health={checked_at_utc:new Date().toISOString(),code_version:l.codeVersion,time:l.time,status:l.status,
+             runner_dispatch_enabled:h.trustedRunnerDispatchQuoteEnabled,dispatch_enabled:h.dispatchQuoteRevalidationEnabled,complete_ack_enabled:h.completeAckEvidenceEnabled,
+             entry_enabled:h.marketNotificationsEnabled,risk_enabled:h.marketRiskWarningsEnabled,github_dispatch:l.githubDispatchStatus,
+             delivery_status:d.status,source_at_ms:d.source_at_ms,source_summary:d.source_summary,ready:d.ready,evaluated:d.evaluated,sent:d.sent,
+             rejection_reasons:d.rejection_reasons,dispatch:d.dispatch_revalidation,feed:d.feed,hourly:d.hourly,
+             lifecycle:d.signal_lifecycle,risk_status:risk.status,risk_feed:risk.feed,
+             last_api_ack_symbol:ack.symbol,last_api_ack_ms:ack.ack_received_at_ms??ack.recorded_send_ms,
+             history:d.public_ack_history,actual_outcomes:d.actual_alert_outcomes,phone_receipt_verified:false};
+            save('health_sanitized.json',health);
+          }catch(e){errors.push({stage:'HEALTH',error:e.message})}
+          let evald=old;
+          if(health?.history){evald=await evaluateAckHistory({history:health.history,old,now:Date.now()});save('current_ack_evaluation.json',evald);}
+          const pathReceipts=[];
+          for(const e of evald?.events||[]){
+            const end=Math.min(Math.floor(Date.now()/60000)*60000,e.issued_at_ms+62*60000);
+            const url=e.venue==='bitget'?'https://api.bitget.com/api/v2/mix/market/history-candles?'+new URLSearchParams({symbol:e.symbol,productType:'USDT-FUTURES',granularity:'1m',endTime:String(end),limit:'160'}):'https://api.bithumb.com/v1/candles/minutes/1?'+new URLSearchParams({market:e.symbol,to:new Date(end+9*3600000).toISOString().slice(0,19),count:'160'});
+            try{const raw=await get(url),p=parseBars(raw,e.venue,Date.now());if(p.status!=='OBSERVED')throw Error(p.status);
+              const file='paths/'+e.venue+'_'+e.symbol+'_'+e.issued_at_ms+'.json';save(file,{id:e.id,venue:e.venue,symbol:e.symbol,queried_at_ms:Date.now(),raw,bars:p.bars});pathReceipts.push({id:e.id,file,bars:p.bars.length,status:'OBSERVED'});
+            }catch(err){pathReceipts.push({id:e.id,status:'UNAVAILABLE',error:String(err.message)});}
+            await new Promise(r=>setTimeout(r,80));
+          }
+          save('path_receipts.json',pathReceipts);
+          save('receipt.json',{asof_ms:asof,finished_at_ms:Date.now(),read_only:true,no_deployment:true,no_order_or_telegram_calls:true,errors,ack_events:evald?.events?.length,paths_observed:pathReceipts.filter(x=>x.status==='OBSERVED').length});
+          console.log('GOAL_RUNTIME',JSON.stringify({...health,history:health?.history?{asof_ms:health.history.asof_ms,retained_ack_records:health.history.retained_ack_records}:null}));
+          console.log('GOAL_ACTUAL_ACK',JSON.stringify(evald?.summary));
+          console.log('GOAL_FEEDBACK_RUNS',JSON.stringify(detailed.map(x=>({id:x.id,created_at:x.created_at,status:x.status,conclusion:x.conclusion,failed_steps:x.jobs.flatMap(j=>j.steps.filter(s=>s.conclusion==='failure').map(s=>s.name))}))));
+          JS
+      - name: Hash read-only evidence
+        if: always()
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import hashlib,json
+          p=Path('goal_review');p.mkdir(exist_ok=True)
+          d={str(f.relative_to(p)):{'bytes':f.stat().st_size,'sha256':hashlib.sha256(f.read_bytes()).hexdigest()} for f in p.rglob('*') if f.is_file()}
+          (p/'manifest.json').write_text(json.dumps(d,indent=2))
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: irys-current-goal-review
+          path: goal_review/
+          retention-days: 30
+          if-no-files-found: error
