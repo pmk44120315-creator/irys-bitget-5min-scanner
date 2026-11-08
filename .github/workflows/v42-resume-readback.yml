@@ -1,0 +1,77 @@
+name: V42 resumed-work final readback (NO DEPLOY OR SEND)
+on:
+  push:
+    branches: [fix/irys-v42-ack-direction-review-20261108]
+    paths: ['.github/workflows/v42-resume-readback.yml']
+permissions:
+  contents: read
+jobs:
+  readback:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Pin main and verify reviewed deployed sources unchanged
+        run: |
+          mkdir -p v42_resume_proof
+          git rev-parse HEAD > v42_resume_proof/main_commit.txt
+          git fetch --quiet --depth=1 origin dfca241c92a7c2091d8b5a386a5764e006249a22
+          git diff --exit-code FETCH_HEAD HEAD -- deployment/v30_delivery.mjs deployment/v42_dispatch_evidence.mjs deployment/build_v42_worker.py deployment/release_v42_guarded.mjs research/v42_actual_ack_evaluation.mjs tests/test_v42_ack_feedback.mjs tests/test_v42_dispatch_evidence.mjs tests/test_v42_release_guard.mjs tests/test_v42_worker.mjs .github/workflows/v39-direction-causal-audit.yml
+          git fetch --quiet --depth=1 origin data/irys-v39-ack-feedback
+          git rev-parse FETCH_HEAD > v42_resume_proof/persisted_ledger_commit.txt
+          git show FETCH_HEAD:data/v42_actual_ack_evaluation.json > data/v42_actual_ack_evaluation.json
+          cp data/v42_actual_ack_evaluation.json v42_resume_proof/persisted_actual_ack.json
+      - name: Verify existing natural Worker execution and sanitized full cohort
+        run: |
+          node --input-type=module <<'JS'
+          import assert from 'node:assert/strict';import {writeFileSync} from 'node:fs';
+          const at=Date.now();const r=await fetch('https://irys-surge-monitor.vhehwpfl.workers.dev/?v42readonly='+at,{signal:AbortSignal.timeout(20000)});
+          assert(r.ok,'WORKER_PUBLIC_HTTP_'+r.status);const h=await r.json(),l=h.last||{},d=l.v30DirectionalDelivery||{},risk=l.v34MarketRisk||{},hist=d.public_ack_history;
+          const out={checked_at_utc:new Date().toISOString(),code_version:l.codeVersion,natural_tick_kst:l.time,status:l.status,
+           dispatch_enabled:h.dispatchQuoteRevalidationEnabled,complete_ack_enabled:h.completeAckEvidenceEnabled,
+           market_notifications_enabled:h.marketNotificationsEnabled,risk_notifications_enabled:h.marketRiskWarningsEnabled,
+           delivery_status:d.status,feed:d.feed,dispatch:d.dispatch_revalidation,
+           retained_ack_records:hist?.retained_ack_records,risk_status:risk.status,risk_feed_ok:risk.feed?.ok,
+           actual_execution_verified:false,forecast_accuracy_improvement_proven:false,no_forced_scan:true,no_test_messages:true};
+          writeFileSync('v42_resume_proof/current_health_sanitized.json',JSON.stringify(out,null,2));
+          assert.equal(l.codeVersion,'IRYS-V42-DISPATCH-REVALIDATED-ACK-FEEDBACK-20261108');assert.equal(l.status,'PASS');
+          assert.equal(h.dispatchQuoteRevalidationEnabled,true);assert.equal(h.completeAckEvidenceEnabled,true);
+          assert.equal(h.marketNotificationsEnabled,true);assert.equal(h.marketRiskWarningsEnabled,true);
+          assert.equal(d.dispatch_revalidation?.version,'V42_DISPATCH_QUOTE_AND_COMPLETE_ACK_V1');
+          assert.equal(hist?.version,'V42_DISPATCH_QUOTE_AND_COMPLETE_ACK_V1');assert.equal(hist.private_messages_exported,false);
+          assert(hist.asof_ms<=Date.now()&&Date.now()-hist.asof_ms<12*60000,'NATURAL_TICK_STALE');
+          writeFileSync('v42_resume_proof/public_ack_history.json',JSON.stringify(hist,null,2));
+          console.log('V42_CURRENT_RUNTIME_READBACK',JSON.stringify(out));
+          JS
+      - name: Re-evaluate complete cohort without modifying production or durable ledgers
+        run: |
+          node --test tests/test_v42_ack_feedback.mjs > v42_resume_proof/ack_tests.log
+          node research/v42_actual_ack_evaluation.mjs > v42_resume_proof/actual_outcomes.log
+          cp v39_direction_audit/v42_actual_ack_evaluation_next.json v42_resume_proof/current_actual_ack.json
+          node --input-type=module <<'JS'
+          import {readFileSync} from 'node:fs';import assert from 'node:assert/strict';
+          const r=JSON.parse(readFileSync('v42_resume_proof/current_actual_ack.json'));
+          assert.equal(r.telegram_sent,false);assert.equal(r.orders_sent,false);assert.equal(r.diagnostics.conflicts,0);
+          console.log('V42_CURRENT_ACK_RESULTS',JSON.stringify({diagnostics:r.diagnostics,summary:r.summary}));
+          JS
+      - name: Preserve exact evidence hashes
+        if: always()
+        run: |
+          python - <<'PY'
+          import hashlib,json
+          from pathlib import Path
+          p=Path('v42_resume_proof');p.mkdir(exist_ok=True)
+          data={str(f.relative_to(p)):{'bytes':f.stat().st_size,'sha256':hashlib.sha256(f.read_bytes()).hexdigest()} for f in p.rglob('*') if f.is_file()}
+          (p/'manifest.json').write_text(json.dumps(data,indent=2))
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: v42-resumed-main-live-readback
+          path: v42_resume_proof/
+          retention-days: 30
+          if-no-files-found: error
