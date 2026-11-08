@@ -20,3 +20,10 @@ test('fake candidate and raw private fields never enter public ledger',()=>{need
 test('malformed existing ledger fails rather than wiping original observations',()=>{need();assert.throws(()=>new m.QuoteOutcomeTracker({version:'WRONG',events:[]}),/SCHEMA/)});
 test('persisted pending horizon becomes missing after its true window ends without a quote',()=>{const x=tracker();const y=new m.QuoteOutcomeTracker(x.export(T+1000));const r=y.export(T+360000);assert.equal(r.events[0].quote_outcomes[5].status,'UNMEASURED_TARGET_GAP');assert.equal(r.summary.horizons[5].pending,0)});
 test('stored measured future value with wrong target cannot be trusted after restart',()=>{const x=tracker();x.observe(q(T+300000),T+300001);const a=x.export(T+300001);a.events[0].quote_outcomes[5].target_ms++;assert.throws(()=>new m.QuoteOutcomeTracker(a),/MEASUREMENT|SCHEMA/)});
+test('actual EDGE same millisecond newer exchange sequence is a new valid quote, not a conflict',()=>{
+ const x=tracker();const a={...q(T+300000,.3346,.335),sequence:'658777478155'},b={...q(T+300000,.3347,.335),sequence:'658777478160'};
+ x.observe(a,T+300001);assert.doesNotThrow(()=>x.observe(b,T+300001));assert.equal(x.export(T+300001).events[0].observed_path.quote_observations,2);
+});
+test('same provider time with older sequence cannot overwrite or duplicate newer observation',()=>{
+ const x=tracker();const a={...q(T+300000),sequence:'200'},b={...q(T+300000,100,100.1),sequence:'199'};x.observe(a,T+300001);assert.doesNotThrow(()=>x.observe(b,T+300001));assert.equal(x.export(T+300001).events[0].observed_path.quote_observations,1);
+});

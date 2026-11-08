@@ -1,0 +1,93 @@
+name: IRYS V43 candidate stream and actual-quote observation (NO ALERT CHANGES)
+on:
+  workflow_run:
+    workflows: ['IRYS V30 official paired directional evidence (NO MESSAGES)']
+    types: [completed]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  collect:
+    if: >-
+      github.event_name != 'workflow_run' ||
+      (github.event.workflow_run.head_branch == 'main' &&
+       github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.head_repository.full_name == github.repository)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Load prior immutable quote evidence without blocking the source workflow
+        run: |
+          git fetch --quiet --depth=1 origin data/irys-v43-stream-evidence
+          for f in v43_actual_quote_outcomes.json v43_stream_latest.json; do
+            if git cat-file -e FETCH_HEAD:data/$f 2>/dev/null; then
+              git show FETCH_HEAD:data/$f > data/$f
+            else
+              rm -f data/$f
+            fi
+          done
+      - name: Observe candidate streams throughout one existing discovery cycle
+        run: node deployment/v43_stream_runner.mjs --duration-ms 300000 --out v43_stream
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: v43-observation-${{ github.run_id }}-${{ github.run_attempt }}
+          path: v43_stream/
+          retention-days: 1
+          if-no-files-found: error
+  publish:
+    needs: collect
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      actions: read
+    concurrency:
+      group: irys-v43-evidence-writer
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/download-artifact@v4
+        with:
+          name: v43-observation-${{ github.run_id }}-${{ github.run_attempt }}
+          path: v43_stream
+      - name: Merge and publish sanitized evidence to separate branch, never live signal code
+        run: |
+          set -euo pipefail
+          git fetch --quiet --depth=1 origin data/irys-v43-stream-evidence
+          BASE=$(git rev-parse FETCH_HEAD)
+          TARGET="$RUNNER_TEMP/v43-evidence"
+          git worktree add --detach "$TARGET" "$BASE"
+          node deployment/v43_publish_snapshot.mjs --session v43_stream --target "$TARGET"
+          git -C "$TARGET" config user.name 'github-actions[bot]'
+          git -C "$TARGET" config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git -C "$TARGET" add data/v43_actual_quote_outcomes.json data/v43_stream_latest.json data/v43_sessions/
+          if ! git -C "$TARGET" diff --staged --quiet; then
+            git -C "$TARGET" commit -m 'data(v43): frozen public microstructure and actual quote outcomes'
+            git -C "$TARGET" push origin HEAD:refs/heads/data/irys-v43-stream-evidence
+          fi
+          mkdir -p v43_publication
+          git fetch --quiet --depth=1 origin data/irys-v43-stream-evidence
+          git rev-parse FETCH_HEAD > v43_publication/published_commit.txt
+          for f in v43_actual_quote_outcomes.json v43_stream_latest.json; do
+            git show FETCH_HEAD:data/$f > v43_publication/$f
+            cmp "$TARGET/data/$f" v43_publication/$f
+          done
+          cp v43_stream/publication_receipt.json v43_publication/
+          echo V43_SEPARATE_EVIDENCE_WRITE_AND_READBACK_VERIFIED
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: v43-publication-${{ github.run_id }}-${{ github.run_attempt }}
+          path: v43_publication/
+          retention-days: 7
+          if-no-files-found: error

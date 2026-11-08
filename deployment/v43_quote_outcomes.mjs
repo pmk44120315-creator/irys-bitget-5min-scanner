@@ -42,8 +42,12 @@ export class QuoteOutcomeTracker{
   if(!finite(q.bid)||!finite(q.ask)||q.bid<=0||q.ask<q.bid)throw Error('QUOTE_VALUE');
   const key=q.venue+':'+q.symbol,last=this.latestQuotes.get(key);
   if(last&&q.at_us<last.at_us)return;
-  if(last&&q.at_us===last.at_us){if(q.bid===last.bid&&q.ask===last.ask)return;throw Error('QUOTE_SOURCE_CONFLICT');}
-  this.latestQuotes.set(key,{at_us:q.at_us,bid:q.bid,ask:q.ask});
+  if(last&&q.at_us===last.at_us){
+   const ordered=q.sequence!=null&&last.sequence!=null&&/^\d+$/.test(String(q.sequence))&&/^\d+$/.test(String(last.sequence));
+   if(ordered&&BigInt(q.sequence)<BigInt(last.sequence))return;
+   if(!ordered||BigInt(q.sequence)===BigInt(last.sequence)){if(q.bid===last.bid&&q.ask===last.ask)return;throw Error('QUOTE_SOURCE_CONFLICT');}
+  }
+  this.latestQuotes.set(key,{at_us:q.at_us,bid:q.bid,ask:q.ask,sequence:q.sequence??null});
   for(const e of this.events.values()){
    if(e.venue!==q.venue||e.symbol!==q.symbol||q.at_ms<e.issued_at_ms||q.at_ms>e.issued_at_ms+60*60000+this.tolerance)continue;
    const short=e.direction==='SHORT',entry=short?e.entry_quote.bid:e.entry_quote.ask,exit=short?q.ask:q.bid;
