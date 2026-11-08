@@ -1,0 +1,121 @@
+name: V42.1 trusted runner transport full verification (NO DEPLOY)
+on:
+  push:
+    branches: [fix/irys-v421-runner-quote-transport-20261108]
+    paths: ['deployment/v421*.mjs','deployment/v30_delivery.mjs','deployment/build_v421_worker.py','tests/test_v421*.mjs','.github/workflows/v421-transport-verification.yml']
+permissions:
+  contents: read
+  actions: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    env:
+      OPENBLAS_NUM_THREADS: '1'
+      OMP_NUM_THREADS: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify reviewed source bytes
+        run: |
+          mkdir -p v421_verified
+          cat <<'SUMS' | sha256sum -c -
+          c4aab718759ba52008813a0c7c4e6414fe39638cd79ff3214942b7abd5b075bd  deployment/v421_runner_quote.mjs
+          8e73050fb7bfef3604b096634ecb875793ce6667f32f3f111c6bf8e82373d0c4  deployment/v421_quote_producer.mjs
+          3b42db514407f04070370d47e0b93e224f5e0a8a6f2d5e7bfa71dabb0adf1e1f  deployment/v30_delivery.mjs
+          19bb151d70fb750550fa60112f7cb9189ee22d6c31df3737bcad15efaf9bbe54  deployment/build_v421_worker.py
+          bb675390eeab3961da23de5c5230df905c6b0772723cd577d9286920a1dcbef4  tests/test_v421_runner_transport.mjs
+          b4470f85062224bd401bbebf5cafa0cf4778e672feebbbfdb4a46c768461193c  tests/test_v421_worker.mjs
+          abf6ce11849167904736c87099c4212ac0ddc7bc93356b1282d95cd4b6810e17  .github/workflows/v30-public-direction-producer.yml
+          SUMS
+      - run: python -m pip install 'numpy==2.3.5' 'scikit-learn==1.8.0'
+      - uses: actions/download-artifact@v4
+        with:
+          name: v42-live-dispatch-upgrade-proof
+          run-id: 42459877506
+          github-token: ${{ github.token }}
+          path: /tmp/v42
+      - uses: actions/download-artifact@v4
+        with:
+          name: v351-delivery-first-production-proof
+          run-id: 42156639897
+          github-token: ${{ github.token }}
+          path: /tmp/v351
+      - uses: actions/download-artifact@v4
+        with:
+          name: v35-deployed-natural-proof
+          run-id: 42083867409
+          github-token: ${{ github.token }}
+          path: /tmp/v35
+      - uses: actions/download-artifact@v4
+        with:
+          name: v31-guarded-production-natural-proof
+          run-id: 41814867318
+          github-token: ${{ github.token }}
+          path: /tmp/v31
+      - uses: actions/download-artifact@v4
+        with:
+          name: v30-selective-production-natural-proof
+          run-id: 41693577194
+          github-token: ${{ github.token }}
+          path: /tmp/v30
+      - uses: actions/download-artifact@v4
+        with:
+          name: v28-production-and-natural-verification
+          run-id: 41450016477
+          github-token: ${{ github.token }}
+          path: /tmp/v28
+      - name: Recreate baseline fixtures and build exact V42.1 transport candidate
+        run: |
+          git fetch --quiet --depth=1 origin release/irys-v24-bitget-fallback-20261101
+          git show FETCH_HEAD:deployment/IRYS_V24_BITGET_FALLBACK_WORKER.mjs > /tmp/v24.mjs
+          python deployment/build_v27_worker.py /tmp/v24.mjs deployment/IRYS_V27_RESPONSE_WORKER.mjs
+          python deployment/build_v28_worker.py deployment/IRYS_V27_RESPONSE_WORKER.mjs deployment/IRYS_V28_BUILDUP_WORKER.mjs
+          python deployment/build_v29_worker.py deployment/IRYS_V28_BUILDUP_WORKER.mjs deployment/IRYS_V29_DIRECTION_REVIEW_WORKER.mjs
+          cp /tmp/v30/IRYS_V30_SELECTIVE_DIRECTION_WORKER.mjs deployment/
+          cp /tmp/v31/IRYS_V31_TIMELY_WORKER.mjs deployment/
+          python deployment/build_v34_worker.py deployment/IRYS_V31_TIMELY_WORKER.mjs deployment/IRYS_V34_CRASH_WARNING_WORKER.mjs
+          cp /tmp/v35/IRYS_V35_LIFECYCLE_WORKER.mjs deployment/
+          cp /tmp/v351/IRYS_V351_DELIVERY_FIRST_WORKER.mjs deployment/
+          cp /tmp/v42/IRYS_V42_DISPATCH_WORKER.mjs deployment/
+          python deployment/build_v421_worker.py deployment/IRYS_V42_DISPATCH_WORKER.mjs deployment/IRYS_V421_DISPATCH_WORKER.mjs
+          echo '99845f001c17542fbe1c5c1a7dde9beadef1881d6f31f1c1e0f7765109b9e3bb  deployment/IRYS_V421_DISPATCH_WORKER.mjs' | sha256sum -c -
+          node --check deployment/IRYS_V421_DISPATCH_WORKER.mjs
+      - name: Full regression and compiled transport contracts
+        env:
+          V27_BASE_WORKER: /tmp/v24.mjs
+          V28_BASE_WORKER: deployment/IRYS_V27_RESPONSE_WORKER.mjs
+          V28_RELEASE_BASE_WORKER: /tmp/v28/IRYS_V28_BUILDUP_WORKER.mjs
+          V29_BASE_WORKER: deployment/IRYS_V28_BUILDUP_WORKER.mjs
+          V30_BASE_WORKER: deployment/IRYS_V29_DIRECTION_REVIEW_WORKER.mjs
+          V34_BASE_WORKER: deployment/IRYS_V31_TIMELY_WORKER.mjs
+          V35_BASE_WORKER: deployment/IRYS_V34_CRASH_WARNING_WORKER.mjs
+        run: |
+          set -o pipefail
+          python -m unittest discover -s tests -v 2>&1 | tee v421_verified/python.log
+          python -m unittest discover -s research/tests -p 'test_v40*.py' -v 2>&1 | tee v421_verified/learning.log
+          node --test tests/*.mjs 2>&1 | tee v421_verified/node.log
+      - name: Preserve exact proof and source without deploying
+        if: always()
+        run: |
+          mkdir -p v421_verified
+          git rev-parse HEAD > v421_verified/source_commit.txt
+          git archive --format=zip --output=v421_verified/source.zip HEAD
+          if test -f deployment/IRYS_V421_DISPATCH_WORKER.mjs; then cp deployment/IRYS_V421_DISPATCH_WORKER.* v421_verified/; fi
+          python - <<'PY'
+          from pathlib import Path
+          import hashlib,json
+          p=Path('v421_verified');d={str(f.relative_to(p)):{'bytes':f.stat().st_size,'sha256':hashlib.sha256(f.read_bytes()).hexdigest()} for f in p.rglob('*') if f.is_file()}
+          (p/'manifest.json').write_text(json.dumps(d,indent=2))
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: v421-transport-verified-proof
+          path: v421_verified/
+          retention-days: 30
+          if-no-files-found: error
