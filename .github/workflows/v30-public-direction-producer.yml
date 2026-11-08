@@ -58,7 +58,7 @@ jobs:
         run: |
           set -euo pipefail
           export V30_PUBLISHED_COMMIT=$(git rev-parse HEAD)
-          git fetch --quiet origin data/irys-v421-dispatch-quotes
+          git fetch --quiet --depth=1 origin data/irys-v421-dispatch-quotes
           BASE=$(git rev-parse FETCH_HEAD)
           TARGET="$RUNNER_TEMP/v421-quotes"
           git worktree add --detach "$TARGET" "$BASE"
@@ -68,7 +68,7 @@ jobs:
           git -C "$TARGET" add data/v421_dispatch_quotes.json
           git -C "$TARGET" commit -m 'data(v421): newer original official quotes after paired-evidence publication'
           git -C "$TARGET" push origin HEAD:refs/heads/data/irys-v421-dispatch-quotes
-          git fetch --quiet origin data/irys-v421-dispatch-quotes
+          git fetch --quiet --depth=1 origin data/irys-v421-dispatch-quotes
           git show FETCH_HEAD:data/v421_dispatch_quotes.json > "$RUNNER_TEMP/v421-readback.json"
           cmp "$TARGET/data/v421_dispatch_quotes.json" "$RUNNER_TEMP/v421-readback.json"
           echo V421_CURRENT_QUOTE_PUBLICATION_READBACK_VERIFIED
