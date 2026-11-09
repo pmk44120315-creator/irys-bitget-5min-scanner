@@ -1,0 +1,121 @@
+name: Current runtime and catalyst-watch public market audit (READ ONLY)
+on:
+  push:
+    branches: [audit/irys-market-catalysts-20261109-2007]
+    paths: ['.github/workflows/market-catalyst-audit-20261109.yml']
+permissions:
+  contents: read
+  actions: read
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Read existing runtime and original exchange evidence without deploying or sending
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p market_audit/raw
+          python - <<'PY'
+          import json,time,datetime,urllib.request,urllib.parse,hashlib,os,base64
+          from pathlib import Path
+          root=Path('market_audit');repo='pmk44120315-creator/irys-bitget-5min-scanner';api='https://api.github.com/repos/'+repo;raw='https://raw.githubusercontent.com/'+repo
+          errors=[];sources={};asof=int(time.time()*1000)
+          def save(name,x):(root/name).write_text(json.dumps(x,ensure_ascii=False,indent=2,allow_nan=False))
+          def get(url,auth=False):
+            headers={'User-Agent':'IRYS-read-only-catalyst-review','Accept':'application/json','Cache-Control':'no-cache'}
+            if auth:
+              assert url.startswith(api+'/');headers['Authorization']='Bearer '+os.environ['GITHUB_TOKEN']
+            with urllib.request.urlopen(urllib.request.Request(url,headers=headers),timeout=22) as r:d=json.load(r)
+            return d
+          def take(name,url,auth=False):
+            try:
+              d=get(url,auth);save('raw/'+name+'.json',d);sources[name]={'url':url,'at_ms':int(time.time()*1000),'status':'READ'};return d
+            except Exception as e:
+              errors.append({'source':name,'error_type':type(e).__name__,'message':str(e)[:140]});sources[name]={'url':url,'status':'UNAVAILABLE'};return None
+          h=take('public_health','https://irys-surge-monitor.vhehwpfl.workers.dev/?marketreadonly='+str(asof))
+          if h:
+            # Do not retain the complete health object, which may include Telegram metadata.
+            (root/'raw/public_health.json').unlink()
+            last=h.get('last',{});d=last.get('v30DirectionalDelivery',{});r=last.get('v34MarketRisk',{})
+            health={'checked_at_ms':int(time.time()*1000),'version':last.get('codeVersion'),'time':last.get('time'),'status':last.get('status'),
+              'entry_enabled':h.get('marketNotificationsEnabled'),'risk_enabled':h.get('marketRiskWarningsEnabled'),'rsi_enabled':h.get('rsiEntryContextEnabled'),
+              'delivery_status':d.get('status'),'evaluated':d.get('evaluated'),'ready':d.get('ready'),'sent':d.get('sent'),'source_at_ms':d.get('source_at_ms'),
+              'source_summary':d.get('source_summary'),'feed':d.get('feed'),'dispatch':d.get('dispatch_revalidation'),'entry_context':d.get('entry_context'),
+              'risk_status':r.get('status'),'risk_feed':r.get('feed'),'phone_delivery_verified':False}
+            save('health_sanitized.json',health)
+            history=d.get('public_ack_history')
+            if history and history.get('private_messages_exported') is False:save('public_ack_history.json',history)
+          else:health=None
+          main=take('main_ref',api+'/git/ref/heads/main',True);sha=main['object']['sha'] if main else 'main'
+          docs={}
+          for branch,name in [(sha,'latest.json'),(sha,'v30_direction_latest.json'),(sha,'v36_shadow_latest.json'),(sha,'v37_early_latest.json'),(sha,'v38_continuation_latest.json'),('data/irys-v43-stream-evidence','v43_stream_latest.json'),('data/irys-v43-stream-evidence','v43_actual_quote_outcomes.json'),('data/irys-v39-ack-feedback','v42_actual_ack_evaluation.json'),('data/irys-v421-dispatch-quotes','v421_dispatch_quotes.json')]:
+            docs[name]=take(name[:-5],raw+'/'+branch+'/data/'+name)
+          runs=take('latest_runs',api+'/actions/runs?branch=main&per_page=100',True)
+          if runs:
+            rows=[{k:x.get(k) for k in ['id','name','path','status','conclusion','event','created_at','updated_at','head_sha','html_url']} for x in runs['workflow_runs']]
+            save('run_summary.json',{'asof_ms':int(time.time()*1000),'scope':'LATEST_100_MAIN_RUNS','runs':rows})
+          bit=take('bitget_tickers','https://api.bitget.com/api/v2/mix/market/tickers?productType=USDT-FUTURES')
+          con=take('bitget_contracts','https://api.bitget.com/api/v2/mix/market/contracts?productType=USDT-FUTURES')
+          spot=take('bithumb_tickers','https://api.bithumb.com/public/ticker/ALL_KRW')
+          markets=take('bithumb_markets','https://api.bithumb.com/v1/market/all?isDetails=true')
+          candidates=[]
+          if bit and bit.get('code')=='00000':
+            contracts={x['symbol']:x for x in con.get('data',[])} if con and con.get('code')=='00000' else {}
+            for x in bit.get('data',[]):
+              try:
+                p=float(x['lastPr']);o=float(x['open24h']);pct=(p/o-1)*100 if o else None
+                if pct is not None and 10<=pct<=20:
+                  c=contracts.get(x['symbol'],{});candidates.append({'venue':'bitget','symbol':x['symbol'],'price':p,'unit':'USDT','change_24h_pct':pct,'source_ts':x.get('ts'),'quote_volume':x.get('usdtVolume'),'bid':x.get('bidPr'),'ask':x.get('askPr'),'funding':x.get('fundingRate'),'contract_status':c.get('symbolStatus'),'launch_time':c.get('launchTime'),'contract':c})
+              except (KeyError,ValueError,TypeError):pass
+          if spot and spot.get('status')=='0000':
+            md={x['market']:x for x in markets} if isinstance(markets,list) else {}
+            for symbol,x in spot.get('data',{}).items():
+              if not isinstance(x,dict):continue
+              try:
+                pct=float(x['fluctate_rate_24H'])
+                if 10<=pct<=20:candidates.append({'venue':'bithumb','symbol':'KRW-'+symbol,'price':float(x['closing_price']),'unit':'KRW','change_24h_pct':pct,'source_ts':spot['data'].get('date'),'quote_volume':x.get('acc_trade_value_24H'),'market_details':md.get('KRW-'+symbol,{})})
+              except (KeyError,ValueError,TypeError):pass
+          for c in candidates:
+            time.sleep(.3)
+            if c['venue']=='bitget':url='https://api.bitget.com/api/v2/mix/market/history-candles?'+urllib.parse.urlencode({'symbol':c['symbol'],'productType':'USDT-FUTURES','granularity':'5m','limit':200,'endTime':int(time.time()*1000)})
+            else:url='https://api.bithumb.com/v1/candles/minutes/5?'+urllib.parse.urlencode({'market':c['symbol'],'count':200})
+            response=take('candles_'+c['venue']+'_'+c['symbol'],url)
+            try:
+              if c['venue']=='bitget':
+                assert response['code']=='00000';bars=[[int(x[0]),*map(float,x[1:7])] for x in response['data']]
+              else:bars=[[int(datetime.datetime.fromisoformat(x['candle_date_time_utc']).replace(tzinfo=datetime.timezone.utc).timestamp()*1000),x['opening_price'],x['high_price'],x['low_price'],x['trade_price'],x['candle_acc_trade_volume'],x['candle_acc_trade_price']] for x in response if x['market']==c['symbol']]
+              now=int(time.time()*1000);bars=sorted([x for x in bars if x[0]+300000<=now]);c['complete_5m_bars']=len(bars)
+              if bars:
+                last=bars[-1];c['last_closed_at_ms']=last[0]+300000;c['last_closed_price']=last[4]
+                for mins in (5,15,60):
+                  target=last[0]+300000-mins*60000;past=[x for x in bars if x[0]+300000<=target]
+                  if past and past[-1][0]+300000==target:c['closed_'+str(mins)+'m_change_pct']=(last[4]/past[-1][4]-1)*100
+                near=[x for x in bars if x[0]>=last[0]-55*60000]
+                c['last_hour_high']=max(x[2] for x in near);c['from_hour_high_pct']=(c['price']/c['last_hour_high']-1)*100
+                if len(bars)>=24:
+                  recent=sum(x[6] for x in bars[-12:]);prior=sum(x[6] for x in bars[-24:-12]);c['last_hour_quote_volume']=recent;c['prior_hour_quote_volume']=prior;c['hourly_volume_ratio']=recent/prior if prior else None
+            except Exception as e:c['candle_analysis_unavailable']=type(e).__name__
+          save('movers_10_20.json',{'asof_ms':int(time.time()*1000),'selection':'24H_10_TO_20_PERCENT_NOT_PROOF_OF_NEW_IMPULSE','candidates':candidates})
+          result={'asof_ms':asof,'finished_at_ms':int(time.time()*1000),'health':health,'source_pin':sha,'sources':sources,'errors':errors,'mover_candidates':len(candidates),'production_modified':False,'telegram_sent':False,'orders_sent':False}
+          save('receipt.json',result);print('CURRENT_AUDIT',json.dumps(result,ensure_ascii=False));print('MOVERS',json.dumps(candidates,ensure_ascii=False))
+          PY
+      - name: Hash read-only evidence
+        if: always()
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import json,hashlib
+          p=Path('market_audit');d={str(f.relative_to(p)):{'bytes':f.stat().st_size,'sha256':hashlib.sha256(f.read_bytes()).hexdigest()} for f in p.rglob('*') if f.is_file()}
+          (p/'manifest.json').write_text(json.dumps(d,indent=2))
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: current-runtime-and-market-catalysts
+          path: market_audit/
+          retention-days: 7
+          if-no-files-found: error
