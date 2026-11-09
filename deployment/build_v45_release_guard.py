@@ -21,4 +21,27 @@ changes={
 for a,b in changes.items():
  assert s.count(a)>=1,a
  s=s.replace(a,b)
+# Uploaded source and public request serving may become visible at different
+# instants. Re-read under the exact source lease; missing flags never count as PASS.
+readiness="""async function v45WaitForPublicReadiness(io){
+ const started=io.clock(),deadline=(Math.floor(started/300000)+1)*300000+240000,observations=[];
+ let previous=started;
+ while(io.clock()<=deadline){
+  const sourceHash=hash(await io.source());assert.equal(sourceHash,NEW,'SOURCE_CHANGED_DURING_PUBLIC_READINESS');
+  const a=await io.health(),at=io.clock();assert(at>=previous,'PUBLIC_READINESS_CLOCK_BACKWARDS');
+  observations.push({checked_at_ms:at,source_sha256:sourceHash,rsi_enabled:a.rsiEntryContextEnabled===true,
+   rsi_version:a.rsiEntryContextVersion??null,previous_runtime_version:a.last?.codeVersion??null});
+  io.save('public_readiness.json',{started_at_ms:started,observations,source_lease_preserved:true});
+  if(a.rsiEntryContextEnabled===true&&a.rsiEntryContextVersion==='V45_RSI_ENTRY_CONTEXT_V1')return a;
+  if(a.rsiEntryContextVersion&&a.rsiEntryContextVersion!=='V45_RSI_ENTRY_CONTEXT_V1')throw Error('UNEXPECTED_PUBLIC_CONTEXT_VERSION');
+  previous=at;await (io.sleep||((ms)=>new Promise(r=>setTimeout(r,ms))))(10000);
+  assert(io.clock()>previous,'PUBLIC_READINESS_CLOCK_NOT_ADVANCING');
+ }
+ throw Error('PUBLIC_RSI_CONTEXT_NOT_PROPAGATED');
+}
+"""
+assert s.count('async function release(io,candidate){')==1
+s=s.replace('async function release(io,candidate){',readiness+'async function release(io,candidate){')
+assert s.count('const a=await io.health();assert(a.kvConfigured')==1
+s=s.replace('const a=await io.health();assert(a.kvConfigured','const a=await v45WaitForPublicReadiness(io);assert(a.kvConfigured')
 out=Path(sys.argv[1]);out.write_text(s);print('V45_RELEASE_GUARD_SHA256',hashlib.sha256(s.encode()).hexdigest())

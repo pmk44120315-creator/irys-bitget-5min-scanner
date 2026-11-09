@@ -24,11 +24,11 @@ jobs:
           2747c2416e89f55cae2c1fe8f4d4350b896614248dfe29113843d9b959cc689d  deployment/v45_rsi_context.mjs
           bb9f106bf667aa4a3e6ec7e7867bbe2f896b653992beea39906be77de5f60116  deployment/v45_quote_producer.mjs
           869db6adb55278e546da809d25d1a9c77aaf7e3b94c4a2278f5ecd3068d613d1  deployment/build_v45_worker.py
-          9c2f2d6b658a8e291958808303fa365fd6f874ef4b12beb4490fdbb436e96bb5  deployment/build_v45_release_guard.py
+          469255df5e6dabb7a0016883a2535aee35e77d28475cd94da2798235b4a01d41  deployment/build_v45_release_guard.py
           87190124d6e02f981de90a4712b645d7b8f102491a588660cf7072000bab2952  tests/test_v45_rsi_context.mjs
           fe8dfdd399caf36fcefb79538ba0cb9d80761fa6f55462b7713d2ee77c4edee1  tests/test_v45_producer.mjs
           83cc13b4cacd404b730bdd27c89ed6b78b21992840ac4c5415e39a3df8f677f5  verification/v45/test_v45_worker.mjs
-          48a89b88b844d4dfc84b8eacbacc89aa6d8d55a56d00a7cbd51838584193a11b  verification/v45/test_v45_release_guard.mjs
+          2ecc95d92faaa6aa7480271a0c4016066256277b2292ff19bda86542915d1d47  verification/v45/test_v45_release_guard.mjs
           b3122fd4016454fde365d9f00eb681a698b014a27bf864e9e41ebd55778ef5a8  .github/workflows/v30-public-direction-producer.yml
           SUMS
       - uses: actions/download-artifact@v4
@@ -43,7 +43,7 @@ jobs:
           python deployment/build_v45_worker.py deployment/IRYS_V421_DISPATCH_WORKER.mjs deployment/IRYS_V45_RSI_WORKER.mjs
           python deployment/build_v45_release_guard.py deployment/release_v45_guarded.mjs
           echo 'f78b500927f41af3412c17bd3b47c25e3d9fba9c6d156a72302c67266a2a40cd  deployment/IRYS_V45_RSI_WORKER.mjs' | sha256sum -c -
-          echo '8eba8ee332559ea726775c670304ea8e663b2b664a7a1a02690082dd2bfa2d15  deployment/release_v45_guarded.mjs' | sha256sum -c -
+          echo '765b7497d1fcf87ff6f3094d073a999cce9413fbf57384eaca2f9299b0147c8b  deployment/release_v45_guarded.mjs' | sha256sum -c -
           node --check deployment/IRYS_V45_RSI_WORKER.mjs
       - name: Production-compatible and relevant original regressions plus new actual-send tests
         run: |
