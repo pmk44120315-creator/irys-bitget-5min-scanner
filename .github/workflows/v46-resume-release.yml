@@ -1,0 +1,95 @@
+name: V46 resumed exact-source deployment and natural verification
+on:
+  push:
+    branches: [fix/irys-v46-full-audit-20261110]
+    paths: ['.github/workflows/v46-resume-release.yml']
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: irys-v27-guarded-worker-source
+  cancel-in-progress: false
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/download-artifact@v4
+        with:
+          name: v46-verified-build-and-quality
+          run-id: 42659005403
+          github-token: ${{ github.token }}
+          path: /tmp/v46
+      - uses: actions/download-artifact@v4
+        with:
+          name: v45-resumed-live-deployment-proof
+          run-id: 42564939375
+          github-token: ${{ github.token }}
+          path: /tmp/v45
+      - name: Reuse exact tested build and prove source is integrated unchanged
+        run: |
+          mkdir -p v46_release
+          git fetch --quiet --depth=1 origin 3164ea8052026795770f9f3bff8f2c08b6174600
+          git diff --exit-code FETCH_HEAD HEAD -- deployment/v45_rsi_context.mjs deployment/build_v46_worker.py deployment/build_v46_release_guard.py research/v46_actual_quality.mjs verification/v46/ tests/test_v46_actual_quality.mjs .github/workflows/v46-quality.yml
+          git fetch --quiet --depth=1 origin main
+          git diff --exit-code 3164ea8052026795770f9f3bff8f2c08b6174600 FETCH_HEAD -- deployment/v45_rsi_context.mjs deployment/build_v46_worker.py deployment/build_v46_release_guard.py research/v46_actual_quality.mjs .github/workflows/v46-quality.yml
+          cp /tmp/v46/IRYS_V46_CONTEXT_WORKER.mjs deployment/
+          cp /tmp/v46/release_v46_guarded.mjs deployment/
+          cp /tmp/v45/IRYS_V45_RSI_WORKER.mjs deployment/
+          echo '9979d4c357cbb520c4cc8f2c68b55adf93264b53d992c9c3562c82b2e1ca8bc4  deployment/IRYS_V46_CONTEXT_WORKER.mjs' | sha256sum -c -
+          echo 'e4c51066074898e8bd0eae5afec886fdb87f0ca72d501c2967a8cd72f0a2c6a9  deployment/release_v46_guarded.mjs' | sha256sum -c -
+          node --test verification/v46/test_v46_release_guard.mjs tests/test_v46_actual_quality.mjs > v46_release/preflight_tests.log
+      - name: Code-only upload with source lease, unchanged settings, rollback and original natural Cron
+        env:
+          CF_ACCOUNT: ${{ secrets.IRYS_REALTIME_CF_ACCOUNT_ID }}
+          CF_TOKEN: ${{ secrets.IRYS_V7_CF_API_TOKEN }}
+        run: |
+          set -o pipefail
+          node deployment/release_v46_guarded.mjs 2>&1 | tee v46_release/release.log
+      - name: Independently read current operational state and actual outcome evidence
+        run: |
+          node --input-type=module <<'JS'
+          import assert from 'node:assert/strict';import {writeFileSync} from 'node:fs';
+          const r=await fetch('https://irys-surge-monitor.vhehwpfl.workers.dev/?v46readonly='+Date.now(),{signal:AbortSignal.timeout(20000)});
+          assert(r.ok,'PUBLIC_HEALTH_HTTP_'+r.status);const h=await r.json(),l=h.last||{},d=l.v30DirectionalDelivery||{};
+          const out={checked_at_utc:new Date().toISOString(),version:l.codeVersion,time:l.time,status:l.status,
+            native_observed_rsi_disclosure:h.nativeObservedRsiDisclosureEnabled,rsi_enabled:h.rsiEntryContextEnabled,
+            entry_enabled:h.marketNotificationsEnabled,risk_enabled:h.marketRiskWarningsEnabled,delivery_status:d.status,
+            source_feed:d.feed,dispatch:d.dispatch_revalidation,entry_context:d.entry_context,
+            latest_context_records:(d.public_ack_history?.records||[]).filter(x=>x.entry_context_v45).slice(-4),
+            device_delivery_verified:false,forecast_accuracy_improvement_proven:false,no_forced_scan:true,no_test_messages:true};
+          writeFileSync('v46_release/final_public_readback.json',JSON.stringify(out,null,2));
+          assert.equal(out.version,'IRYS-V46-NATIVE-CONTEXT-QUALITY-20261110');assert.equal(out.status,'PASS');assert.equal(out.native_observed_rsi_disclosure,true);
+          assert.equal(out.entry_enabled,true);assert.equal(out.risk_enabled,true);
+          console.log('V46_FINAL_PUBLIC_READBACK',JSON.stringify(out));
+          JS
+          git fetch --quiet --depth=1 origin data/irys-v39-ack-feedback
+          git show FETCH_HEAD:data/v42_actual_ack_evaluation.json > data/v42_actual_ack_evaluation.json
+          git fetch --quiet --depth=1 origin data/irys-v43-stream-evidence
+          git show FETCH_HEAD:data/v43_actual_quote_outcomes.json > data/v43_actual_quote_outcomes.json
+          node research/v46_actual_quality.mjs
+          cp v46_quality/v46_actual_quality.json v46_release/
+      - name: Preserve actual completion or rollback evidence and exact bytes
+        if: always()
+        run: |
+          mkdir -p v46_release
+          git rev-parse HEAD > v46_release/source_commit.txt
+          git archive --format=zip --output=v46_release/source.zip HEAD deployment/v45_rsi_context.mjs deployment/build_v46_worker.py deployment/build_v46_release_guard.py research/v46_actual_quality.mjs tests/test_v46_actual_quality.mjs verification/v46/ .github/workflows/v46-quality.yml .github/workflows/v46-resume-release.yml
+          if test -f deployment/IRYS_V46_CONTEXT_WORKER.mjs; then cp deployment/IRYS_V46_CONTEXT_WORKER.mjs v46_release/; fi
+          if test -f deployment/release_v46_guarded.mjs; then cp deployment/release_v46_guarded.mjs v46_release/; fi
+          python - <<'PY'
+          from pathlib import Path
+          import hashlib,json
+          p=Path('v46_release');m={str(f.relative_to(p)):{'bytes':f.stat().st_size,'sha256':hashlib.sha256(f.read_bytes()).hexdigest()} for f in p.rglob('*') if f.is_file()}
+          (p/'manifest.json').write_text(json.dumps(m,indent=2))
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: v46-resumed-live-proof
+          path: v46_release/
+          retention-days: 30
+          if-no-files-found: error
