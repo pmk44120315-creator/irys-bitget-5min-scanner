@@ -1,0 +1,73 @@
+name: V45 verified pre-alert candle recovery (READ ONLY)
+on:
+  push:
+    branches: [fix/irys-v45-rsi-entry-context-20261109]
+    paths: ['.github/workflows/v45-recover-candle-inputs.yml']
+permissions:
+  contents: read
+  actions: read
+jobs:
+  recover:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/download-artifact@v4
+        with:
+          name: v45-rsi-actual-ack-inputs
+          run-id: 42557972275
+          github-token: ${{ github.token }}
+          path: v45_audit
+      - name: Reuse valid originals and recover all unavailable responses at three requests per second
+        run: |
+          python - <<'PY'
+          import json,time,datetime,urllib.request,urllib.parse,urllib.error,hashlib
+          from pathlib import Path
+          out=Path('v45_audit');hist=json.loads((out/'ack_history.json').read_text());receipts=[]
+          for e in hist['records']:
+            for m in (1,5,15):
+              t=e['issued_at_ms'];v=e['venue'];s=e['symbol'];end=t//(m*60000)*(m*60000);name='candles/'+v+'_'+s+'_'+str(t)+'_'+str(m)+'m.json';p=out/name
+              valid=lambda d: isinstance(d,dict) and d.get('code')=='00000' and isinstance(d.get('data'),list) and len(d['data'])>0 if v=='bitget' else isinstance(d,list) and len(d)>0 and all(x.get('market')==s for x in d)
+              rec={'venue':v,'symbol':s,'issued_at_ms':t,'timeframe_minutes':m,'file':name,'closed_before_ms':end,'reconstructed_after_event':True,'live_feature_available_before_alert_verified':False}
+              previous=json.loads(p.read_text()) if p.exists() else None
+              if previous and valid(previous.get('response')):rec['status']='REUSED_VALID_ORIGINAL'
+              else:
+                if v=='bitget':url='https://api.bitget.com/api/v2/mix/market/history-candles?'+urllib.parse.urlencode({'symbol':s,'productType':'USDT-FUTURES','granularity':str(m)+'m','endTime':end,'limit':200})
+                else:url='https://api.bithumb.com/v1/candles/minutes/'+str(m)+'?'+urllib.parse.urlencode({'market':s,'to':datetime.datetime.fromtimestamp(end/1000,datetime.timezone.utc).isoformat().replace('+00:00','Z'),'count':200})
+                delay=.4
+                while True:
+                  time.sleep(delay)
+                  try:
+                    req=urllib.request.Request(url,headers={'User-Agent':'IRYS-V45-paced-readonly','Accept':'application/json'})
+                    with urllib.request.urlopen(req,timeout=25) as r:raw=json.load(r)
+                    if isinstance(raw,dict) and str(raw.get('code')) in ('429','429000','40010'):
+                      delay=min(10,delay*2);continue
+                    if not valid(raw):raise ValueError('PROVIDER_RESPONSE_INVALID_'+str(raw.get('code') if isinstance(raw,dict) else 'list'))
+                    p.write_text(json.dumps({'receipt':rec,'response':raw},ensure_ascii=False,indent=2));rec['status']='RECOVERED_VALID_ORIGINAL';break
+                  except urllib.error.HTTPError as err:
+                    if err.code==429:delay=max(2,min(15,delay*2));continue
+                    rec.update(status='UNAVAILABLE',error=str(err));break
+                  except Exception as err:rec.update(status='UNAVAILABLE',error=type(err).__name__+':'+str(err)[:100]);break
+              if p.exists():rec['sha256']=hashlib.sha256(p.read_bytes()).hexdigest()
+              receipts.append(rec)
+          result={'records':len(hist['records']),'requests':len(receipts),'receipts':receipts,'errors':sum(r['status']=='UNAVAILABLE' for r in receipts),'provider_schema_validated':True}
+          (out/'candle_inventory_recovered.json').write_text(json.dumps(result,indent=2));print('V45_ORIGINAL_CANDLE_RECOVERY',json.dumps({k:v for k,v in result.items() if k!='receipts'}))
+          if result['errors']:raise RuntimeError('INCOMPLETE_CANDLE_COHORT')
+          PY
+      - name: Preserve recovery receipt and exact byte manifest
+        if: always()
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import hashlib,json
+          p=Path('v45_audit');m={str(f.relative_to(p)):{'bytes':f.stat().st_size,'sha256':hashlib.sha256(f.read_bytes()).hexdigest()} for f in p.rglob('*') if f.is_file() and f.name!='manifest.json'}
+          (p/'manifest.json').write_text(json.dumps(m,indent=2))
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: v45-verified-rsi-candle-inputs
+          path: v45_audit/
+          retention-days: 30
+          if-no-files-found: error
