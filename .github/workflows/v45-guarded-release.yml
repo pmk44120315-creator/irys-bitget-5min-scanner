@@ -1,0 +1,87 @@
+name: V45 exact-source RSI context deployment and natural proof
+on:
+  push:
+    branches: [fix/irys-v45-rsi-entry-context-20261109]
+    paths: ['.github/workflows/v45-guarded-release.yml']
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: irys-v27-guarded-worker-source
+  cancel-in-progress: false
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/download-artifact@v4
+        with:
+          name: v45-verified-live-context-build
+          run-id: 42560389691
+          github-token: ${{ github.token }}
+          path: /tmp/v45
+      - uses: actions/download-artifact@v4
+        with:
+          name: v421-live-transport-deployment-proof
+          run-id: 42466573860
+          github-token: ${{ github.token }}
+          path: /tmp/v421
+      - name: Preserve the exact independently verified artifact and source lease
+        run: |
+          mkdir -p v45_release
+          git fetch --quiet --depth=1 origin d814da4a4e49fbce1809b285077991844626d173
+          git diff --exit-code FETCH_HEAD HEAD -- deployment/v45_rsi_context.mjs deployment/v45_quote_producer.mjs deployment/build_v45_worker.py deployment/build_v45_release_guard.py tests/test_v45_rsi_context.mjs tests/test_v45_producer.mjs verification/v45/ .github/workflows/v30-public-direction-producer.yml
+          cp /tmp/v45/IRYS_V45_RSI_WORKER.mjs deployment/
+          cp /tmp/v45/release_v45_guarded.mjs deployment/
+          cp /tmp/v421/IRYS_V421_DISPATCH_WORKER.mjs deployment/
+          echo 'f78b500927f41af3412c17bd3b47c25e3d9fba9c6d156a72302c67266a2a40cd  deployment/IRYS_V45_RSI_WORKER.mjs' | sha256sum -c -
+          echo '8eba8ee332559ea726775c670304ea8e663b2b664a7a1a02690082dd2bfa2d15  deployment/release_v45_guarded.mjs' | sha256sum -c -
+          node --test tests/test_v45*.mjs verification/v45/*.mjs > v45_release/targeted_release_tests.log
+      - name: Confirm main integration and wait for naturally published context without manual scans
+        run: |
+          git fetch --quiet --depth=1 origin main
+          git diff --exit-code d814da4a4e49fbce1809b285077991844626d173 FETCH_HEAD -- deployment/v45_rsi_context.mjs deployment/v45_quote_producer.mjs .github/workflows/v30-public-direction-producer.yml
+          node --input-type=module <<'JS'
+          import {writeFileSync} from 'node:fs';import assert from 'node:assert/strict';
+          const deadline=(Math.floor(Date.now()/300000)+1)*300000+240000;let ready=false;
+          while(Date.now()<deadline){
+            const r=await fetch('https://raw.githubusercontent.com/pmk44120315-creator/irys-bitget-5min-scanner/data/irys-v421-dispatch-quotes/data/v421_dispatch_quotes.json?v45readonly='+Date.now(),{signal:AbortSignal.timeout(20000)});
+            if(r.ok){const d=await r.json();if(d.entry_context_version==='V45_RSI_ENTRY_CONTEXT_V1'&&Number.isSafeInteger(d.sampled_at_ms)&&d.sampled_at_ms<=Date.now()&&Date.now()-d.sampled_at_ms<360000){
+              assert.equal(d.orders_sent,false);assert.equal(d.telegram_sent,false);assert.equal(d.errors.length,0);
+              writeFileSync('v45_release/source_publication.json',JSON.stringify({checked_at_utc:new Date().toISOString(),entry_context_version:d.entry_context_version,source_packet_at_ms:d.source_packet_at_ms,published_source_commit:d.published_source_commit,sampled_at_ms:d.sampled_at_ms,quote_count:d.quotes.length,context_summary:d.entry_context_summary,no_manual_scan:true},null,2));ready=true;break;
+            }}
+            await new Promise(r=>setTimeout(r,5000));
+          }
+          assert(ready,'NATURAL_V45_SOURCE_NOT_YET_VERIFIED');
+          JS
+      - name: Code-only production upload, exact readback and next original Cron verification
+        env:
+          CF_ACCOUNT: ${{ secrets.IRYS_REALTIME_CF_ACCOUNT_ID }}
+          CF_TOKEN: ${{ secrets.IRYS_V7_CF_API_TOKEN }}
+        run: |
+          set -o pipefail
+          node deployment/release_v45_guarded.mjs 2>&1 | tee v45_release/release.log
+      - name: Preserve sanitized deployment and rollback proof
+        if: always()
+        run: |
+          mkdir -p v45_release
+          git rev-parse HEAD > v45_release/source_commit.txt
+          git archive --format=zip --output=v45_release/source.zip HEAD deployment/v45_rsi_context.mjs deployment/v45_quote_producer.mjs deployment/build_v45_worker.py deployment/build_v45_release_guard.py tests/test_v45_rsi_context.mjs tests/test_v45_producer.mjs verification/v45/ .github/workflows/v30-public-direction-producer.yml .github/workflows/v45-guarded-release.yml
+          if test -f deployment/IRYS_V45_RSI_WORKER.mjs; then cp deployment/IRYS_V45_RSI_WORKER.mjs v45_release/; fi
+          if test -f deployment/release_v45_guarded.mjs; then cp deployment/release_v45_guarded.mjs v45_release/; fi
+          python - <<'PY'
+          from pathlib import Path
+          import json,hashlib
+          p=Path('v45_release');m={str(f.relative_to(p)):{'bytes':f.stat().st_size,'sha256':hashlib.sha256(f.read_bytes()).hexdigest()} for f in p.rglob('*') if f.is_file()}
+          (p/'manifest.json').write_text(json.dumps(m,indent=2))
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: v45-live-rsi-context-deployment-proof
+          path: v45_release/
+          retention-days: 30
+          if-no-files-found: error
