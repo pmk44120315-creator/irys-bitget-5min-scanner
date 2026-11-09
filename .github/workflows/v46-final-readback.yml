@@ -1,0 +1,83 @@
+name: V46 current-code and fresh natural-history readback (GET ONLY)
+on:
+  push:
+    branches: [fix/irys-v46-full-audit-20261110]
+    paths: ['.github/workflows/v46-final-readback.yml']
+permissions:
+  contents: read
+jobs:
+  readback:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Reconcile exact active source with public feature flags and fresh scheduled history
+        env:
+          CF_ACCOUNT: ${{ secrets.IRYS_REALTIME_CF_ACCOUNT_ID }}
+          CF_TOKEN: ${{ secrets.IRYS_V7_CF_API_TOKEN }}
+        run: |
+          mkdir -p v46_final
+          node --input-type=module <<'JS'
+          import {writeFileSync} from 'node:fs';import {createHash} from 'node:crypto';import assert from 'node:assert/strict';
+          const EXPECTED='9979d4c357cbb520c4cc8f2c68b55adf93264b53d992c9c3562c82b2e1ca8bc4',VERSION='IRYS-V46-NATIVE-CONTEXT-QUALITY-20261110';
+          const base='https://api.cloudflare.com/client/v4/accounts/'+process.env.CF_ACCOUNT+'/workers/scripts/irys-surge-monitor';
+          const headers={authorization:'Bearer '+process.env.CF_TOKEN};
+          const req=u=>fetch(u,{method:'GET',headers:u.startsWith(base)?headers:{'cache-control':'no-cache'},signal:AbortSignal.timeout(25000)});
+          async function sourceHash(){const r=await req(base);assert(r.ok,'SOURCE_HTTP_'+r.status);let b;if((r.headers.get('content-type')||'').startsWith('multipart/')){const f=await r.formData(),m=f.get('metadata'),j=m?JSON.parse(typeof m==='string'?m:await m.text()):{},p=f.get(j.main_module||j.body_part||'worker.js');assert(p);b=Buffer.from(typeof p==='string'?p:await p.arrayBuffer())}else b=Buffer.from(await r.arrayBuffer());return createHash('sha256').update(b).digest('hex')}
+          assert.equal(await sourceHash(),EXPECTED,'ACTIVE_CODE_MISMATCH');
+          const observations=[],start=Date.now(),deadline=(Math.floor(start/300000)+1)*300000+240000;let consecutive=0,verified=null;
+          while(Date.now()<=deadline){
+            const r=await req('https://irys-surge-monitor.vhehwpfl.workers.dev/?v46final='+Date.now());assert(r.ok,'PUBLIC_HEALTH_HTTP_'+r.status);
+            const h=await r.json(),l=h.last||{},d=l.v30DirectionalDelivery||{};
+            const tick=typeof l.time==='string'?Date.parse(l.time.replace(' KST','').replace(' ','T')+':00+09:00'):NaN;
+            const row={checked_at_utc:new Date().toISOString(),last_runtime_version:l.codeVersion,last_tick_kst:l.time,last_status:l.status,
+              native_observed_rsi_disclosure:h.nativeObservedRsiDisclosureEnabled,rsi_enabled:h.rsiEntryContextEnabled,
+              entry_enabled:h.marketNotificationsEnabled,risk_enabled:h.marketRiskWarningsEnabled,delivery_status:d.status,
+              source_feed:d.feed,dispatch:d.dispatch_revalidation,entry_context:d.entry_context,retained_ack_records:d.public_ack_history?.retained_ack_records,
+              phone_delivery_verified:false,new_forecast_accuracy_proven:false};
+            observations.push(row);
+            const ready=l.codeVersion===VERSION&&l.status==='PASS'&&h.nativeObservedRsiDisclosureEnabled===true&&h.rsiEntryContextEnabled===true&&h.marketNotificationsEnabled===true&&h.marketRiskWarningsEnabled===true&&Number.isFinite(tick)&&tick<=Date.now()&&Date.now()-tick<10*60000;
+            consecutive=ready?consecutive+1:0;
+            writeFileSync('v46_final/public_observations.json',JSON.stringify({started_at_utc:new Date(start).toISOString(),observations,consecutive_fresh_reads:consecutive},null,2));
+            if(consecutive>=2){verified=row;break;}
+            await new Promise(r=>setTimeout(r,5000));
+          }
+          assert(verified,'FRESH_NATURAL_HISTORY_NOT_CONFIRMED');assert.equal(await sourceHash(),EXPECTED,'ACTIVE_CODE_CHANGED_DURING_READBACK');
+          const cr=await req(base+'/schedules');assert(cr.ok);const cj=await cr.json();assert(cj.success);const schedules=cj.result?.schedules||cj.result;assert.deepEqual(schedules.map(x=>x.cron).sort(),['*/5 * * * *']);
+          const result={...verified,active_source_sha256:EXPECTED,source_before_after_identical:true,consecutive_fresh_reads:consecutive,
+            original_cron_preserved:true,read_only:true,no_deployment:true,no_forced_scan:true,orders_sent:false,telegram_sent:false,
+            earlier_postdeploy_stale_history_observed:true,stale_history_internal_cause_verified:false};
+          writeFileSync('v46_final/verified_runtime.json',JSON.stringify(result,null,2));console.log('V46_ACTIVE_SOURCE_AND_FRESH_RUNTIME_VERIFIED',JSON.stringify(result));
+          JS
+      - name: Capture current independently versioned quality report without altering ledgers
+        run: |
+          git fetch --quiet --depth=1 origin data/irys-v39-ack-feedback
+          git rev-parse FETCH_HEAD > v46_final/quality_source_commit.txt
+          git show FETCH_HEAD:data/v46_actual_quality.json > v46_final/v46_actual_quality.json
+          node --input-type=module <<'JS'
+          import {readFileSync} from 'node:fs';import assert from 'node:assert/strict';
+          const q=JSON.parse(readFileSync('v46_final/v46_actual_quality.json'));assert.equal(q.version,'V46_ACTUAL_DELIVERY_QUALITY_V1');assert.equal(q.orders_sent,false);assert.equal(q.telegram_sent,false);
+          console.log('V46_PERSISTED_QUALITY_READBACK',JSON.stringify({asof_ms:q.asof_ms,diagnostics:q.diagnostics,groups:q.groups}));
+          JS
+      - name: Preserve all evidence including unresolved checks
+        if: always()
+        run: |
+          mkdir -p v46_final
+          git rev-parse HEAD > v46_final/main_commit.txt
+          python - <<'PY'
+          from pathlib import Path
+          import hashlib,json
+          p=Path('v46_final');m={f.name:{'bytes':f.stat().st_size,'sha256':hashlib.sha256(f.read_bytes()).hexdigest()} for f in p.iterdir() if f.is_file()}
+          (p/'manifest.json').write_text(json.dumps(m,indent=2))
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: v46-active-source-final-readback
+          path: v46_final/
+          retention-days: 30
+          if-no-files-found: error
