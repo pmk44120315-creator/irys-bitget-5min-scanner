@@ -1,6 +1,6 @@
 {
   "version": "V43_ACTUAL_ACK_STREAM_QUOTES_V1",
-  "asof_ms": 1794236210835,
+  "asof_ms": 1794236510905,
   "target_tolerance_ms": 5000,
   "events": [
     {
@@ -4211,9 +4211,9 @@
         }
       },
       "observed_path": {
-        "quote_observations": 11850,
+        "quote_observations": 12458,
         "first_quote_ms": 1794233545103,
-        "last_quote_ms": 1794236210486,
+        "last_quote_ms": 1794236510786,
         "coverage_start_delay_ms": 51575,
         "max_observed_quote_gap_ms": 305681,
         "segments": [
@@ -4225,7 +4225,8 @@
           "bitget:42636361611-1:b7fd22f9-39ae-428d-a007-14de545485d5",
           "bitget:42637171015-1:c6a1d246-9cc2-4048-b1a2-737fe1ee07b6",
           "bitget:42637991983-1:96ff9ff9-23bd-4923-8ef5-1b9dab5d56b8",
-          "bitget:42638800132-1:051e16f8-6452-469f-9b33-7426884182ac"
+          "bitget:42638800132-1:051e16f8-6452-469f-9b33-7426884182ac",
+          "bitget:42639616554-1:524c773b-3872-4f66-9929-88e892718ff4"
         ],
         "max_favorable_pct": 9.977463634501133,
         "max_adverse_pct": 0.0263412064272604,
@@ -4297,14 +4298,15 @@
       "observed_path": {
         "quote_observations": 2851,
         "first_quote_ms": 1794235912467,
-        "last_quote_ms": 1794236210441,
+        "last_quote_ms": 1794236510760,
         "coverage_start_delay_ms": 18260,
-        "max_observed_quote_gap_ms": 1076,
+        "max_observed_quote_gap_ms": 1811,
         "segments": [
-          "bithumb:42638800132-1:bfae2b8e-9f1c-4a19-a460-4def936fdc75"
+          "bithumb:42638800132-1:bfae2b8e-9f1c-4a19-a460-4def936fdc75",
+          "bithumb:42639616554-1:56c00767-f187-4707-9add-f98ba0273ebd"
         ],
         "max_favorable_pct": -0.3225806451612856,
-        "max_adverse_pct": -2.3870967741935423,
+        "max_adverse_pct": -3.2258064516129004,
         "first_observed_touch": {
           "kind": "REFERENCE_BREAK",
           "at_ms": 1794236114794,
@@ -4314,7 +4316,8 @@
           "coverage_start_delay_ms": 18260,
           "segment": "bithumb:42638800132-1:bfae2b8e-9f1c-4a19-a460-4def936fdc75"
         },
-        "complete_tick_path_verified": false
+        "complete_tick_path_verified": false,
+        "observation_count_is_lower_bound": true
       }
     }
   ],
