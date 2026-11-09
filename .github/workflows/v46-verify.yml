@@ -83,17 +83,17 @@ jobs:
           run-id: 41693577194
           github-token: ${{ github.token }}
           path: /tmp/v30
-      - uses: actions/download-artifact@v4
-        with:
-          name: v28-production-and-natural-verification
-          run-id: 41450016477
-          github-token: ${{ github.token }}
-          path: /tmp/v28
       - name: Restore unchanged old compiled fixtures and build exact V46 candidate
         run: |
           git fetch --quiet --depth=1 origin release/irys-v24-bitget-fallback-20261101
           git show FETCH_HEAD:deployment/IRYS_V24_BITGET_FALLBACK_WORKER.mjs > /tmp/v24.mjs
           python deployment/build_v27_worker.py /tmp/v24.mjs deployment/IRYS_V27_RESPONSE_WORKER.mjs
+          mkdir -p /tmp/v28 /tmp/v28-source
+          git fetch --quiet --depth=1 origin 91f47ac2bb3a72e90e4fc65c2e8925adbafc9a55
+          git archive FETCH_HEAD deployment | tar -x -C /tmp/v28-source
+          python /tmp/v28-source/deployment/build_v28_worker.py deployment/IRYS_V27_RESPONSE_WORKER.mjs /tmp/v28/IRYS_V28_BUILDUP_WORKER.mjs
+          echo 'e3fa2f1da6151ceb419fe5f21bf5fae8afd3db5a2d8068425f0986e64692c19d  /tmp/v28/IRYS_V28_BUILDUP_WORKER.mjs' | sha256sum -c -
+          cp /tmp/v28/IRYS_V28_BUILDUP_WORKER.mjs v46_verified/reconstructed_v28_fixture.mjs
           python deployment/build_v28_worker.py deployment/IRYS_V27_RESPONSE_WORKER.mjs deployment/IRYS_V28_BUILDUP_WORKER.mjs
           python deployment/build_v29_worker.py deployment/IRYS_V28_BUILDUP_WORKER.mjs deployment/IRYS_V29_DIRECTION_REVIEW_WORKER.mjs
           cp /tmp/v30/IRYS_V30_SELECTIVE_DIRECTION_WORKER.mjs deployment/
