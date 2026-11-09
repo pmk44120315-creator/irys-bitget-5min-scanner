@@ -1,6 +1,6 @@
 {
   "version": "V42_COMPLETE_ACTUAL_ACK_OUTCOMES_V1",
-  "asof_ms": 1794192107409,
+  "asof_ms": 1794192406775,
   "source": "PUBLIC_WORKER_RETAINED_ACTUAL_ACK_RECORDS_AND_OFFICIAL_NATIVE_CANDLES",
   "events": [
     {
@@ -7929,7 +7929,26 @@
           "observed_extrema_are_bounds_not_complete_tick_path": true
         },
         "30": {
-          "status": "PENDING_HORIZON"
+          "status": "MEASURED_MINUTE_CLOSE_PROXY",
+          "target_ms": 1794192090510,
+          "closed_at_ms": 1794192120000,
+          "target_offset_ms": 29490,
+          "horizon_reference": "FIRST_CLOSED_MINUTE_AT_OR_AFTER_TARGET",
+          "direction": "SHORT",
+          "reference_entry_bid_or_ask": 0.3415,
+          "target_close": 0.345,
+          "signed_price_pct": -1.0248901903367358,
+          "positive_direction": false,
+          "scenario_after_0_20pct_cost": -1.2248901903367357,
+          "actual_execution_verified": false,
+          "path_minutes_observed": 30,
+          "path_minutes_expected": 30,
+          "max_favorable_pct": 0.9663250366032328,
+          "max_adverse_pct": -4.919472913616385,
+          "first_reference_break_close_ms": 1794190680000,
+          "path_scope": "FULL_POST_ACK_MINUTES_ONLY",
+          "intraminute_order_known": false,
+          "observed_extrema_are_bounds_not_complete_tick_path": true
         },
         "60": {
           "status": "PENDING_HORIZON"
@@ -7943,7 +7962,7 @@
     "conflicts": 0,
     "provider_errors": 0,
     "new_events": 0,
-    "labels_added": 0
+    "labels_added": 1
   },
   "summary": {
     "actual_ack_records": 75,
@@ -7965,12 +7984,12 @@
         "mean_signed_price_pct": 0.00020988312196231837
       },
       "30": {
-        "measured": 74,
+        "measured": 75,
         "directional_positive": 36,
         "flat": 0,
-        "pending": 1,
+        "pending": 0,
         "missing": 0,
-        "mean_signed_price_pct": 0.2965422152804344
+        "mean_signed_price_pct": 0.2789231165388721
       },
       "60": {
         "measured": 73,
