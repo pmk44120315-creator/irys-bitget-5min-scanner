@@ -75,12 +75,13 @@ export class StreamState{
  constructor({retention_ms=180000}={}){this.markets=new Map();this.connections=new Map();this.retention_ms=retention_ms;}
  open(venue,id,at){if(!safe(at)||!id)throw Error('CONNECTION_CLOCK');const prior=this.connections.get(venue);this.connections.set(venue,{id,opened_at_ms:at,closed_at_ms:null,reconnects:(prior?.reconnects??-1)+1});}
  close(venue,id,at,reason){const s=this.connections.get(venue);if(s?.id!==id)return;s.closed_at_ms=at;s.close_reason=String(reason);}
+ forgetMarket(venue,symbol){this.markets.delete(marketKey(venue,symbol));}
  accept(e,connection){
   const con=this.connections.get(e.venue);if(!con||con.id!==connection||con.closed_at_ms!==null)throw Error('CONNECTION_NOT_ACTIVE');
   if(!safe(e.at_ms)||!safe(e.received_at_ms)||e.at_ms>e.received_at_ms||e.received_at_ms<con.opened_at_ms)throw Error('EVENT_CLOCK_INVALID');
   const key=marketKey(e.venue,e.symbol);let s=this.markets.get(key);
   if(!s){s={rows:[],seen:new Map(),initial_history_count:0,duplicates:0,conflicts:0,out_of_order_books:0,preconnection_events:0,lastBook:null,lastPrune:0};this.markets.set(key,s)}
-  if(s.segment!==connection){s.rows=[];s.seen.clear();s.lastBook=null;s.segment=connection;s.initial_history_count=0;s.duplicates=0;s.conflicts=0;s.out_of_order_books=0;}
+  if(s.segment!==connection){s.rows=[];s.seen.clear();s.lastBook=null;s.segment=connection;s.initial_history_count=0;s.duplicates=0;s.conflicts=0;s.out_of_order_books=0;s.observed_since_ms=null;}
   if(e.kind==='trade'){
    const fp=JSON.stringify([e.at_us,e.price,e.size,e.side]),old=s.seen.get(e.trade_id);
    if(old){if(old.fp!==fp){s.conflicts++;throw Error('CONFLICTING_TRADE_ID')}s.duplicates++;return false;}
@@ -95,7 +96,7 @@ export class StreamState{
     s.conflicts++;throw Error('CONFLICTING_BOOK_TIMESTAMP');
    }
   }
-  if(e.kind==='book')s.lastBook=e;
+  if(e.kind==='book'){s.lastBook=e;s.observed_since_ms??=e.received_at_ms;}
   s.rows.push({...e,segment:connection});
   if(e.received_at_ms-s.lastPrune>5000){const limit=e.received_at_ms-this.retention_ms;s.rows=s.rows.filter(x=>x.received_at_ms>=limit);for(const [id,v] of s.seen)if(v.received_at_ms<limit)s.seen.delete(id);s.lastPrune=e.received_at_ms;}
   return true;
@@ -113,7 +114,9 @@ export class StreamState{
   const quote=x=>x?{bid:x.bid,ask:x.ask,at_ms:x.at_ms,at_us:x.at_us,received_at_ms:x.received_at_ms,bid_size:x.bid_size,ask_size:x.ask_size}:null;
   const bidDepth=last?.bids.reduce((a,x)=>a+x[1],0)??null,askDepth=last?.asks.reduce((a,x)=>a+x[1],0)??null;
   return {version:STREAM_VERSION,venue,symbol,asof_ms:now,window_ms,segment:c?.id??null,connected_since_ms:c?.opened_at_ms??null,
-   unbroken_window:!!c&&c.closed_at_ms===null&&c.opened_at_ms<=start,reconnects:c?.reconnects??0,
+   unbroken_window:!!c&&c.closed_at_ms===null&&s?.segment===c.id&&safe(s?.observed_since_ms)&&s.observed_since_ms<=start,
+   market_observed_since_ms:s?.segment===c?.id?s?.observed_since_ms??null:null,
+   market_observation_span_ms:s?.segment===c?.id&&safe(s?.observed_since_ms)?Math.max(0,now-s.observed_since_ms):0,reconnects:c?.reconnects??0,
    book_count:b.length,trade_count:t.length,first_quote:quote(first),last_quote:quote(last),quote_age_ms:last?now-last.at_ms:null,
    buy_quote_notional:buy,sell_quote_notional:sell,signed_quote_flow:buy-sell,buy_share:buy+sell>0?buy/(buy+sell):null,
    observed_mid_change_pct:first&&last?100*(mid(last)/mid(first)-1):null,
