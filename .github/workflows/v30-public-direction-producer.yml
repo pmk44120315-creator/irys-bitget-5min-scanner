@@ -25,7 +25,7 @@ jobs:
           git reset --hard origin/main
           echo "V30_SOURCE_SHA=$(git rev-parse HEAD)"
       - name: Pure evidence, producer and delivery checks without live Telegram
-        run: node --test tests/test_v30_core.mjs tests/test_v30_producer.mjs tests/test_v30_delivery.mjs tests/test_v35_lifecycle.mjs tests/test_v35_producer.mjs
+        run: node --test tests/test_v30_core.mjs tests/test_v30_producer.mjs tests/test_v30_delivery.mjs tests/test_v35_lifecycle.mjs tests/test_v35_producer.mjs tests/test_v45_rsi_context.mjs tests/test_v45_producer.mjs
       - name: Official public first samples, disjoint new trades, final quotes and outcomes
         id: producer
         continue-on-error: true
@@ -62,7 +62,7 @@ jobs:
           BASE=$(git rev-parse FETCH_HEAD)
           TARGET="$RUNNER_TEMP/v421-quotes"
           git worktree add --detach "$TARGET" "$BASE"
-          node deployment/v421_quote_producer.mjs "$TARGET/data/v421_dispatch_quotes.json"
+          node deployment/v45_quote_producer.mjs "$TARGET/data/v421_dispatch_quotes.json"
           git -C "$TARGET" config user.name 'github-actions[bot]'
           git -C "$TARGET" config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git -C "$TARGET" add data/v421_dispatch_quotes.json

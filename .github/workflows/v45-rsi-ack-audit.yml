@@ -1,0 +1,65 @@
+name: V45 original pre-alert RSI and entry-timing audit (READ ONLY)
+on:
+  push:
+    branches: [fix/irys-v45-rsi-entry-context-20261109]
+    paths: ['.github/workflows/v45-rsi-ack-audit.yml']
+permissions:
+  contents: read
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Read actual ACK cohort and native candles, never account or Telegram endpoints
+        run: |
+          mkdir -p v45_audit/candles
+          git rev-parse HEAD > v45_audit/source_commit.txt
+          git archive --format=zip --output=v45_audit/source.zip HEAD
+          python - <<'PY'
+          import json,time,datetime,hashlib,urllib.request,urllib.parse,concurrent.futures
+          from pathlib import Path
+          out=Path('v45_audit');repo='pmk44120315-creator/irys-bitget-5min-scanner';base='https://raw.githubusercontent.com/'+repo
+          def get(url):
+            req=urllib.request.Request(url,headers={'User-Agent':'IRYS-V45-readonly','Accept':'application/json','Cache-Control':'no-cache'})
+            with urllib.request.urlopen(req,timeout=25) as r:return json.load(r)
+          def save(p,x):(out/p).write_text(json.dumps(x,ensure_ascii=False,indent=2,allow_nan=False))
+          h=get('https://irys-surge-monitor.vhehwpfl.workers.dev/?v45readonly='+str(int(time.time()*1000)));last=h.get('last',{});delivery=last.get('v30DirectionalDelivery',{});history=delivery.get('public_ack_history')
+          if not history or history.get('private_messages_exported') is not False:raise ValueError('PUBLIC_ACK_SOURCE_NOT_VERIFIED')
+          save('ack_history.json',history)
+          save('health.json',{'checked_at_utc':datetime.datetime.now(datetime.timezone.utc).isoformat(),'code_version':last.get('codeVersion'),'time':last.get('time'),'status':last.get('status'),'entry_enabled':h.get('marketNotificationsEnabled'),'risk_enabled':h.get('marketRiskWarningsEnabled'),'delivery_status':delivery.get('status'),'dispatch':delivery.get('dispatch_revalidation'),'feed':delivery.get('feed'),'phone_delivery_verified':False})
+          for branch,name in [('data/irys-v43-stream-evidence','v43_actual_quote_outcomes.json'),('data/irys-v39-ack-feedback','v42_actual_ack_evaluation.json')]:save(name,get(base+'/'+branch+'/data/'+name))
+          receipts=[]
+          def task(args):
+            e,m=args;t=e['issued_at_ms'];v=e['venue'];s=e['symbol'];end=t//(m*60000)*(m*60000);name='candles/'+v+'_'+s+'_'+str(t)+'_'+str(m)+'m.json'
+            if v=='bitget':url='https://api.bitget.com/api/v2/mix/market/history-candles?'+urllib.parse.urlencode({'symbol':s,'productType':'USDT-FUTURES','granularity':str(m)+'m','endTime':end,'limit':200})
+            else:url='https://api.bithumb.com/v1/candles/minutes/'+str(m)+'?'+urllib.parse.urlencode({'market':s,'to':datetime.datetime.fromtimestamp(end/1000,datetime.timezone.utc).isoformat().replace('+00:00','Z'),'count':200})
+            r={'venue':v,'symbol':s,'issued_at_ms':t,'timeframe_minutes':m,'closed_before_ms':end,'file':name,'reconstructed_after_event':True,'live_feature_available_before_alert_verified':False}
+            try:
+              raw=get(url);payload={'receipt':r,'response':raw};save(name,payload);r['status']='ORIGINAL_RESPONSE_SAVED';r['sha256']=hashlib.sha256((out/name).read_bytes()).hexdigest()
+            except Exception as err:r.update(status='UNAVAILABLE',error_type=type(err).__name__,error=str(err)[:100])
+            return r
+          work=[(e,m) for e in history['records'] for m in (1,5,15)]
+          with concurrent.futures.ThreadPoolExecutor(max_workers=3) as pool:
+            for r in pool.map(task,work):receipts.append(r)
+          save('candle_inventory.json',{'records':len(history['records']),'requests':len(work),'receipts':receipts,'errors':sum(x['status']!='ORIGINAL_RESPONSE_SAVED' for x in receipts)})
+          print('V45_ACTUAL_ACK_CANDLE_AUDIT',json.dumps({'records':len(history['records']),'responses':len(receipts),'errors':sum(x['status']!='ORIGINAL_RESPONSE_SAVED' for x in receipts),'latest':[{k:e.get(k) for k in ('venue','symbol','direction','issued_at_ms','entry_quote')} for e in history['records'][-8:]],'orders_sent':False,'telegram_sent':False}))
+          PY
+      - name: Preserve exact input hashes and failures
+        if: always()
+        run: |
+          python - <<'PY'
+          import json,hashlib
+          from pathlib import Path
+          p=Path('v45_audit');m={str(f.relative_to(p)):{'bytes':f.stat().st_size,'sha256':hashlib.sha256(f.read_bytes()).hexdigest()} for f in p.rglob('*') if f.is_file()}
+          (p/'manifest.json').write_text(json.dumps(m,indent=2))
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: v45-rsi-actual-ack-inputs
+          path: v45_audit/
+          retention-days: 30
+          if-no-files-found: error
