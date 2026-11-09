@@ -91,3 +91,42 @@ jobs:
           path: v43_publication/
           retention-days: 7
           if-no-files-found: error
+  analyze:
+    needs: collect
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/download-artifact@v4
+        with:
+          name: v43-observation-${{ github.run_id }}-${{ github.run_attempt }}
+          path: v44_current_session
+      - name: Validate causal comparison without optional dependencies
+        run: python -S -m unittest discover -s tests -p 'test_v44_stream_backtest.py' -v
+      - name: Compare completed original observations across adjacent collection cycles
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          python -S - <<'PY'
+          from pathlib import Path
+          import json,datetime
+          from research.v44_collect_history import collect
+          s=json.loads(Path('v44_current_session/session.json').read_text())
+          end=s['ended_at_ms'];start=end-15*60000
+          iso=lambda x:datetime.datetime.fromtimestamp(x/1000,datetime.timezone.utc).isoformat()
+          collect(iso(start),iso(end),'v44_forward_comparison')
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: v44-forward-comparison-${{ github.run_id }}-${{ github.run_attempt }}
+          path: v44_forward_comparison/
+          retention-days: 1
+          if-no-files-found: error
