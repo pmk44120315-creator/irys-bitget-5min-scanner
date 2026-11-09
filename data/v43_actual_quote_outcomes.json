@@ -1,6 +1,6 @@
 {
   "version": "V43_ACTUAL_ACK_STREAM_QUOTES_V1",
-  "asof_ms": 1794189104183,
+  "asof_ms": 1794189409487,
   "target_tolerance_ms": 5000,
   "events": [
     {
@@ -3771,18 +3771,27 @@
         }
       },
       "observed_path": {
-        "quote_observations": 2616,
+        "quote_observations": 3180,
         "first_quote_ms": 1794188805803,
-        "last_quote_ms": 1794189103952,
+        "last_quote_ms": 1794189409352,
         "coverage_start_delay_ms": 15794,
-        "max_observed_quote_gap_ms": 199,
+        "max_observed_quote_gap_ms": 211903,
         "segments": [
           "bitget:42547032649-1:b07837e8-8732-4559-b0d9-aa10e51c19b7",
-          "bitget:42547328769-1:80e19c07-007c-4873-ad06-8da0ae3568f3"
+          "bitget:42547328769-1:80e19c07-007c-4873-ad06-8da0ae3568f3",
+          "bitget:42547759704-1:7c178764-be78-4778-b45e-2ed749e7b958"
         ],
-        "max_favorable_pct": 2.037962037962031,
+        "max_favorable_pct": 3.906093906093896,
         "max_adverse_pct": -2.157842157842167,
-        "first_observed_touch": null,
+        "first_observed_touch": {
+          "kind": "FAVORABLE_EQUAL_REFERENCE_DISTANCE",
+          "at_ms": 1794189353250,
+          "exit_quote": 0.009729,
+          "observed_only": true,
+          "full_path_order_verified": false,
+          "coverage_start_delay_ms": 19952,
+          "segment": "bitget:42547759704-1:7c178764-be78-4778-b45e-2ed749e7b958"
+        },
         "complete_tick_path_verified": false,
         "observation_count_is_lower_bound": true
       }
