@@ -1,6 +1,6 @@
 {
   "version": "V43_ACTUAL_ACK_STREAM_QUOTES_V1",
-  "asof_ms": 1794244921977,
+  "asof_ms": 1794245219694,
   "target_tolerance_ms": 5000,
   "events": [
     {
@@ -4475,15 +4475,31 @@
           "liquidity_size_and_fills_verified": false
         },
         "60": {
-          "status": "PENDING_HORIZON",
+          "status": "MEASURED_WS_QUOTE",
           "target_ms": 1794245193906,
-          "actual_execution_verified": false
+          "target_delay_ms": 97,
+          "provider_at_ms": 1794245194003,
+          "received_at_ms": 1794245194080,
+          "source_segment": "bitget:42663867529-1:422ca853-7355-4d06-bffa-99388e71a498",
+          "entry_reference": 0.3822,
+          "exit_quote": {
+            "bid": 0.3747,
+            "ask": 0.3748,
+            "at_ms": 1794245194003,
+            "at_us": 1794245194003000
+          },
+          "signed_quote_return_pct": 1.936159079016212,
+          "signed_mid_change_pct": 1.96206671026814,
+          "after_assumed_0_20pct_cost": 1.736159079016212,
+          "fee_schedule_verified": false,
+          "actual_execution_verified": false,
+          "liquidity_size_and_fills_verified": false
         }
       },
       "observed_path": {
         "quote_observations": 16625,
         "first_quote_ms": 1794241677755,
-        "last_quote_ms": 1794244921813,
+        "last_quote_ms": 1794245198835,
         "coverage_start_delay_ms": 83849,
         "max_observed_quote_gap_ms": 313802,
         "segments": [
@@ -4498,7 +4514,8 @@
           "bitget:42660567814-1:736adcf8-78f1-4071-a692-15ccbb964c19",
           "bitget:42661395424-1:e7901510-530f-4741-a186-bfd4f663077d",
           "bitget:42662203947-1:bcd467a8-859c-482b-94f0-39a10c7f74d6",
-          "bitget:42663044086-1:f130449f-8f8d-4bd0-8fd6-82a0569801f1"
+          "bitget:42663044086-1:f130449f-8f8d-4bd0-8fd6-82a0569801f1",
+          "bitget:42663867529-1:422ca853-7355-4d06-bffa-99388e71a498"
         ],
         "max_favorable_pct": 2.74725274725275,
         "max_adverse_pct": 0.39246467817896424,
@@ -4538,10 +4555,10 @@
         "pending": 0
       },
       "60": {
-        "measured": 7,
-        "quote_positive": 4,
+        "measured": 8,
+        "quote_positive": 5,
         "missing": 71,
-        "pending": 1
+        "pending": 0
       }
     }
   },
