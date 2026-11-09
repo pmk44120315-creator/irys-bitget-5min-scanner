@@ -19,7 +19,7 @@ jobs:
           mkdir -p v44_backdata
           cat <<'SUMS' | sha256sum -c -
           076097b5970538b2e1760c87590ec4932711e18e91eb5a1a4bebbb8162475e5b  research/v44_stream_backtest.py
-          a9940edc1826a53a0e397223150ed786c93234c03fb6f63bb317b956cb3bb999  research/v44_collect_history.py
+          b27da3c89fe75344d52b626bf1bdbfd4fa24f70fa64ac578966abfd42f85062b  research/v44_collect_history.py
           ff917cf1c59447a82d592f81b150cc8d4b845f7448fbcc3146422d5bd53eae55  tests/test_v44_stream_backtest.py
           SUMS
           set -o pipefail
