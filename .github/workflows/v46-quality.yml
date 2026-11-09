@@ -1,0 +1,67 @@
+name: IRYS V46 actual alert quality by version and evidence basis
+on:
+  workflow_run:
+    workflows: ['IRYS V39 actual-ACK direction feedback (NO LIVE ALERT CHANGES)']
+    types: [completed]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: irys-v39-public-ack-feedback-branch
+  cancel-in-progress: false
+jobs:
+  quality:
+    if: >-
+      github.event_name != 'workflow_run' ||
+      (github.event.workflow_run.head_branch == 'main' &&
+       github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.head_repository.full_name == github.repository)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check real-ACK comparison contracts without external services
+        run: node --test tests/test_v46_actual_quality.mjs
+      - name: Pin immutable prior ledgers
+        run: |
+          mkdir -p v46_quality
+          git fetch --quiet --depth=1 origin data/irys-v39-ack-feedback
+          git rev-parse FETCH_HEAD > v46_quality/ledger_base_sha.txt
+          git show FETCH_HEAD:data/v42_actual_ack_evaluation.json > data/v42_actual_ack_evaluation.json
+          git fetch --quiet --depth=1 origin data/irys-v43-stream-evidence
+          git rev-parse FETCH_HEAD > v46_quality/quote_source_sha.txt
+          git show FETCH_HEAD:data/v43_actual_quote_outcomes.json > data/v43_actual_quote_outcomes.json
+      - name: Recompute directional and executable quote results separately
+        run: node research/v46_actual_quality.mjs
+      - name: Publish a separate report without modifying either source ledger
+        run: |
+          set -euo pipefail
+          BASE=$(cat v46_quality/ledger_base_sha.txt)
+          TARGET="$RUNNER_TEMP/v46-quality"
+          git worktree add --detach "$TARGET" "$BASE"
+          cp v46_quality/v46_actual_quality.json "$TARGET/data/v46_actual_quality.json"
+          git -C "$TARGET" config user.name 'github-actions[bot]'
+          git -C "$TARGET" config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git -C "$TARGET" add data/v46_actual_quality.json
+          if ! git -C "$TARGET" diff --staged --quiet; then
+            git -C "$TARGET" commit -m 'data(v46): separate actual delivery versions, price direction and executable quotes'
+            git -C "$TARGET" push origin HEAD:refs/heads/data/irys-v39-ack-feedback
+          fi
+          git fetch --quiet --depth=1 origin data/irys-v39-ack-feedback
+          git show FETCH_HEAD:data/v46_actual_quality.json > v46_quality/readback.json
+          cmp v46_quality/v46_actual_quality.json v46_quality/readback.json
+          git rev-parse FETCH_HEAD > v46_quality/published_sha.txt
+          echo V46_QUALITY_REMOTE_READBACK_VERIFIED
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: v46-actual-alert-quality
+          path: v46_quality/
+          retention-days: 7
+          if-no-files-found: error
