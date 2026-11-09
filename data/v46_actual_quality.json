@@ -1,0 +1,4780 @@
+{
+  "version": "V46_ACTUAL_DELIVERY_QUALITY_V1",
+  "asof_ms": 1794243582805,
+  "input_asof_ms": {
+    "history": 1794243395669,
+    "minute": 1794243552466,
+    "quotes": 1794243419857
+  },
+  "diagnostics": {
+    "invalid_ack": 0,
+    "conflicting_ack": 0,
+    "entry_conflicts": 0,
+    "invalid_outcomes": 0
+  },
+  "groups": {
+    "all": {
+      "records": 79,
+      "entry_confirmed_records": 0,
+      "horizons": {
+        "5": {
+          "closed_price_direction": {
+            "measured": 79,
+            "positive": 27,
+            "negative": 52,
+            "flat": 0,
+            "pending": 0,
+            "missing": 0,
+            "mean_pct": -0.21578893114819656,
+            "median_pct": -0.36615918288687155
+          },
+          "executable_quote": {
+            "measured": 8,
+            "positive": 5,
+            "negative": 3,
+            "flat": 0,
+            "pending": 0,
+            "missing": 71,
+            "mean_pct": 0.05271717364325415,
+            "median_pct": 0.16238280412278255,
+            "mean_after_assumed_0_20pct_cost": -0.14728282635674586,
+            "fee_schedule_verified": false
+          }
+        },
+        "15": {
+          "closed_price_direction": {
+            "measured": 79,
+            "positive": 39,
+            "negative": 40,
+            "flat": 0,
+            "pending": 0,
+            "missing": 0,
+            "mean_pct": 0.1192154646159327,
+            "median_pct": -0.06835676286147674
+          },
+          "executable_quote": {
+            "measured": 8,
+            "positive": 4,
+            "negative": 4,
+            "flat": 0,
+            "pending": 0,
+            "missing": 71,
+            "mean_pct": 0.8785446591753748,
+            "median_pct": 0.2547809961452667,
+            "mean_after_assumed_0_20pct_cost": 0.6785446591753748,
+            "fee_schedule_verified": false
+          }
+        },
+        "30": {
+          "closed_price_direction": {
+            "measured": 79,
+            "positive": 40,
+            "negative": 39,
+            "flat": 0,
+            "pending": 0,
+            "missing": 0,
+            "mean_pct": 0.4051472769512918,
+            "median_pct": 0.025673940949921814
+          },
+          "executable_quote": {
+            "measured": 8,
+            "positive": 4,
+            "negative": 4,
+            "flat": 0,
+            "pending": 0,
+            "missing": 71,
+            "mean_pct": 1.3087318937251045,
+            "median_pct": -0.15684981893253014,
+            "mean_after_assumed_0_20pct_cost": 1.1087318937251045,
+            "fee_schedule_verified": false
+          }
+        },
+        "60": {
+          "closed_price_direction": {
+            "measured": 78,
+            "positive": 38,
+            "negative": 40,
+            "flat": 0,
+            "pending": 1,
+            "missing": 0,
+            "mean_pct": 1.386984339391872,
+            "median_pct": -0.2411427264882804
+          },
+          "executable_quote": {
+            "measured": 7,
+            "positive": 4,
+            "negative": 3,
+            "flat": 0,
+            "pending": 1,
+            "missing": 71,
+            "mean_pct": 2.0961956253962852,
+            "median_pct": 0.20210426202221912,
+            "mean_after_assumed_0_20pct_cost": 1.8961956253962853,
+            "fee_schedule_verified": false
+          }
+        }
+      }
+    },
+    "LEGACY_NO_RSI": {
+      "records": 75,
+      "entry_confirmed_records": 0,
+      "horizons": {
+        "5": {
+          "closed_price_direction": {
+            "measured": 75,
+            "positive": 24,
+            "negative": 51,
+            "flat": 0,
+            "pending": 0,
+            "missing": 0,
+            "mean_pct": -0.2742250200345898,
+            "median_pct": -0.382113821138208
+          },
+          "executable_quote": {
+            "measured": 4,
+            "positive": 2,
+            "negative": 2,
+            "flat": 0,
+            "pending": 0,
+            "missing": 71,
+            "mean_pct": -0.29587195220244256,
+            "median_pct": 0.06560599207544444,
+            "mean_after_assumed_0_20pct_cost": -0.49587195220244257,
+            "fee_schedule_verified": false
+          }
+        },
+        "15": {
+          "closed_price_direction": {
+            "measured": 75,
+            "positive": 35,
+            "negative": 40,
+            "flat": 0,
+            "pending": 0,
+            "missing": 0,
+            "mean_pct": 0.05201643287836622,
+            "median_pct": -0.11553273427471478
+          },
+          "executable_quote": {
+            "measured": 4,
+            "positive": 1,
+            "negative": 3,
+            "flat": 0,
+            "pending": 0,
+            "missing": 71,
+            "mean_pct": 0.732649783765216,
+            "median_pct": -0.23767137457093956,
+            "mean_after_assumed_0_20pct_cost": 0.532649783765216,
+            "fee_schedule_verified": false
+          }
+        },
+        "30": {
+          "closed_price_direction": {
+            "measured": 75,
+            "positive": 38,
+            "negative": 37,
+            "flat": 0,
+            "pending": 0,
+            "missing": 0,
+            "mean_pct": 0.3309020958156398,
+            "median_pct": 0.025673940949921814
+          },
+          "executable_quote": {
+            "measured": 4,
+            "positive": 2,
+            "negative": 2,
+            "flat": 0,
+            "pending": 0,
+            "missing": 71,
+            "mean_pct": 0.7580446239285965,
+            "median_pct": -0.15684981893253014,
+            "mean_after_assumed_0_20pct_cost": 0.5580446239285966,
+            "fee_schedule_verified": false
+          }
+        },
+        "60": {
+          "closed_price_direction": {
+            "measured": 75,
+            "positive": 36,
+            "negative": 39,
+            "flat": 0,
+            "pending": 0,
+            "missing": 0,
+            "mean_pct": 1.3437834141226037,
+            "median_pct": -0.3468208092485603
+          },
+          "executable_quote": {
+            "measured": 4,
+            "positive": 2,
+            "negative": 2,
+            "flat": 0,
+            "pending": 0,
+            "missing": 71,
+            "mean_pct": 1.7275078409181637,
+            "median_pct": -0.04536075332271193,
+            "mean_after_assumed_0_20pct_cost": 1.5275078409181637,
+            "fee_schedule_verified": false
+          }
+        }
+      }
+    },
+    "V45_CONTEXT_UNVERIFIED": {
+      "records": 2,
+      "entry_confirmed_records": 0,
+      "horizons": {
+        "5": {
+          "closed_price_direction": {
+            "measured": 2,
+            "positive": 1,
+            "negative": 1,
+            "flat": 0,
+            "pending": 0,
+            "missing": 0,
+            "mean_pct": -0.5514538751343834,
+            "median_pct": -0.5514538751343834
+          },
+          "executable_quote": {
+            "measured": 2,
+            "positive": 1,
+            "negative": 1,
+            "flat": 0,
+            "pending": 0,
+            "missing": 0,
+            "mean_pct": -1.1006601753107748,
+            "median_pct": -1.1006601753107748,
+            "mean_after_assumed_0_20pct_cost": -1.3006601753107747,
+            "fee_schedule_verified": false
+          }
+        },
+        "15": {
+          "closed_price_direction": {
+            "measured": 2,
+            "positive": 2,
+            "negative": 0,
+            "flat": 0,
+            "pending": 0,
+            "missing": 0,
+            "mean_pct": 0.5210597889444224,
+            "median_pct": 0.5210597889444224
+          },
+          "executable_quote": {
+            "measured": 2,
+            "positive": 1,
+            "negative": 1,
+            "flat": 0,
+            "pending": 0,
+            "missing": 0,
+            "mean_pct": -0.0781170652006058,
+            "median_pct": -0.0781170652006058,
+            "mean_after_assumed_0_20pct_cost": -0.2781170652006058,
+            "fee_schedule_verified": false
+          }
+        },
+        "30": {
+          "closed_price_direction": {
+            "measured": 2,
+            "positive": 0,
+            "negative": 2,
+            "flat": 0,
+            "pending": 0,
+            "missing": 0,
+            "mean_pct": -1.4253396555154174,
+            "median_pct": -1.4253396555154174
+          },
+          "executable_quote": {
+            "measured": 2,
+            "positive": 0,
+            "negative": 2,
+            "flat": 0,
+            "pending": 0,
+            "missing": 0,
+            "mean_pct": -1.7137621160937033,
+            "median_pct": -1.7137621160937033,
+            "mean_after_assumed_0_20pct_cost": -1.9137621160937033,
+            "fee_schedule_verified": false
+          }
+        },
+        "60": {
+          "closed_price_direction": {
+            "measured": 2,
+            "positive": 1,
+            "negative": 1,
+            "flat": 0,
+            "pending": 0,
+            "missing": 0,
+            "mean_pct": -0.4982747217868124,
+            "median_pct": -0.4982747217868124
+          },
+          "executable_quote": {
+            "measured": 2,
+            "positive": 1,
+            "negative": 1,
+            "flat": 0,
+            "pending": 0,
+            "missing": 0,
+            "mean_pct": -0.30950961559692036,
+            "median_pct": -0.30950961559692036,
+            "mean_after_assumed_0_20pct_cost": -0.5095096155969203,
+            "fee_schedule_verified": false
+          }
+        }
+      }
+    },
+    "V45_DIRECTION_OBSERVATION": {
+      "records": 2,
+      "entry_confirmed_records": 0,
+      "horizons": {
+        "5": {
+          "closed_price_direction": {
+            "measured": 2,
+            "positive": 2,
+            "negative": 0,
+            "flat": 0,
+            "pending": 0,
+            "missing": 0,
+            "mean_pct": 2.3112293460777367,
+            "median_pct": 2.3112293460777367
+          },
+          "executable_quote": {
+            "measured": 2,
+            "positive": 2,
+            "negative": 0,
+            "flat": 0,
+            "pending": 0,
+            "missing": 0,
+            "mean_pct": 1.9032727742886766,
+            "median_pct": 1.9032727742886766,
+            "mean_after_assumed_0_20pct_cost": 1.7032727742886766,
+            "fee_schedule_verified": false
+          }
+        },
+        "15": {
+          "closed_price_direction": {
+            "measured": 2,
+            "positive": 2,
+            "negative": 0,
+            "flat": 0,
+            "pending": 0,
+            "missing": 0,
+            "mean_pct": 2.237334830446186,
+            "median_pct": 2.237334830446186
+          },
+          "executable_quote": {
+            "measured": 2,
+            "positive": 2,
+            "negative": 0,
+            "flat": 0,
+            "pending": 0,
+            "missing": 0,
+            "mean_pct": 2.1269961343716735,
+            "median_pct": 2.1269961343716735,
+            "mean_after_assumed_0_20pct_cost": 1.9269961343716735,
+            "fee_schedule_verified": false
+          }
+        },
+        "30": {
+          "closed_price_direction": {
+            "measured": 2,
+            "positive": 2,
+            "negative": 0,
+            "flat": 0,
+            "pending": 0,
+            "missing": 0,
+            "mean_pct": 5.019828502004953,
+            "median_pct": 5.019828502004953
+          },
+          "executable_quote": {
+            "measured": 2,
+            "positive": 2,
+            "negative": 0,
+            "flat": 0,
+            "pending": 0,
+            "missing": 0,
+            "mean_pct": 5.432600443136929,
+            "median_pct": 5.432600443136929,
+            "mean_after_assumed_0_20pct_cost": 5.232600443136929,
+            "fee_schedule_verified": false
+          }
+        },
+        "60": {
+          "closed_price_direction": {
+            "measured": 1,
+            "positive": 1,
+            "negative": 0,
+            "flat": 0,
+            "pending": 1,
+            "missing": 0,
+            "mean_pct": 8.397571856944353,
+            "median_pct": 8.397571856944353
+          },
+          "executable_quote": {
+            "measured": 1,
+            "positive": 1,
+            "negative": 0,
+            "flat": 0,
+            "pending": 1,
+            "missing": 0,
+            "mean_pct": 8.382357245295182,
+            "median_pct": 8.382357245295182,
+            "mean_after_assumed_0_20pct_cost": 8.182357245295183,
+            "fee_schedule_verified": false
+          }
+        }
+      }
+    }
+  },
+  "records": [
+    {
+      "id": "bitget:INITUSDT:1793753207704",
+      "venue": "bitget",
+      "symbol": "INITUSDT",
+      "direction": "LONG",
+      "issued_at_ms": 1793753207704,
+      "cohort": "LEGACY_NO_RSI",
+      "entry_quote": {
+        "bid": 0.12292,
+        "ask": 0.12308,
+        "at_ms": 1793753197612
+      },
+      "entry_confirmed": false,
+      "horizons": {
+        "5": {
+          "target_ms": 1793753507704,
+          "closed_price_direction_pct": -0.382113821138208,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "15": {
+          "target_ms": 1793754107704,
+          "closed_price_direction_pct": 0.7154471544715602,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "30": {
+          "target_ms": 1793755007704,
+          "closed_price_direction_pct": 1.9837398373983683,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "60": {
+          "target_ms": 1793756807704,
+          "closed_price_direction_pct": 2.0813008130081245,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        }
+      },
+      "observed_path": {
+        "max_adverse_pct": null,
+        "max_favorable_pct": null,
+        "coverage_start_delay_ms": null,
+        "max_observed_quote_gap_ms": 0,
+        "complete_tick_path_verified": false
+      }
+    },
+    {
+      "id": "bitget:IDOLUSDT:1793756800026",
+      "venue": "bitget",
+      "symbol": "IDOLUSDT",
+      "direction": "LONG",
+      "issued_at_ms": 1793756800026,
+      "cohort": "LEGACY_NO_RSI",
+      "entry_quote": {
+        "bid": 0.021213,
+        "ask": 0.021277,
+        "at_ms": 1793756794402
+      },
+      "entry_confirmed": false,
+      "horizons": {
+        "5": {
+          "target_ms": 1793757100026,
+          "closed_price_direction_pct": -1.0261237938338441,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "15": {
+          "target_ms": 1793757700026,
+          "closed_price_direction_pct": -1.6003765591903973,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "30": {
+          "target_ms": 1793758600026,
+          "closed_price_direction_pct": -2.875970816662743,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "60": {
+          "target_ms": 1793760400026,
+          "closed_price_direction_pct": -1.8545540127088644,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        }
+      },
+      "observed_path": {
+        "max_adverse_pct": null,
+        "max_favorable_pct": null,
+        "coverage_start_delay_ms": null,
+        "max_observed_quote_gap_ms": 0,
+        "complete_tick_path_verified": false
+      }
+    },
+    {
+      "id": "bithumb:KRW-PYBOBO:1793761295901",
+      "venue": "bithumb",
+      "symbol": "KRW-PYBOBO",
+      "direction": "BUY",
+      "issued_at_ms": 1793761295901,
+      "cohort": "LEGACY_NO_RSI",
+      "entry_quote": {
+        "bid": 0.78,
+        "ask": 0.7801,
+        "at_ms": 1793761285075
+      },
+      "entry_confirmed": false,
+      "horizons": {
+        "5": {
+          "target_ms": 1793761595901,
+          "closed_price_direction_pct": 0.32690212165886745,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "15": {
+          "target_ms": 1793762195901,
+          "closed_price_direction_pct": -1.4550349336580948,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "30": {
+          "target_ms": 1793763095901,
+          "closed_price_direction_pct": 2.737004038202673,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "60": {
+          "target_ms": 1793764895901,
+          "closed_price_direction_pct": 3.621562720338445,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        }
+      },
+      "observed_path": {
+        "max_adverse_pct": null,
+        "max_favorable_pct": null,
+        "coverage_start_delay_ms": null,
+        "max_observed_quote_gap_ms": 0,
+        "complete_tick_path_verified": false
+      }
+    },
+    {
+      "id": "bitget:IDOLUSDT:1793764301933",
+      "venue": "bitget",
+      "symbol": "IDOLUSDT",
+      "direction": "SHORT",
+      "issued_at_ms": 1793764301933,
+      "cohort": "LEGACY_NO_RSI",
+      "entry_quote": {
+        "bid": 0.021089,
+        "ask": 0.021105,
+        "at_ms": 1793764295185
+      },
+      "entry_confirmed": false,
+      "horizons": {
+        "5": {
+          "target_ms": 1793764601933,
+          "closed_price_direction_pct": -0.061620135564299794,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "15": {
+          "target_ms": 1793765201933,
+          "closed_price_direction_pct": -1.0096222211688932,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "30": {
+          "target_ms": 1793766101933,
+          "closed_price_direction_pct": -0.5972413139308852,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "60": {
+          "target_ms": 1793767901933,
+          "closed_price_direction_pct": -2.351045172299404,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        }
+      },
+      "observed_path": {
+        "max_adverse_pct": null,
+        "max_favorable_pct": null,
+        "coverage_start_delay_ms": null,
+        "max_observed_quote_gap_ms": 0,
+        "complete_tick_path_verified": false
+      }
+    },
+    {
+      "id": "bitget:BEAMUSDT:1793767602713",
+      "venue": "bitget",
+      "symbol": "BEAMUSDT",
+      "direction": "LONG",
+      "issued_at_ms": 1793767602713,
+      "cohort": "LEGACY_NO_RSI",
+      "entry_quote": {
+        "bid": 0.004003,
+        "ask": 0.004007,
+        "at_ms": 1793767594389
+      },
+      "entry_confirmed": false,
+      "horizons": {
+        "5": {
+          "target_ms": 1793767902713,
+          "closed_price_direction_pct": -0.9737827715355807,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "15": {
+          "target_ms": 1793768502713,
+          "closed_price_direction_pct": -2.8214731585518016,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "30": {
+          "target_ms": 1793769402713,
+          "closed_price_direction_pct": -2.0724094881398147,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "60": {
+          "target_ms": 1793771202713,
+          "closed_price_direction_pct": 0.1498127340823885,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        }
+      },
+      "observed_path": {
+        "max_adverse_pct": null,
+        "max_favorable_pct": null,
+        "coverage_start_delay_ms": null,
+        "max_observed_quote_gap_ms": 0,
+        "complete_tick_path_verified": false
+      }
+    },
+    {
+      "id": "bitget:EVAAUSDT:1793769103899",
+      "venue": "bitget",
+      "symbol": "EVAAUSDT",
+      "direction": "LONG",
+      "issued_at_ms": 1793769103899,
+      "cohort": "LEGACY_NO_RSI",
+      "entry_quote": {
+        "bid": 1.5047,
+        "ask": 1.5064,
+        "at_ms": 1793769095025
+      },
+      "entry_confirmed": false,
+      "horizons": {
+        "5": {
+          "target_ms": 1793769403899,
+          "closed_price_direction_pct": -0.5745408654644568,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "15": {
+          "target_ms": 1793770003899,
+          "closed_price_direction_pct": -0.09631031848825744,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "30": {
+          "target_ms": 1793770903899,
+          "closed_price_direction_pct": 1.185613231045135,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "60": {
+          "target_ms": 1793772703899,
+          "closed_price_direction_pct": 6.200391883364897,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        }
+      },
+      "observed_path": {
+        "max_adverse_pct": null,
+        "max_favorable_pct": null,
+        "coverage_start_delay_ms": null,
+        "max_observed_quote_gap_ms": 0,
+        "complete_tick_path_verified": false
+      }
+    },
+    {
+      "id": "bitget:BTWUSDT:1793772998346",
+      "venue": "bitget",
+      "symbol": "BTWUSDT",
+      "direction": "LONG",
+      "issued_at_ms": 1793772998346,
+      "cohort": "LEGACY_NO_RSI",
+      "entry_quote": {
+        "bid": 1.00399,
+        "ask": 1.0042,
+        "at_ms": 1793772993557
+      },
+      "entry_confirmed": false,
+      "horizons": {
+        "5": {
+          "target_ms": 1793773298346,
+          "closed_price_direction_pct": 0.7822964958494882,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "15": {
+          "target_ms": 1793773898346,
+          "closed_price_direction_pct": 1.6786260264218145,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "30": {
+          "target_ms": 1793774798346,
+          "closed_price_direction_pct": 3.4971790517829504,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "60": {
+          "target_ms": 1793776598346,
+          "closed_price_direction_pct": 4.990065681036171,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        }
+      },
+      "observed_path": {
+        "max_adverse_pct": null,
+        "max_favorable_pct": null,
+        "coverage_start_delay_ms": null,
+        "max_observed_quote_gap_ms": 0,
+        "complete_tick_path_verified": false
+      }
+    },
+    {
+      "id": "bitget:AKEUSDT:1793774204546",
+      "venue": "bitget",
+      "symbol": "AKEUSDT",
+      "direction": "LONG",
+      "issued_at_ms": 1793774204546,
+      "cohort": "LEGACY_NO_RSI",
+      "entry_quote": {
+        "bid": 0.0032939,
+        "ask": 0.0033001,
+        "at_ms": 1793774195035
+      },
+      "entry_confirmed": false,
+      "horizons": {
+        "5": {
+          "target_ms": 1793774504546,
+          "closed_price_direction_pct": -2.2080679405520165,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "15": {
+          "target_ms": 1793775104546,
+          "closed_price_direction_pct": -3.063390961480128,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "30": {
+          "target_ms": 1793776004546,
+          "closed_price_direction_pct": -6.269335759781624,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "60": {
+          "target_ms": 1793777804546,
+          "closed_price_direction_pct": -6.5847740370033385,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        }
+      },
+      "observed_path": {
+        "max_adverse_pct": null,
+        "max_favorable_pct": null,
+        "coverage_start_delay_ms": null,
+        "max_observed_quote_gap_ms": 0,
+        "complete_tick_path_verified": false
+      }
+    },
+    {
+      "id": "bitget:WLDUSDT:1793778705221",
+      "venue": "bitget",
+      "symbol": "WLDUSDT",
+      "direction": "LONG",
+      "issued_at_ms": 1793778705221,
+      "cohort": "LEGACY_NO_RSI",
+      "entry_quote": {
+        "bid": 0.3965,
+        "ask": 0.3966,
+        "at_ms": 1793778700436
+      },
+      "entry_confirmed": false,
+      "horizons": {
+        "5": {
+          "target_ms": 1793779005221,
+          "closed_price_direction_pct": -0.7691337788425123,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "15": {
+          "target_ms": 1793779605221,
+          "closed_price_direction_pct": -1.0465262892447313,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "30": {
+          "target_ms": 1793780505221,
+          "closed_price_direction_pct": -0.7186987769512099,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "60": {
+          "target_ms": 1793782305221,
+          "closed_price_direction_pct": -0.4665237674946421,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        }
+      },
+      "observed_path": {
+        "max_adverse_pct": null,
+        "max_favorable_pct": null,
+        "coverage_start_delay_ms": null,
+        "max_observed_quote_gap_ms": 0,
+        "complete_tick_path_verified": false
+      }
+    },
+    {
+      "id": "bitget:ZROUSDT:1793779000516",
+      "venue": "bitget",
+      "symbol": "ZROUSDT",
+      "direction": "SHORT",
+      "issued_at_ms": 1793779000516,
+      "cohort": "LEGACY_NO_RSI",
+      "entry_quote": {
+        "bid": 1.8985,
+        "ask": 1.8992,
+        "at_ms": 1793778994535
+      },
+      "entry_confirmed": false,
+      "horizons": {
+        "5": {
+          "target_ms": 1793779300516,
+          "closed_price_direction_pct": -0.5082023329910257,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "15": {
+          "target_ms": 1793779900516,
+          "closed_price_direction_pct": -0.12902546278010796,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "30": {
+          "target_ms": 1793780800516,
+          "closed_price_direction_pct": -0.9137109302999269,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "60": {
+          "target_ms": 1793782600516,
+          "closed_price_direction_pct": -0.9084445848803302,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        }
+      },
+      "observed_path": {
+        "max_adverse_pct": null,
+        "max_favorable_pct": null,
+        "coverage_start_delay_ms": null,
+        "max_observed_quote_gap_ms": 0,
+        "complete_tick_path_verified": false
+      }
+    },
+    {
+      "id": "bitget:CTRUSDT:1793779903273",
+      "venue": "bitget",
+      "symbol": "CTRUSDT",
+      "direction": "LONG",
+      "issued_at_ms": 1793779903273,
+      "cohort": "LEGACY_NO_RSI",
+      "entry_quote": {
+        "bid": 0.01502,
+        "ask": 0.01503,
+        "at_ms": 1793779898584
+      },
+      "entry_confirmed": false,
+      "horizons": {
+        "5": {
+          "target_ms": 1793780203273,
+          "closed_price_direction_pct": -0.9650582362728755,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "15": {
+          "target_ms": 1793780803273,
+          "closed_price_direction_pct": -1.23128119800332,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "30": {
+          "target_ms": 1793781703273,
+          "closed_price_direction_pct": -1.2978369384359478,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "60": {
+          "target_ms": 1793783503273,
+          "closed_price_direction_pct": -0.9650582362728755,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        }
+      },
+      "observed_path": {
+        "max_adverse_pct": null,
+        "max_favorable_pct": null,
+        "coverage_start_delay_ms": null,
+        "max_observed_quote_gap_ms": 0,
+        "complete_tick_path_verified": false
+      }
+    },
+    {
+      "id": "bitget:JCTUSDT:1793788019263",
+      "venue": "bitget",
+      "symbol": "JCTUSDT",
+      "direction": "LONG",
+      "issued_at_ms": 1793788019263,
+      "cohort": "LEGACY_NO_RSI",
+      "entry_quote": {
+        "bid": 0.004615,
+        "ask": 0.004619,
+        "at_ms": 1793787996498
+      },
+      "entry_confirmed": false,
+      "horizons": {
+        "5": {
+          "target_ms": 1793788319263,
+          "closed_price_direction_pct": 1.667749620966008,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "15": {
+          "target_ms": 1793788919263,
+          "closed_price_direction_pct": 2.100931340697443,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "30": {
+          "target_ms": 1793789819263,
+          "closed_price_direction_pct": 3.61706735975742,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "60": {
+          "target_ms": 1793791619263,
+          "closed_price_direction_pct": 5.588044184535423,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        }
+      },
+      "observed_path": {
+        "max_adverse_pct": null,
+        "max_favorable_pct": null,
+        "coverage_start_delay_ms": null,
+        "max_observed_quote_gap_ms": 0,
+        "complete_tick_path_verified": false
+      }
+    },
+    {
+      "id": "bitget:BEAMUSDT:1793795787654",
+      "venue": "bitget",
+      "symbol": "BEAMUSDT",
+      "direction": "LONG",
+      "issued_at_ms": 1793795787654,
+      "cohort": "LEGACY_NO_RSI",
+      "entry_quote": {
+        "bid": 0.004294,
+        "ask": 0.004297,
+        "at_ms": 1793795779324
+      },
+      "entry_confirmed": false,
+      "horizons": {
+        "5": {
+          "target_ms": 1793796087654,
+          "closed_price_direction_pct": 1.4550110580840325,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "15": {
+          "target_ms": 1793796687654,
+          "closed_price_direction_pct": 3.5502269817250687,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "30": {
+          "target_ms": 1793797587654,
+          "closed_price_direction_pct": 2.19997671982306,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "60": {
+          "target_ms": 1793799387654,
+          "closed_price_direction_pct": 5.040158305203124,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        }
+      },
+      "observed_path": {
+        "max_adverse_pct": null,
+        "max_favorable_pct": null,
+        "coverage_start_delay_ms": null,
+        "max_observed_quote_gap_ms": 0,
+        "complete_tick_path_verified": false
+      }
+    },
+    {
+      "id": "bitget:IDOLUSDT:1793801785544",
+      "venue": "bitget",
+      "symbol": "IDOLUSDT",
+      "direction": "LONG",
+      "issued_at_ms": 1793801785544,
+      "cohort": "LEGACY_NO_RSI",
+      "entry_quote": {
+        "bid": 0.022128,
+        "ask": 0.022146,
+        "at_ms": 1793801780390
+      },
+      "entry_confirmed": false,
+      "horizons": {
+        "5": {
+          "target_ms": 1793802085544,
+          "closed_price_direction_pct": -0.05420788724758152,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "15": {
+          "target_ms": 1793802685544,
+          "closed_price_direction_pct": -0.43818042191804407,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "30": {
+          "target_ms": 1793803585544,
+          "closed_price_direction_pct": -0.7047025342187152,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "60": {
+          "target_ms": 1793805385544,
+          "closed_price_direction_pct": 4.580566472421754,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        }
+      },
+      "observed_path": {
+        "max_adverse_pct": null,
+        "max_favorable_pct": null,
+        "coverage_start_delay_ms": null,
+        "max_observed_quote_gap_ms": 0,
+        "complete_tick_path_verified": false
+      }
+    },
+    {
+      "id": "bitget:LITUSDT:1793802694005",
+      "venue": "bitget",
+      "symbol": "LITUSDT",
+      "direction": "LONG",
+      "issued_at_ms": 1793802694005,
+      "cohort": "LEGACY_NO_RSI",
+      "entry_quote": {
+        "bid": 3.459,
+        "ask": 3.461,
+        "at_ms": 1793802686781
+      },
+      "entry_confirmed": false,
+      "horizons": {
+        "5": {
+          "target_ms": 1793802994005,
+          "closed_price_direction_pct": 0.23121387283238093,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "15": {
+          "target_ms": 1793803594005,
+          "closed_price_direction_pct": 1.6184971098266,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "30": {
+          "target_ms": 1793804494005,
+          "closed_price_direction_pct": 1.0115606936416333,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "60": {
+          "target_ms": 1793806294005,
+          "closed_price_direction_pct": -0.3468208092485603,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        }
+      },
+      "observed_path": {
+        "max_adverse_pct": null,
+        "max_favorable_pct": null,
+        "coverage_start_delay_ms": null,
+        "max_observed_quote_gap_ms": 0,
+        "complete_tick_path_verified": false
+      }
+    },
+    {
+      "id": "bitget:CLANKERUSDT:1793805393705",
+      "venue": "bitget",
+      "symbol": "CLANKERUSDT",
+      "direction": "SHORT",
+      "issued_at_ms": 1793805393705,
+      "cohort": "LEGACY_NO_RSI",
+      "entry_quote": {
+        "bid": 18.45,
+        "ask": 18.46,
+        "at_ms": 1793805382528
+      },
+      "entry_confirmed": false,
+      "horizons": {
+        "5": {
+          "target_ms": 1793805693705,
+          "closed_price_direction_pct": -0.3522080736927835,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "15": {
+          "target_ms": 1793806293705,
+          "closed_price_direction_pct": 4.091032240585202,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "30": {
+          "target_ms": 1793807193705,
+          "closed_price_direction_pct": 0.5689515036575332,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "60": {
+          "target_ms": 1793808993705,
+          "closed_price_direction_pct": -0.1354646437280005,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        }
+      },
+      "observed_path": {
+        "max_adverse_pct": null,
+        "max_favorable_pct": null,
+        "coverage_start_delay_ms": null,
+        "max_observed_quote_gap_ms": 0,
+        "complete_tick_path_verified": false
+      }
+    },
+    {
+      "id": "bitget:AKEUSDT:1793806589268",
+      "venue": "bitget",
+      "symbol": "AKEUSDT",
+      "direction": "SHORT",
+      "issued_at_ms": 1793806589268,
+      "cohort": "LEGACY_NO_RSI",
+      "entry_quote": {
+        "bid": 0.002926,
+        "ask": 0.0029297,
+        "at_ms": 1793806581296
+      },
+      "entry_confirmed": false,
+      "horizons": {
+        "5": {
+          "target_ms": 1793806889268,
+          "closed_price_direction_pct": 3.7758081868948246,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "15": {
+          "target_ms": 1793807489268,
+          "closed_price_direction_pct": 4.776542514131532,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "30": {
+          "target_ms": 1793808389268,
+          "closed_price_direction_pct": 5.68505900233961,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "60": {
+          "target_ms": 1793810189268,
+          "closed_price_direction_pct": 6.959031371142643,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        }
+      },
+      "observed_path": {
+        "max_adverse_pct": null,
+        "max_favorable_pct": null,
+        "coverage_start_delay_ms": null,
+        "max_observed_quote_gap_ms": 0,
+        "complete_tick_path_verified": false
+      }
+    },
+    {
+      "id": "bitget:INITUSDT:1793808088946",
+      "venue": "bitget",
+      "symbol": "INITUSDT",
+      "direction": "LONG",
+      "issued_at_ms": 1793808088946,
+      "cohort": "LEGACY_NO_RSI",
+      "entry_quote": {
+        "bid": 0.14331,
+        "ask": 0.14348,
+        "at_ms": 1793808082141
+      },
+      "entry_confirmed": false,
+      "horizons": {
+        "5": {
+          "target_ms": 1793808388946,
+          "closed_price_direction_pct": -1.4888943129118815,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "15": {
+          "target_ms": 1793808988946,
+          "closed_price_direction_pct": 1.3215244604065646,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "30": {
+          "target_ms": 1793809888946,
+          "closed_price_direction_pct": 0.8263886467450021,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "60": {
+          "target_ms": 1793811688946,
+          "closed_price_direction_pct": -0.8682311098713313,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        }
+      },
+      "observed_path": {
+        "max_adverse_pct": null,
+        "max_favorable_pct": null,
+        "coverage_start_delay_ms": null,
+        "max_observed_quote_gap_ms": 0,
+        "complete_tick_path_verified": false
+      }
+    },
+    {
+      "id": "bitget:CLANKERUSDT:1793820388772",
+      "venue": "bitget",
+      "symbol": "CLANKERUSDT",
+      "direction": "SHORT",
+      "issued_at_ms": 1793820388772,
+      "cohort": "LEGACY_NO_RSI",
+      "entry_quote": {
+        "bid": 22.93,
+        "ask": 22.95,
+        "at_ms": 1793820384055
+      },
+      "entry_confirmed": false,
+      "horizons": {
+        "5": {
+          "target_ms": 1793820688772,
+          "closed_price_direction_pct": -0.8282476024411567,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "15": {
+          "target_ms": 1793821288772,
+          "closed_price_direction_pct": -1.0897994768962693,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "30": {
+          "target_ms": 1793822188772,
+          "closed_price_direction_pct": 0.17436791630339732,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "60": {
+          "target_ms": 1793823988772,
+          "closed_price_direction_pct": -12.728857890148216,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        }
+      },
+      "observed_path": {
+        "max_adverse_pct": null,
+        "max_favorable_pct": null,
+        "coverage_start_delay_ms": null,
+        "max_observed_quote_gap_ms": 0,
+        "complete_tick_path_verified": false
+      }
+    },
+    {
+      "id": "bitget:QUSDT:1793824288009",
+      "venue": "bitget",
+      "symbol": "QUSDT",
+      "direction": "SHORT",
+      "issued_at_ms": 1793824288009,
+      "cohort": "LEGACY_NO_RSI",
+      "entry_quote": {
+        "bid": 0.029061,
+        "ask": 0.029069,
+        "at_ms": 1793824280678
+      },
+      "entry_confirmed": false,
+      "horizons": {
+        "5": {
+          "target_ms": 1793824588009,
+          "closed_price_direction_pct": -0.36125924651642105,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "15": {
+          "target_ms": 1793825188009,
+          "closed_price_direction_pct": 0.7225184930328643,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "30": {
+          "target_ms": 1793826088009,
+          "closed_price_direction_pct": -0.058489592293131665,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "60": {
+          "target_ms": 1793827888009,
+          "closed_price_direction_pct": -1.1869946671253961,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        }
+      },
+      "observed_path": {
+        "max_adverse_pct": null,
+        "max_favorable_pct": null,
+        "coverage_start_delay_ms": null,
+        "max_observed_quote_gap_ms": 0,
+        "complete_tick_path_verified": false
+      }
+    },
+    {
+      "id": "bitget:CLANKERUSDT:1793843491593",
+      "venue": "bitget",
+      "symbol": "CLANKERUSDT",
+      "direction": "LONG",
+      "issued_at_ms": 1793843491593,
+      "cohort": "LEGACY_NO_RSI",
+      "entry_quote": {
+        "bid": 17.75,
+        "ask": 17.77,
+        "at_ms": 1793843481012
+      },
+      "entry_confirmed": false,
+      "horizons": {
+        "5": {
+          "target_ms": 1793843791593,
+          "closed_price_direction_pct": -4.89864864864864,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "15": {
+          "target_ms": 1793844391593,
+          "closed_price_direction_pct": -5.405405405405395,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "30": {
+          "target_ms": 1793845291593,
+          "closed_price_direction_pct": -5.743243243243246,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "60": {
+          "target_ms": 1793847091593,
+          "closed_price_direction_pct": -5.349099099099098,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        }
+      },
+      "observed_path": {
+        "max_adverse_pct": null,
+        "max_favorable_pct": null,
+        "coverage_start_delay_ms": null,
+        "max_observed_quote_gap_ms": 0,
+        "complete_tick_path_verified": false
+      }
+    },
+    {
+      "id": "bitget:AKEUSDT:1793845585457",
+      "venue": "bitget",
+      "symbol": "AKEUSDT",
+      "direction": "LONG",
+      "issued_at_ms": 1793845585457,
+      "cohort": "LEGACY_NO_RSI",
+      "entry_quote": {
+        "bid": 0.0025417,
+        "ask": 0.0025432,
+        "at_ms": 1793845580975
+      },
+      "entry_confirmed": false,
+      "horizons": {
+        "5": {
+          "target_ms": 1793845885457,
+          "closed_price_direction_pct": -1.5516529331943585,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "15": {
+          "target_ms": 1793846485457,
+          "closed_price_direction_pct": -4.072843123758574,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "30": {
+          "target_ms": 1793847385457,
+          "closed_price_direction_pct": -5.783791224999513,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "60": {
+          "target_ms": 1793849185457,
+          "closed_price_direction_pct": -1.225196169049525,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        }
+      },
+      "observed_path": {
+        "max_adverse_pct": null,
+        "max_favorable_pct": null,
+        "coverage_start_delay_ms": null,
+        "max_observed_quote_gap_ms": 0,
+        "complete_tick_path_verified": false
+      }
+    },
+    {
+      "id": "bitget:UAIUSDT:1793850086784",
+      "venue": "bitget",
+      "symbol": "UAIUSDT",
+      "direction": "LONG",
+      "issued_at_ms": 1793850086784,
+      "cohort": "LEGACY_NO_RSI",
+      "entry_quote": {
+        "bid": 0.10353,
+        "ask": 0.10373,
+        "at_ms": 1793850079611
+      },
+      "entry_confirmed": false,
+      "horizons": {
+        "5": {
+          "target_ms": 1793850386784,
+          "closed_price_direction_pct": -1.9588922126797303,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "15": {
+          "target_ms": 1793850986784,
+          "closed_price_direction_pct": -2.6826208626845593,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "30": {
+          "target_ms": 1793851886784,
+          "closed_price_direction_pct": 0.0578982920003801,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "60": {
+          "target_ms": 1793853686784,
+          "closed_price_direction_pct": -1.0518189713403348,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        }
+      },
+      "observed_path": {
+        "max_adverse_pct": null,
+        "max_favorable_pct": null,
+        "coverage_start_delay_ms": null,
+        "max_observed_quote_gap_ms": 0,
+        "complete_tick_path_verified": false
+      }
+    },
+    {
+      "id": "bitget:PUMPUSDT:1793854285417",
+      "venue": "bitget",
+      "symbol": "PUMPUSDT",
+      "direction": "SHORT",
+      "issued_at_ms": 1793854285417,
+      "cohort": "LEGACY_NO_RSI",
+      "entry_quote": {
+        "bid": 0.004334,
+        "ask": 0.004335,
+        "at_ms": 1793854280024
+      },
+      "entry_confirmed": false,
+      "horizons": {
+        "5": {
+          "target_ms": 1793854585417,
+          "closed_price_direction_pct": -0.2191717614488331,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "15": {
+          "target_ms": 1793855185417,
+          "closed_price_direction_pct": 0.4037374553005013,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "30": {
+          "target_ms": 1793856085417,
+          "closed_price_direction_pct": 0.38066674356903585,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "60": {
+          "target_ms": 1793857885417,
+          "closed_price_direction_pct": 0.5883031491521362,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        }
+      },
+      "observed_path": {
+        "max_adverse_pct": null,
+        "max_favorable_pct": null,
+        "coverage_start_delay_ms": null,
+        "max_observed_quote_gap_ms": 0,
+        "complete_tick_path_verified": false
+      }
+    },
+    {
+      "id": "bitget:MAGMAUSDT:1793867789082",
+      "venue": "bitget",
+      "symbol": "MAGMAUSDT",
+      "direction": "SHORT",
+      "issued_at_ms": 1793867789082,
+      "cohort": "LEGACY_NO_RSI",
+      "entry_quote": {
+        "bid": 0.4158,
+        "ask": 0.41605,
+        "at_ms": 1793867779675
+      },
+      "entry_confirmed": false,
+      "horizons": {
+        "5": {
+          "target_ms": 1793868089082,
+          "closed_price_direction_pct": -0.5710164092084025,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "15": {
+          "target_ms": 1793868689082,
+          "closed_price_direction_pct": -0.1358417984011595,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "30": {
+          "target_ms": 1793869589082,
+          "closed_price_direction_pct": -1.0182124181042251,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "60": {
+          "target_ms": 1793871389082,
+          "closed_price_direction_pct": 2.8526777664242386,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        }
+      },
+      "observed_path": {
+        "max_adverse_pct": null,
+        "max_favorable_pct": null,
+        "coverage_start_delay_ms": null,
+        "max_observed_quote_gap_ms": 0,
+        "complete_tick_path_verified": false
+      }
+    },
+    {
+      "id": "bitget:AIOUSDT:1793876489126",
+      "venue": "bitget",
+      "symbol": "AIOUSDT",
+      "direction": "LONG",
+      "issued_at_ms": 1793876489126,
+      "cohort": "LEGACY_NO_RSI",
+      "entry_quote": {
+        "bid": 0.04486,
+        "ask": 0.04495,
+        "at_ms": 1793876480700
+      },
+      "entry_confirmed": false,
+      "horizons": {
+        "5": {
+          "target_ms": 1793876789126,
+          "closed_price_direction_pct": 3.0620198196191994,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "15": {
+          "target_ms": 1793877389126,
+          "closed_price_direction_pct": 6.291058902126712,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "30": {
+          "target_ms": 1793878289126,
+          "closed_price_direction_pct": 6.2019819619196115,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "60": {
+          "target_ms": 1793880089126,
+          "closed_price_direction_pct": 12.726867832089962,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        }
+      },
+      "observed_path": {
+        "max_adverse_pct": null,
+        "max_favorable_pct": null,
+        "coverage_start_delay_ms": null,
+        "max_observed_quote_gap_ms": 0,
+        "complete_tick_path_verified": false
+      }
+    },
+    {
+      "id": "bitget:ELSAUSDT:1793877986616",
+      "venue": "bitget",
+      "symbol": "ELSAUSDT",
+      "direction": "SHORT",
+      "issued_at_ms": 1793877986616,
+      "cohort": "LEGACY_NO_RSI",
+      "entry_quote": {
+        "bid": 0.09273,
+        "ask": 0.09285,
+        "at_ms": 1793877980647
+      },
+      "entry_confirmed": false,
+      "horizons": {
+        "5": {
+          "target_ms": 1793878286616,
+          "closed_price_direction_pct": 3.3085461795452242,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "15": {
+          "target_ms": 1793878886616,
+          "closed_price_direction_pct": 5.507058950317944,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "30": {
+          "target_ms": 1793879786616,
+          "closed_price_direction_pct": 6.3261127276646345,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "60": {
+          "target_ms": 1793881586616,
+          "closed_price_direction_pct": 4.4940187520207004,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        }
+      },
+      "observed_path": {
+        "max_adverse_pct": null,
+        "max_favorable_pct": null,
+        "coverage_start_delay_ms": null,
+        "max_observed_quote_gap_ms": 0,
+        "complete_tick_path_verified": false
+      }
+    },
+    {
+      "id": "bitget:JCTUSDT:1793881288964",
+      "venue": "bitget",
+      "symbol": "JCTUSDT",
+      "direction": "SHORT",
+      "issued_at_ms": 1793881288964,
+      "cohort": "LEGACY_NO_RSI",
+      "entry_quote": {
+        "bid": 0.004556,
+        "ask": 0.004562,
+        "at_ms": 1793881282512
+      },
+      "entry_confirmed": false,
+      "horizons": {
+        "5": {
+          "target_ms": 1793881588964,
+          "closed_price_direction_pct": 0.2193463478833202,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "15": {
+          "target_ms": 1793882188964,
+          "closed_price_direction_pct": 1.8863785917964448,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "30": {
+          "target_ms": 1793883088964,
+          "closed_price_direction_pct": 1.5134898003948294,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "60": {
+          "target_ms": 1793884888964,
+          "closed_price_direction_pct": 5.659135775389346,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        }
+      },
+      "observed_path": {
+        "max_adverse_pct": null,
+        "max_favorable_pct": null,
+        "coverage_start_delay_ms": null,
+        "max_observed_quote_gap_ms": 0,
+        "complete_tick_path_verified": false
+      }
+    },
+    {
+      "id": "bitget:CAPUSDT:1793884893868",
+      "venue": "bitget",
+      "symbol": "CAPUSDT",
+      "direction": "LONG",
+      "issued_at_ms": 1793884893868,
+      "cohort": "LEGACY_NO_RSI",
+      "entry_quote": {
+        "bid": 0.10297,
+        "ask": 0.10304,
+        "at_ms": 1793884885576
+      },
+      "entry_confirmed": false,
+      "horizons": {
+        "5": {
+          "target_ms": 1793885193868,
+          "closed_price_direction_pct": 1.2960535896315628,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "15": {
+          "target_ms": 1793885793868,
+          "closed_price_direction_pct": 5.402650356778782,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "30": {
+          "target_ms": 1793886693868,
+          "closed_price_direction_pct": -0.7815154604145613,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "60": {
+          "target_ms": 1793888493868,
+          "closed_price_direction_pct": 2.839667977282634,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        }
+      },
+      "observed_path": {
+        "max_adverse_pct": null,
+        "max_favorable_pct": null,
+        "coverage_start_delay_ms": null,
+        "max_observed_quote_gap_ms": 0,
+        "complete_tick_path_verified": false
+      }
+    },
+    {
+      "id": "bitget:PONSUSDT:1793892388161",
+      "venue": "bitget",
+      "symbol": "PONSUSDT",
+      "direction": "SHORT",
+      "issued_at_ms": 1793892388161,
+      "cohort": "LEGACY_NO_RSI",
+      "entry_quote": {
+        "bid": 0.19292,
+        "ask": 0.19309,
+        "at_ms": 1793892381901
+      },
+      "entry_confirmed": false,
+      "horizons": {
+        "5": {
+          "target_ms": 1793892688161,
+          "closed_price_direction_pct": -1.6502163156394856,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "15": {
+          "target_ms": 1793893288161,
+          "closed_price_direction_pct": -1.4740550762933458,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "30": {
+          "target_ms": 1793894188161,
+          "closed_price_direction_pct": 1.5155047796689303,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "60": {
+          "target_ms": 1793895988161,
+          "closed_price_direction_pct": -1.6553975285614309,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        }
+      },
+      "observed_path": {
+        "max_adverse_pct": null,
+        "max_favorable_pct": null,
+        "coverage_start_delay_ms": null,
+        "max_observed_quote_gap_ms": 0,
+        "complete_tick_path_verified": false
+      }
+    },
+    {
+      "id": "bitget:LITUSDT:1793892687961",
+      "venue": "bitget",
+      "symbol": "LITUSDT",
+      "direction": "LONG",
+      "issued_at_ms": 1793892687961,
+      "cohort": "LEGACY_NO_RSI",
+      "entry_quote": {
+        "bid": 3.396,
+        "ask": 3.398,
+        "at_ms": 1793892681791
+      },
+      "entry_confirmed": false,
+      "horizons": {
+        "5": {
+          "target_ms": 1793892987961,
+          "closed_price_direction_pct": -0.3238151309979398,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "15": {
+          "target_ms": 1793893587961,
+          "closed_price_direction_pct": -3.002649396526358,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "30": {
+          "target_ms": 1793894487961,
+          "closed_price_direction_pct": -2.355019134530467,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "60": {
+          "target_ms": 1793896287961,
+          "closed_price_direction_pct": 1.3835737415366367,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        }
+      },
+      "observed_path": {
+        "max_adverse_pct": null,
+        "max_favorable_pct": null,
+        "coverage_start_delay_ms": null,
+        "max_observed_quote_gap_ms": 0,
+        "complete_tick_path_verified": false
+      }
+    },
+    {
+      "id": "bitget:IDOLUSDT:1793894518526",
+      "venue": "bitget",
+      "symbol": "IDOLUSDT",
+      "direction": "SHORT",
+      "issued_at_ms": 1793894518526,
+      "cohort": "LEGACY_NO_RSI",
+      "entry_quote": {
+        "bid": 0.021271,
+        "ask": 0.021307,
+        "at_ms": 1793894481882
+      },
+      "entry_confirmed": false,
+      "horizons": {
+        "5": {
+          "target_ms": 1793894818526,
+          "closed_price_direction_pct": 4.852271125933594,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "15": {
+          "target_ms": 1793895418526,
+          "closed_price_direction_pct": 3.8235708581896843,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "30": {
+          "target_ms": 1793896318526,
+          "closed_price_direction_pct": -2.7854760674526524,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "60": {
+          "target_ms": 1793898118526,
+          "closed_price_direction_pct": 1.7755648456949769,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        }
+      },
+      "observed_path": {
+        "max_adverse_pct": null,
+        "max_favorable_pct": null,
+        "coverage_start_delay_ms": null,
+        "max_observed_quote_gap_ms": 0,
+        "complete_tick_path_verified": false
+      }
+    },
+    {
+      "id": "bitget:JCTUSDT:1793895694177",
+      "venue": "bitget",
+      "symbol": "JCTUSDT",
+      "direction": "LONG",
+      "issued_at_ms": 1793895694177,
+      "cohort": "LEGACY_NO_RSI",
+      "entry_quote": {
+        "bid": 0.003158,
+        "ask": 0.003162,
+        "at_ms": 1793895683756
+      },
+      "entry_confirmed": false,
+      "horizons": {
+        "5": {
+          "target_ms": 1793895994177,
+          "closed_price_direction_pct": -0.31645569620253333,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "15": {
+          "target_ms": 1793896594177,
+          "closed_price_direction_pct": 1.1075949367088667,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "30": {
+          "target_ms": 1793897494177,
+          "closed_price_direction_pct": -1.7405063291139222,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "60": {
+          "target_ms": 1793899294177,
+          "closed_price_direction_pct": -2.2468354430379756,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        }
+      },
+      "observed_path": {
+        "max_adverse_pct": null,
+        "max_favorable_pct": null,
+        "coverage_start_delay_ms": null,
+        "max_observed_quote_gap_ms": 0,
+        "complete_tick_path_verified": false
+      }
+    },
+    {
+      "id": "bitget:APRUSDT:1793898388112",
+      "venue": "bitget",
+      "symbol": "APRUSDT",
+      "direction": "SHORT",
+      "issued_at_ms": 1793898388112,
+      "cohort": "LEGACY_NO_RSI",
+      "entry_quote": {
+        "bid": 0.04107,
+        "ask": 0.04114,
+        "at_ms": 1793898381351
+      },
+      "entry_confirmed": false,
+      "horizons": {
+        "5": {
+          "target_ms": 1793898688112,
+          "closed_price_direction_pct": -2.9315168470988917,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "15": {
+          "target_ms": 1793899288112,
+          "closed_price_direction_pct": -3.223452134776794,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "30": {
+          "target_ms": 1793900188112,
+          "closed_price_direction_pct": -2.8585330251793994,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "60": {
+          "target_ms": 1793901988112,
+          "closed_price_direction_pct": -2.7125653813404593,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        }
+      },
+      "observed_path": {
+        "max_adverse_pct": null,
+        "max_favorable_pct": null,
+        "coverage_start_delay_ms": null,
+        "max_observed_quote_gap_ms": 0,
+        "complete_tick_path_verified": false
+      }
+    },
+    {
+      "id": "bitget:AKEUSDT:1793903789214",
+      "venue": "bitget",
+      "symbol": "AKEUSDT",
+      "direction": "LONG",
+      "issued_at_ms": 1793903789214,
+      "cohort": "LEGACY_NO_RSI",
+      "entry_quote": {
+        "bid": 0.0019822,
+        "ask": 0.0019858,
+        "at_ms": 1793903781965
+      },
+      "entry_confirmed": false,
+      "horizons": {
+        "5": {
+          "target_ms": 1793904089214,
+          "closed_price_direction_pct": 14.93447580645162,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "15": {
+          "target_ms": 1793904689214,
+          "closed_price_direction_pct": 20.166330645161313,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "30": {
+          "target_ms": 1793905589214,
+          "closed_price_direction_pct": 22.686491935483886,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "60": {
+          "target_ms": 1793907389214,
+          "closed_price_direction_pct": 19.369959677419367,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        }
+      },
+      "observed_path": {
+        "max_adverse_pct": null,
+        "max_favorable_pct": null,
+        "coverage_start_delay_ms": null,
+        "max_observed_quote_gap_ms": 0,
+        "complete_tick_path_verified": false
+      }
+    },
+    {
+      "id": "bitget:EVAAUSDT:1793907693842",
+      "venue": "bitget",
+      "symbol": "EVAAUSDT",
+      "direction": "SHORT",
+      "issued_at_ms": 1793907693842,
+      "cohort": "LEGACY_NO_RSI",
+      "entry_quote": {
+        "bid": 1.303,
+        "ask": 1.3034,
+        "at_ms": 1793907683588
+      },
+      "entry_confirmed": false,
+      "horizons": {
+        "5": {
+          "target_ms": 1793907993842,
+          "closed_price_direction_pct": -0.09975445058318932,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "15": {
+          "target_ms": 1793908593842,
+          "closed_price_direction_pct": 0.19183548189072308,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "30": {
+          "target_ms": 1793909493842,
+          "closed_price_direction_pct": -0.8670963781461039,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "60": {
+          "target_ms": 1793911293842,
+          "closed_price_direction_pct": -1.5807243707796292,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        }
+      },
+      "observed_path": {
+        "max_adverse_pct": null,
+        "max_favorable_pct": null,
+        "coverage_start_delay_ms": null,
+        "max_observed_quote_gap_ms": 0,
+        "complete_tick_path_verified": false
+      }
+    },
+    {
+      "id": "bitget:CYBERUSDT:1793924187271",
+      "venue": "bitget",
+      "symbol": "CYBERUSDT",
+      "direction": "LONG",
+      "issued_at_ms": 1793924187271,
+      "cohort": "LEGACY_NO_RSI",
+      "entry_quote": {
+        "bid": 0.3143,
+        "ask": 0.3149,
+        "at_ms": 1793924181664
+      },
+      "entry_confirmed": false,
+      "horizons": {
+        "5": {
+          "target_ms": 1793924487271,
+          "closed_price_direction_pct": 2.956134774316599,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "15": {
+          "target_ms": 1793925087271,
+          "closed_price_direction_pct": 0.7310870947234704,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "30": {
+          "target_ms": 1793925987271,
+          "closed_price_direction_pct": 0.15893197711378537,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "60": {
+          "target_ms": 1793927787271,
+          "closed_price_direction_pct": 1.5575333757152032,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        }
+      },
+      "observed_path": {
+        "max_adverse_pct": null,
+        "max_favorable_pct": null,
+        "coverage_start_delay_ms": null,
+        "max_observed_quote_gap_ms": 0,
+        "complete_tick_path_verified": false
+      }
+    },
+    {
+      "id": "bitget:BTWUSDT:1793929586510",
+      "venue": "bitget",
+      "symbol": "BTWUSDT",
+      "direction": "LONG",
+      "issued_at_ms": 1793929586510,
+      "cohort": "LEGACY_NO_RSI",
+      "entry_quote": {
+        "bid": 1.15289,
+        "ask": 1.15386,
+        "at_ms": 1793929579784
+      },
+      "entry_confirmed": false,
+      "horizons": {
+        "5": {
+          "target_ms": 1793929886510,
+          "closed_price_direction_pct": -0.8284382789639055,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "15": {
+          "target_ms": 1793930486510,
+          "closed_price_direction_pct": -0.3194971279939285,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "30": {
+          "target_ms": 1793931386510,
+          "closed_price_direction_pct": 1.4830389075539019,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "60": {
+          "target_ms": 1793933186510,
+          "closed_price_direction_pct": -3.7919150319713935,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        }
+      },
+      "observed_path": {
+        "max_adverse_pct": null,
+        "max_favorable_pct": null,
+        "coverage_start_delay_ms": null,
+        "max_observed_quote_gap_ms": 0,
+        "complete_tick_path_verified": false
+      }
+    },
+    {
+      "id": "bithumb:KRW-CYBER:1793932589266",
+      "venue": "bithumb",
+      "symbol": "KRW-CYBER",
+      "direction": "BUY",
+      "issued_at_ms": 1793932589266,
+      "cohort": "LEGACY_NO_RSI",
+      "entry_quote": {
+        "bid": 449,
+        "ask": 451,
+        "at_ms": 1793932578730
+      },
+      "entry_confirmed": false,
+      "horizons": {
+        "5": {
+          "target_ms": 1793932889266,
+          "closed_price_direction_pct": -0.22222222222222365,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "15": {
+          "target_ms": 1793933489266,
+          "closed_price_direction_pct": 2.444444444444449,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "30": {
+          "target_ms": 1793934389266,
+          "closed_price_direction_pct": 1.5555555555555545,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "60": {
+          "target_ms": 1793936189266,
+          "closed_price_direction_pct": 7.333333333333325,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        }
+      },
+      "observed_path": {
+        "max_adverse_pct": null,
+        "max_favorable_pct": null,
+        "coverage_start_delay_ms": null,
+        "max_observed_quote_gap_ms": 0,
+        "complete_tick_path_verified": false
+      }
+    },
+    {
+      "id": "bitget:CYBERUSDT:1793933495958",
+      "venue": "bitget",
+      "symbol": "CYBERUSDT",
+      "direction": "LONG",
+      "issued_at_ms": 1793933495958,
+      "cohort": "LEGACY_NO_RSI",
+      "entry_quote": {
+        "bid": 0.3407,
+        "ask": 0.3411,
+        "at_ms": 1793933482307
+      },
+      "entry_confirmed": false,
+      "horizons": {
+        "5": {
+          "target_ms": 1793933795958,
+          "closed_price_direction_pct": -2.434731592842465,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "15": {
+          "target_ms": 1793934395958,
+          "closed_price_direction_pct": -1.4373716632443467,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "30": {
+          "target_ms": 1793935295958,
+          "closed_price_direction_pct": -0.7626870049867951,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "60": {
+          "target_ms": 1793937095958,
+          "closed_price_direction_pct": 4.75212672337928,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        }
+      },
+      "observed_path": {
+        "max_adverse_pct": null,
+        "max_favorable_pct": null,
+        "coverage_start_delay_ms": null,
+        "max_observed_quote_gap_ms": 0,
+        "complete_tick_path_verified": false
+      }
+    },
+    {
+      "id": "bitget:AKEUSDT:1793956288459",
+      "venue": "bitget",
+      "symbol": "AKEUSDT",
+      "direction": "SHORT",
+      "issued_at_ms": 1793956288459,
+      "cohort": "LEGACY_NO_RSI",
+      "entry_quote": {
+        "bid": 0.0049374,
+        "ask": 0.0049414,
+        "at_ms": 1793956279629
+      },
+      "entry_confirmed": false,
+      "horizons": {
+        "5": {
+          "target_ms": 1793956588459,
+          "closed_price_direction_pct": 1.0892011175446359,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "15": {
+          "target_ms": 1793957188459,
+          "closed_price_direction_pct": -4.49042393813015,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "30": {
+          "target_ms": 1793958088459,
+          "closed_price_direction_pct": -2.743248167793655,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "60": {
+          "target_ms": 1793959888459,
+          "closed_price_direction_pct": 0.17006114102928738,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        }
+      },
+      "observed_path": {
+        "max_adverse_pct": null,
+        "max_favorable_pct": null,
+        "coverage_start_delay_ms": null,
+        "max_observed_quote_gap_ms": 0,
+        "complete_tick_path_verified": false
+      }
+    },
+    {
+      "id": "bitget:ZECUSDT:1793958114931",
+      "venue": "bitget",
+      "symbol": "ZECUSDT",
+      "direction": "SHORT",
+      "issued_at_ms": 1793958114931,
+      "cohort": "LEGACY_NO_RSI",
+      "entry_quote": {
+        "bid": 1281.34,
+        "ask": 1281.35,
+        "at_ms": 1793958106743
+      },
+      "entry_confirmed": false,
+      "horizons": {
+        "5": {
+          "target_ms": 1793958414931,
+          "closed_price_direction_pct": -0.21110629845983997,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "15": {
+          "target_ms": 1793959014931,
+          "closed_price_direction_pct": 0.3547054072088218,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "30": {
+          "target_ms": 1793959914931,
+          "closed_price_direction_pct": 0.2438843558916437,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "60": {
+          "target_ms": 1793961714931,
+          "closed_price_direction_pct": -0.4366505507884533,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        }
+      },
+      "observed_path": {
+        "max_adverse_pct": null,
+        "max_favorable_pct": null,
+        "coverage_start_delay_ms": null,
+        "max_observed_quote_gap_ms": 0,
+        "complete_tick_path_verified": false
+      }
+    },
+    {
+      "id": "bitget:ARIAUSDT:1793962287816",
+      "venue": "bitget",
+      "symbol": "ARIAUSDT",
+      "direction": "LONG",
+      "issued_at_ms": 1793962287816,
+      "cohort": "LEGACY_NO_RSI",
+      "entry_quote": {
+        "bid": 0.14452,
+        "ask": 0.14461,
+        "at_ms": 1793962281121
+      },
+      "entry_confirmed": false,
+      "horizons": {
+        "5": {
+          "target_ms": 1793962587816,
+          "closed_price_direction_pct": -0.5015045135406293,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "15": {
+          "target_ms": 1793963187816,
+          "closed_price_direction_pct": -2.4037630131774623,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "30": {
+          "target_ms": 1793964087816,
+          "closed_price_direction_pct": -2.6666205513090957,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "60": {
+          "target_ms": 1793965887816,
+          "closed_price_direction_pct": -0.5914294607961779,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        }
+      },
+      "observed_path": {
+        "max_adverse_pct": null,
+        "max_favorable_pct": null,
+        "coverage_start_delay_ms": null,
+        "max_observed_quote_gap_ms": 0,
+        "complete_tick_path_verified": false
+      }
+    },
+    {
+      "id": "bitget:ONEUSDT:1793963487315",
+      "venue": "bitget",
+      "symbol": "ONEUSDT",
+      "direction": "LONG",
+      "issued_at_ms": 1793963487315,
+      "cohort": "LEGACY_NO_RSI",
+      "entry_quote": {
+        "bid": 0.0013524,
+        "ask": 0.0013543,
+        "at_ms": 1793963479947
+      },
+      "entry_confirmed": false,
+      "horizons": {
+        "5": {
+          "target_ms": 1793963787315,
+          "closed_price_direction_pct": -0.8386596224184251,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "15": {
+          "target_ms": 1793964387315,
+          "closed_price_direction_pct": 0.4396497580078984,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "30": {
+          "target_ms": 1793965287315,
+          "closed_price_direction_pct": 2.4346990800605983,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "60": {
+          "target_ms": 1793967087315,
+          "closed_price_direction_pct": 4.148963682713269,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        }
+      },
+      "observed_path": {
+        "max_adverse_pct": null,
+        "max_favorable_pct": null,
+        "coverage_start_delay_ms": null,
+        "max_observed_quote_gap_ms": 0,
+        "complete_tick_path_verified": false
+      }
+    },
+    {
+      "id": "bithumb:KRW-TRUST:1793970092701",
+      "venue": "bithumb",
+      "symbol": "KRW-TRUST",
+      "direction": "BUY",
+      "issued_at_ms": 1793970092701,
+      "cohort": "LEGACY_NO_RSI",
+      "entry_quote": {
+        "bid": 87.06,
+        "ask": 87.21,
+        "at_ms": 1793970080305
+      },
+      "entry_confirmed": false,
+      "horizons": {
+        "5": {
+          "target_ms": 1793970392701,
+          "closed_price_direction_pct": -2.5420324783381965,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "15": {
+          "target_ms": 1793970992701,
+          "closed_price_direction_pct": -1.3140529064095907,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "30": {
+          "target_ms": 1793971892701,
+          "closed_price_direction_pct": -1.6698226889309553,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "60": {
+          "target_ms": 1793973692701,
+          "closed_price_direction_pct": -2.3010271417914674,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        }
+      },
+      "observed_path": {
+        "max_adverse_pct": null,
+        "max_favorable_pct": null,
+        "coverage_start_delay_ms": null,
+        "max_observed_quote_gap_ms": 0,
+        "complete_tick_path_verified": false
+      }
+    },
+    {
+      "id": "bitget:ZECUSDT:1793974587960",
+      "venue": "bitget",
+      "symbol": "ZECUSDT",
+      "direction": "LONG",
+      "issued_at_ms": 1793974587960,
+      "cohort": "LEGACY_NO_RSI",
+      "entry_quote": {
+        "bid": 1314.34,
+        "ask": 1314.35,
+        "at_ms": 1793974580442
+      },
+      "entry_confirmed": false,
+      "horizons": {
+        "5": {
+          "target_ms": 1793974887960,
+          "closed_price_direction_pct": 0.5443776177487702,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "15": {
+          "target_ms": 1793975487960,
+          "closed_price_direction_pct": 0.15863414856831515,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "30": {
+          "target_ms": 1793976387960,
+          "closed_price_direction_pct": 4.445940753759481,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "60": {
+          "target_ms": 1793978187960,
+          "closed_price_direction_pct": 3.477397486961209,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        }
+      },
+      "observed_path": {
+        "max_adverse_pct": null,
+        "max_favorable_pct": null,
+        "coverage_start_delay_ms": null,
+        "max_observed_quote_gap_ms": 0,
+        "complete_tick_path_verified": false
+      }
+    },
+    {
+      "id": "bitget:BIRBUSDT:1793975795542",
+      "venue": "bitget",
+      "symbol": "BIRBUSDT",
+      "direction": "SHORT",
+      "issued_at_ms": 1793975795542,
+      "cohort": "LEGACY_NO_RSI",
+      "entry_quote": {
+        "bid": 0.10372,
+        "ask": 0.10384,
+        "at_ms": 1793975785655
+      },
+      "entry_confirmed": false,
+      "horizons": {
+        "5": {
+          "target_ms": 1793976095542,
+          "closed_price_direction_pct": -0.36615918288687155,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "15": {
+          "target_ms": 1793976695542,
+          "closed_price_direction_pct": 2.100597417614203,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "30": {
+          "target_ms": 1793977595542,
+          "closed_price_direction_pct": 3.3917903256889703,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "60": {
+          "target_ms": 1793979395542,
+          "closed_price_direction_pct": 4.991327808826385,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        }
+      },
+      "observed_path": {
+        "max_adverse_pct": null,
+        "max_favorable_pct": null,
+        "coverage_start_delay_ms": null,
+        "max_observed_quote_gap_ms": 0,
+        "complete_tick_path_verified": false
+      }
+    },
+    {
+      "id": "bitget:UAIUSDT:1793979094923",
+      "venue": "bitget",
+      "symbol": "UAIUSDT",
+      "direction": "SHORT",
+      "issued_at_ms": 1793979094923,
+      "cohort": "LEGACY_NO_RSI",
+      "entry_quote": {
+        "bid": 0.18351,
+        "ask": 0.18375,
+        "at_ms": 1793979084382
+      },
+      "entry_confirmed": false,
+      "horizons": {
+        "5": {
+          "target_ms": 1793979394923,
+          "closed_price_direction_pct": -1.0455807874530265,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "15": {
+          "target_ms": 1793979994923,
+          "closed_price_direction_pct": -1.4540107825518511,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "30": {
+          "target_ms": 1793980894923,
+          "closed_price_direction_pct": -5.71257419811575,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "60": {
+          "target_ms": 1793982694923,
+          "closed_price_direction_pct": -7.678483907858169,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        }
+      },
+      "observed_path": {
+        "max_adverse_pct": null,
+        "max_favorable_pct": null,
+        "coverage_start_delay_ms": null,
+        "max_observed_quote_gap_ms": 0,
+        "complete_tick_path_verified": false
+      }
+    },
+    {
+      "id": "bitget:ELSAUSDT:1793981192666",
+      "venue": "bitget",
+      "symbol": "ELSAUSDT",
+      "direction": "SHORT",
+      "issued_at_ms": 1793981192666,
+      "cohort": "LEGACY_NO_RSI",
+      "entry_quote": {
+        "bid": 0.07786,
+        "ask": 0.07794,
+        "at_ms": 1793981181533
+      },
+      "entry_confirmed": false,
+      "horizons": {
+        "5": {
+          "target_ms": 1793981492666,
+          "closed_price_direction_pct": 0.8087291399229701,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "15": {
+          "target_ms": 1793982092666,
+          "closed_price_direction_pct": -0.11553273427471478,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "30": {
+          "target_ms": 1793982992666,
+          "closed_price_direction_pct": 0.025673940949921814,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "60": {
+          "target_ms": 1793984792666,
+          "closed_price_direction_pct": 0.08985879332477076,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        }
+      },
+      "observed_path": {
+        "max_adverse_pct": null,
+        "max_favorable_pct": null,
+        "coverage_start_delay_ms": null,
+        "max_observed_quote_gap_ms": 0,
+        "complete_tick_path_verified": false
+      }
+    },
+    {
+      "id": "bitget:AKEUSDT:1793988993804",
+      "venue": "bitget",
+      "symbol": "AKEUSDT",
+      "direction": "SHORT",
+      "issued_at_ms": 1793988993804,
+      "cohort": "LEGACY_NO_RSI",
+      "entry_quote": {
+        "bid": 0.0039555,
+        "ask": 0.0039604,
+        "at_ms": 1793988984417
+      },
+      "entry_confirmed": false,
+      "horizons": {
+        "5": {
+          "target_ms": 1793989293804,
+          "closed_price_direction_pct": -4.245884864639526,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "15": {
+          "target_ms": 1793989893804,
+          "closed_price_direction_pct": -3.601611945577887,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "30": {
+          "target_ms": 1793990793804,
+          "closed_price_direction_pct": 0.13011786404577563,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "60": {
+          "target_ms": 1793992593804,
+          "closed_price_direction_pct": 10.07971298273096,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        }
+      },
+      "observed_path": {
+        "max_adverse_pct": null,
+        "max_favorable_pct": null,
+        "coverage_start_delay_ms": null,
+        "max_observed_quote_gap_ms": 0,
+        "complete_tick_path_verified": false
+      }
+    },
+    {
+      "id": "bitget:ZECUSDT:1793990487863",
+      "venue": "bitget",
+      "symbol": "ZECUSDT",
+      "direction": "SHORT",
+      "issued_at_ms": 1793990487863,
+      "cohort": "LEGACY_NO_RSI",
+      "entry_quote": {
+        "bid": 1346.56,
+        "ask": 1346.66,
+        "at_ms": 1793990481793
+      },
+      "entry_confirmed": false,
+      "horizons": {
+        "5": {
+          "target_ms": 1793990787863,
+          "closed_price_direction_pct": -0.04975456888036689,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "15": {
+          "target_ms": 1793991387863,
+          "closed_price_direction_pct": 0.5324481475705745,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "30": {
+          "target_ms": 1793992287863,
+          "closed_price_direction_pct": 0.3750157803670051,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "60": {
+          "target_ms": 1793994087863,
+          "closed_price_direction_pct": 0.1596601837206113,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        }
+      },
+      "observed_path": {
+        "max_adverse_pct": null,
+        "max_favorable_pct": null,
+        "coverage_start_delay_ms": null,
+        "max_observed_quote_gap_ms": 0,
+        "complete_tick_path_verified": false
+      }
+    },
+    {
+      "id": "bitget:UAIUSDT:1793992295096",
+      "venue": "bitget",
+      "symbol": "UAIUSDT",
+      "direction": "LONG",
+      "issued_at_ms": 1793992295096,
+      "cohort": "LEGACY_NO_RSI",
+      "entry_quote": {
+        "bid": 0.12629,
+        "ask": 0.12637,
+        "at_ms": 1793992287459
+      },
+      "entry_confirmed": false,
+      "horizons": {
+        "5": {
+          "target_ms": 1793992595096,
+          "closed_price_direction_pct": -0.4591150162273405,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "15": {
+          "target_ms": 1793993195096,
+          "closed_price_direction_pct": 0.4353676878017909,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "30": {
+          "target_ms": 1793994095096,
+          "closed_price_direction_pct": -1.0607140030079898,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "60": {
+          "target_ms": 1793995895096,
+          "closed_price_direction_pct": -0.9103142563128164,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        }
+      },
+      "observed_path": {
+        "max_adverse_pct": null,
+        "max_favorable_pct": null,
+        "coverage_start_delay_ms": null,
+        "max_observed_quote_gap_ms": 0,
+        "complete_tick_path_verified": false
+      }
+    },
+    {
+      "id": "bitget:MAGMAUSDT:1793993788236",
+      "venue": "bitget",
+      "symbol": "MAGMAUSDT",
+      "direction": "SHORT",
+      "issued_at_ms": 1793993788236,
+      "cohort": "LEGACY_NO_RSI",
+      "entry_quote": {
+        "bid": 0.26436,
+        "ask": 0.26452,
+        "at_ms": 1793993780668
+      },
+      "entry_confirmed": false,
+      "horizons": {
+        "5": {
+          "target_ms": 1793994088236,
+          "closed_price_direction_pct": -1.584480411435485,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "15": {
+          "target_ms": 1793994688236,
+          "closed_price_direction_pct": -1.641204053849643,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "30": {
+          "target_ms": 1793995588236,
+          "closed_price_direction_pct": -3.9252760550597454,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "60": {
+          "target_ms": 1793997388236,
+          "closed_price_direction_pct": -2.0042353653002554,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        }
+      },
+      "observed_path": {
+        "max_adverse_pct": null,
+        "max_favorable_pct": null,
+        "coverage_start_delay_ms": null,
+        "max_observed_quote_gap_ms": 0,
+        "complete_tick_path_verified": false
+      }
+    },
+    {
+      "id": "bitget:BTWUSDT:1794007589557",
+      "venue": "bitget",
+      "symbol": "BTWUSDT",
+      "direction": "LONG",
+      "issued_at_ms": 1794007589557,
+      "cohort": "LEGACY_NO_RSI",
+      "entry_quote": {
+        "bid": 1.24307,
+        "ask": 1.24336,
+        "at_ms": 1794007581257
+      },
+      "entry_confirmed": false,
+      "horizons": {
+        "5": {
+          "target_ms": 1794007889557,
+          "closed_price_direction_pct": 0.8264861669140089,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "15": {
+          "target_ms": 1794008489557,
+          "closed_price_direction_pct": 0.2577993347892438,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "30": {
+          "target_ms": 1794009389557,
+          "closed_price_direction_pct": 0.322952988823344,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "60": {
+          "target_ms": 1794011189557,
+          "closed_price_direction_pct": -2.191495437233304,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        }
+      },
+      "observed_path": {
+        "max_adverse_pct": null,
+        "max_favorable_pct": null,
+        "coverage_start_delay_ms": null,
+        "max_observed_quote_gap_ms": 0,
+        "complete_tick_path_verified": false
+      }
+    },
+    {
+      "id": "bitget:ELSAUSDT:1794030086880",
+      "venue": "bitget",
+      "symbol": "ELSAUSDT",
+      "direction": "SHORT",
+      "issued_at_ms": 1794030086880,
+      "cohort": "LEGACY_NO_RSI",
+      "entry_quote": {
+        "bid": 0.07891,
+        "ask": 0.07892,
+        "at_ms": 1794030078753
+      },
+      "entry_confirmed": false,
+      "horizons": {
+        "5": {
+          "target_ms": 1794030386880,
+          "closed_price_direction_pct": -0.5132104162706819,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "15": {
+          "target_ms": 1794030986880,
+          "closed_price_direction_pct": -0.25977317366787656,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "30": {
+          "target_ms": 1794031886880,
+          "closed_price_direction_pct": -1.5142875245517384,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "60": {
+          "target_ms": 1794033686880,
+          "closed_price_direction_pct": -1.2735221440790756,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        }
+      },
+      "observed_path": {
+        "max_adverse_pct": null,
+        "max_favorable_pct": null,
+        "coverage_start_delay_ms": null,
+        "max_observed_quote_gap_ms": 0,
+        "complete_tick_path_verified": false
+      }
+    },
+    {
+      "id": "bithumb:KRW-MVC:1794038788325",
+      "venue": "bithumb",
+      "symbol": "KRW-MVC",
+      "direction": "BUY",
+      "issued_at_ms": 1794038788325,
+      "cohort": "LEGACY_NO_RSI",
+      "entry_quote": {
+        "bid": 1.969,
+        "ask": 1.97,
+        "at_ms": 1794038776972
+      },
+      "entry_confirmed": false,
+      "horizons": {
+        "5": {
+          "target_ms": 1794039088325,
+          "closed_price_direction_pct": -0.5839045443005841,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "15": {
+          "target_ms": 1794039688325,
+          "closed_price_direction_pct": 1.8532622493018458,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "30": {
+          "target_ms": 1794040588325,
+          "closed_price_direction_pct": -0.07616146230008392,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "60": {
+          "target_ms": 1794042388325,
+          "closed_price_direction_pct": -7.336887534907344,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        }
+      },
+      "observed_path": {
+        "max_adverse_pct": null,
+        "max_favorable_pct": null,
+        "coverage_start_delay_ms": null,
+        "max_observed_quote_gap_ms": 0,
+        "complete_tick_path_verified": false
+      }
+    },
+    {
+      "id": "bitget:CTUSDT:1794042086397",
+      "venue": "bitget",
+      "symbol": "CTUSDT",
+      "direction": "SHORT",
+      "issued_at_ms": 1794042086397,
+      "cohort": "LEGACY_NO_RSI",
+      "entry_quote": {
+        "bid": 0.13758,
+        "ask": 0.13771,
+        "at_ms": 1794042080103
+      },
+      "entry_confirmed": false,
+      "horizons": {
+        "5": {
+          "target_ms": 1794042386397,
+          "closed_price_direction_pct": 0.7882596534563802,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "15": {
+          "target_ms": 1794042986397,
+          "closed_price_direction_pct": -3.0694903556249598,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "30": {
+          "target_ms": 1794043886397,
+          "closed_price_direction_pct": -5.176359475462244,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "60": {
+          "target_ms": 1794045686397,
+          "closed_price_direction_pct": -0.4976570162374072,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        }
+      },
+      "observed_path": {
+        "max_adverse_pct": null,
+        "max_favorable_pct": null,
+        "coverage_start_delay_ms": null,
+        "max_observed_quote_gap_ms": 0,
+        "complete_tick_path_verified": false
+      }
+    },
+    {
+      "id": "bitget:AKEUSDT:1794049888026",
+      "venue": "bitget",
+      "symbol": "AKEUSDT",
+      "direction": "SHORT",
+      "issued_at_ms": 1794049888026,
+      "cohort": "LEGACY_NO_RSI",
+      "entry_quote": {
+        "bid": 0.0059643,
+        "ask": 0.0059678,
+        "at_ms": 1794049880017
+      },
+      "entry_confirmed": false,
+      "horizons": {
+        "5": {
+          "target_ms": 1794050188026,
+          "closed_price_direction_pct": -1.477527006981183,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "15": {
+          "target_ms": 1794050788026,
+          "closed_price_direction_pct": -2.283755583677638,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "30": {
+          "target_ms": 1794051688026,
+          "closed_price_direction_pct": -0.22879459608955433,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "60": {
+          "target_ms": 1794053488026,
+          "closed_price_direction_pct": -0.5087117942357278,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        }
+      },
+      "observed_path": {
+        "max_adverse_pct": null,
+        "max_favorable_pct": null,
+        "coverage_start_delay_ms": null,
+        "max_observed_quote_gap_ms": 0,
+        "complete_tick_path_verified": false
+      }
+    },
+    {
+      "id": "bitget:AKEUSDT:1794070288613",
+      "venue": "bitget",
+      "symbol": "AKEUSDT",
+      "direction": "SHORT",
+      "issued_at_ms": 1794070288613,
+      "cohort": "LEGACY_NO_RSI",
+      "entry_quote": {
+        "bid": 0.0056665,
+        "ask": 0.0056678,
+        "at_ms": 1794070280111
+      },
+      "entry_confirmed": false,
+      "horizons": {
+        "5": {
+          "target_ms": 1794070588613,
+          "closed_price_direction_pct": 0.25850736260728535,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "15": {
+          "target_ms": 1794071188613,
+          "closed_price_direction_pct": 1.3578253619544123,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "30": {
+          "target_ms": 1794072088613,
+          "closed_price_direction_pct": 1.179605268962347,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "60": {
+          "target_ms": 1794073888613,
+          "closed_price_direction_pct": 2.0583538462895734,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        }
+      },
+      "observed_path": {
+        "max_adverse_pct": null,
+        "max_favorable_pct": null,
+        "coverage_start_delay_ms": null,
+        "max_observed_quote_gap_ms": 0,
+        "complete_tick_path_verified": false
+      }
+    },
+    {
+      "id": "bitget:SIGNUSDT:1794074488585",
+      "venue": "bitget",
+      "symbol": "SIGNUSDT",
+      "direction": "SHORT",
+      "issued_at_ms": 1794074488585,
+      "cohort": "LEGACY_NO_RSI",
+      "entry_quote": {
+        "bid": 0.009944,
+        "ask": 0.009955,
+        "at_ms": 1794074480712
+      },
+      "entry_confirmed": false,
+      "horizons": {
+        "5": {
+          "target_ms": 1794074788585,
+          "closed_price_direction_pct": 0.9095934469068867,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "15": {
+          "target_ms": 1794075388585,
+          "closed_price_direction_pct": 0.08543142871501042,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "30": {
+          "target_ms": 1794076288585,
+          "closed_price_direction_pct": 1.552841851349318,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "60": {
+          "target_ms": 1794078088585,
+          "closed_price_direction_pct": 4.869591436755616,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        }
+      },
+      "observed_path": {
+        "max_adverse_pct": null,
+        "max_favorable_pct": null,
+        "coverage_start_delay_ms": null,
+        "max_observed_quote_gap_ms": 0,
+        "complete_tick_path_verified": false
+      }
+    },
+    {
+      "id": "bitget:ACTUSDT:1794076587701",
+      "venue": "bitget",
+      "symbol": "ACTUSDT",
+      "direction": "LONG",
+      "issued_at_ms": 1794076587701,
+      "cohort": "LEGACY_NO_RSI",
+      "entry_quote": {
+        "bid": 0.011666,
+        "ask": 0.011681,
+        "at_ms": 1794076580605
+      },
+      "entry_confirmed": false,
+      "horizons": {
+        "5": {
+          "target_ms": 1794076887701,
+          "closed_price_direction_pct": -1.6319013149441064,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "15": {
+          "target_ms": 1794077487701,
+          "closed_price_direction_pct": -0.5867991604917022,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "30": {
+          "target_ms": 1794078387701,
+          "closed_price_direction_pct": -1.032252537799283,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "60": {
+          "target_ms": 1794080187701,
+          "closed_price_direction_pct": -0.5696663382875777,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        }
+      },
+      "observed_path": {
+        "max_adverse_pct": null,
+        "max_favorable_pct": null,
+        "coverage_start_delay_ms": null,
+        "max_observed_quote_gap_ms": 0,
+        "complete_tick_path_verified": false
+      }
+    },
+    {
+      "id": "bithumb:KRW-A8:1794095487733",
+      "venue": "bithumb",
+      "symbol": "KRW-A8",
+      "direction": "BUY",
+      "issued_at_ms": 1794095487733,
+      "cohort": "LEGACY_NO_RSI",
+      "entry_quote": {
+        "bid": 6.318,
+        "ask": 6.349,
+        "at_ms": 1794095475705
+      },
+      "entry_confirmed": false,
+      "horizons": {
+        "5": {
+          "target_ms": 1794095787733,
+          "closed_price_direction_pct": -1.5078550564458726,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "15": {
+          "target_ms": 1794096387733,
+          "closed_price_direction_pct": 1.0341833109654974,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "30": {
+          "target_ms": 1794097287733,
+          "closed_price_direction_pct": 0.7973474382253265,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "60": {
+          "target_ms": 1794099087733,
+          "closed_price_direction_pct": -2.4709876055893365,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        }
+      },
+      "observed_path": {
+        "max_adverse_pct": null,
+        "max_favorable_pct": null,
+        "coverage_start_delay_ms": null,
+        "max_observed_quote_gap_ms": 0,
+        "complete_tick_path_verified": false
+      }
+    },
+    {
+      "id": "bitget:CARVUSDT:1794099684777",
+      "venue": "bitget",
+      "symbol": "CARVUSDT",
+      "direction": "LONG",
+      "issued_at_ms": 1794099684777,
+      "cohort": "LEGACY_NO_RSI",
+      "entry_quote": {
+        "bid": 0.03421,
+        "ask": 0.03428,
+        "at_ms": 1794099679598
+      },
+      "entry_confirmed": false,
+      "horizons": {
+        "5": {
+          "target_ms": 1794099984777,
+          "closed_price_direction_pct": -4.1319900715432905,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "15": {
+          "target_ms": 1794100584777,
+          "closed_price_direction_pct": -6.555701562271854,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "30": {
+          "target_ms": 1794101484777,
+          "closed_price_direction_pct": -7.5485472331727195,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "60": {
+          "target_ms": 1794103284777,
+          "closed_price_direction_pct": -9.008614396262226,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        }
+      },
+      "observed_path": {
+        "max_adverse_pct": null,
+        "max_favorable_pct": null,
+        "coverage_start_delay_ms": null,
+        "max_observed_quote_gap_ms": 0,
+        "complete_tick_path_verified": false
+      }
+    },
+    {
+      "id": "bitget:JCTUSDT:1794103888655",
+      "venue": "bitget",
+      "symbol": "JCTUSDT",
+      "direction": "SHORT",
+      "issued_at_ms": 1794103888655,
+      "cohort": "LEGACY_NO_RSI",
+      "entry_quote": {
+        "bid": 0.002617,
+        "ask": 0.00262,
+        "at_ms": 1794103880429
+      },
+      "entry_confirmed": false,
+      "horizons": {
+        "5": {
+          "target_ms": 1794104188655,
+          "closed_price_direction_pct": -0.8592705747565432,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "15": {
+          "target_ms": 1794104788655,
+          "closed_price_direction_pct": -1.2029788046591605,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "30": {
+          "target_ms": 1794105688655,
+          "closed_price_direction_pct": -4.258163070460164,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "60": {
+          "target_ms": 1794107488655,
+          "closed_price_direction_pct": -5.976704219973272,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        }
+      },
+      "observed_path": {
+        "max_adverse_pct": null,
+        "max_favorable_pct": null,
+        "coverage_start_delay_ms": null,
+        "max_observed_quote_gap_ms": 0,
+        "complete_tick_path_verified": false
+      }
+    },
+    {
+      "id": "bitget:METUSDT:1794107788714",
+      "venue": "bitget",
+      "symbol": "METUSDT",
+      "direction": "LONG",
+      "issued_at_ms": 1794107788714,
+      "cohort": "LEGACY_NO_RSI",
+      "entry_quote": {
+        "bid": 0.3289,
+        "ask": 0.3293,
+        "at_ms": 1794107779971
+      },
+      "entry_confirmed": false,
+      "horizons": {
+        "5": {
+          "target_ms": 1794108088714,
+          "closed_price_direction_pct": -0.8204193254329972,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "15": {
+          "target_ms": 1794108688714,
+          "closed_price_direction_pct": -1.0331206320267405,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "30": {
+          "target_ms": 1794109588714,
+          "closed_price_direction_pct": -1.6408386508660056,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "60": {
+          "target_ms": 1794111388714,
+          "closed_price_direction_pct": -2.1573989668793647,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        }
+      },
+      "observed_path": {
+        "max_adverse_pct": null,
+        "max_favorable_pct": null,
+        "coverage_start_delay_ms": null,
+        "max_observed_quote_gap_ms": 0,
+        "complete_tick_path_verified": false
+      }
+    },
+    {
+      "id": "bithumb:KRW-DEBIT:1794110789132",
+      "venue": "bithumb",
+      "symbol": "KRW-DEBIT",
+      "direction": "BUY",
+      "issued_at_ms": 1794110789132,
+      "cohort": "LEGACY_NO_RSI",
+      "entry_quote": {
+        "bid": 1581,
+        "ask": 1582,
+        "at_ms": 1794110778861
+      },
+      "entry_confirmed": false,
+      "horizons": {
+        "5": {
+          "target_ms": 1794111089132,
+          "closed_price_direction_pct": -1.169775529560546,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "15": {
+          "target_ms": 1794111689132,
+          "closed_price_direction_pct": -4.078406576035409,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "30": {
+          "target_ms": 1794112589132,
+          "closed_price_direction_pct": -0.8536199810306622,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "60": {
+          "target_ms": 1794114389132,
+          "closed_price_direction_pct": 0.28453999367688,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        }
+      },
+      "observed_path": {
+        "max_adverse_pct": null,
+        "max_favorable_pct": null,
+        "coverage_start_delay_ms": null,
+        "max_observed_quote_gap_ms": 0,
+        "complete_tick_path_verified": false
+      }
+    },
+    {
+      "id": "bitget:AKEUSDT:1794116187914",
+      "venue": "bitget",
+      "symbol": "AKEUSDT",
+      "direction": "SHORT",
+      "issued_at_ms": 1794116187914,
+      "cohort": "LEGACY_NO_RSI",
+      "entry_quote": {
+        "bid": 0.0052287,
+        "ask": 0.0052324,
+        "at_ms": 1794116180529
+      },
+      "entry_confirmed": false,
+      "horizons": {
+        "5": {
+          "target_ms": 1794116487914,
+          "closed_price_direction_pct": 2.159428740763414,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "15": {
+          "target_ms": 1794117087914,
+          "closed_price_direction_pct": 1.128944374874541,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "30": {
+          "target_ms": 1794117987914,
+          "closed_price_direction_pct": 1.6183766525508902,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "60": {
+          "target_ms": 1794119787914,
+          "closed_price_direction_pct": 2.266492051505109,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        }
+      },
+      "observed_path": {
+        "max_adverse_pct": null,
+        "max_favorable_pct": null,
+        "coverage_start_delay_ms": null,
+        "max_observed_quote_gap_ms": 0,
+        "complete_tick_path_verified": false
+      }
+    },
+    {
+      "id": "bithumb:KRW-CYBER:1794117087568",
+      "venue": "bithumb",
+      "symbol": "KRW-CYBER",
+      "direction": "BUY",
+      "issued_at_ms": 1794117087568,
+      "cohort": "LEGACY_NO_RSI",
+      "entry_quote": {
+        "bid": 468,
+        "ask": 469,
+        "at_ms": 1794117078076
+      },
+      "entry_confirmed": false,
+      "horizons": {
+        "5": {
+          "target_ms": 1794117387568,
+          "closed_price_direction_pct": -11.419423692636077,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "15": {
+          "target_ms": 1794117987568,
+          "closed_price_direction_pct": -11.846318036286018,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "30": {
+          "target_ms": 1794118887568,
+          "closed_price_direction_pct": -14.621131270010668,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "60": {
+          "target_ms": 1794120687568,
+          "closed_price_direction_pct": -14.194236926360727,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        }
+      },
+      "observed_path": {
+        "max_adverse_pct": null,
+        "max_favorable_pct": null,
+        "coverage_start_delay_ms": null,
+        "max_observed_quote_gap_ms": 0,
+        "complete_tick_path_verified": false
+      }
+    },
+    {
+      "id": "bitget:METUSDT:1794121290614",
+      "venue": "bitget",
+      "symbol": "METUSDT",
+      "direction": "LONG",
+      "issued_at_ms": 1794121290614,
+      "cohort": "LEGACY_NO_RSI",
+      "entry_quote": {
+        "bid": 0.3144,
+        "ask": 0.3147,
+        "at_ms": 1794121281323
+      },
+      "entry_confirmed": false,
+      "horizons": {
+        "5": {
+          "target_ms": 1794121590614,
+          "closed_price_direction_pct": -0.6517246860594517,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "15": {
+          "target_ms": 1794122190614,
+          "closed_price_direction_pct": 0.20664441265298983,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "30": {
+          "target_ms": 1794123090614,
+          "closed_price_direction_pct": 0.20664441265298983,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "60": {
+          "target_ms": 1794124890614,
+          "closed_price_direction_pct": -0.3656016531553008,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        }
+      },
+      "observed_path": {
+        "max_adverse_pct": null,
+        "max_favorable_pct": null,
+        "coverage_start_delay_ms": null,
+        "max_observed_quote_gap_ms": 0,
+        "complete_tick_path_verified": false
+      }
+    },
+    {
+      "id": "bitget:ICNTUSDT:1794130288897",
+      "venue": "bitget",
+      "symbol": "ICNTUSDT",
+      "direction": "LONG",
+      "issued_at_ms": 1794130288897,
+      "cohort": "LEGACY_NO_RSI",
+      "entry_quote": {
+        "bid": 0.3627,
+        "ask": 0.3631,
+        "at_ms": 1794130283248
+      },
+      "entry_confirmed": false,
+      "horizons": {
+        "5": {
+          "target_ms": 1794130588897,
+          "closed_price_direction_pct": 0.49600440892809683,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "15": {
+          "target_ms": 1794131188897,
+          "closed_price_direction_pct": -1.8462386332322889,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "30": {
+          "target_ms": 1794132088897,
+          "closed_price_direction_pct": 0.22044640396803317,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "60": {
+          "target_ms": 1794133888897,
+          "closed_price_direction_pct": 4.5467070818407285,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        }
+      },
+      "observed_path": {
+        "max_adverse_pct": null,
+        "max_favorable_pct": null,
+        "coverage_start_delay_ms": null,
+        "max_observed_quote_gap_ms": 0,
+        "complete_tick_path_verified": false
+      }
+    },
+    {
+      "id": "bitget:JCTUSDT:1794133587934",
+      "venue": "bitget",
+      "symbol": "JCTUSDT",
+      "direction": "LONG",
+      "issued_at_ms": 1794133587934,
+      "cohort": "LEGACY_NO_RSI",
+      "entry_quote": {
+        "bid": 0.005056,
+        "ask": 0.005061,
+        "at_ms": 1794133585889
+      },
+      "entry_confirmed": false,
+      "horizons": {
+        "5": {
+          "target_ms": 1794133887934,
+          "closed_price_direction_pct": -0.9390135415637157,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "15": {
+          "target_ms": 1794134487934,
+          "closed_price_direction_pct": 6.157951962044073,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "30": {
+          "target_ms": 1794135387934,
+          "closed_price_direction_pct": 35.21794998517345,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        },
+        "60": {
+          "target_ms": 1794137187934,
+          "closed_price_direction_pct": 60.22536324997525,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MISSING",
+          "actual_execution_verified": false
+        }
+      },
+      "observed_path": {
+        "max_adverse_pct": null,
+        "max_favorable_pct": null,
+        "coverage_start_delay_ms": null,
+        "max_observed_quote_gap_ms": 0,
+        "complete_tick_path_verified": false
+      }
+    },
+    {
+      "id": "bitget:ARBUSDT:1794160890777",
+      "venue": "bitget",
+      "symbol": "ARBUSDT",
+      "direction": "SHORT",
+      "issued_at_ms": 1794160890777,
+      "cohort": "LEGACY_NO_RSI",
+      "entry_quote": {
+        "bid": 0.16823,
+        "ask": 0.16824,
+        "at_ms": 1794160886527
+      },
+      "entry_confirmed": false,
+      "horizons": {
+        "5": {
+          "target_ms": 1794161190777,
+          "closed_price_direction_pct": 0.09807709454037195,
+          "executable_quote_return_pct": 0.16049456101764994,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MEASURED_PUBLIC_BID_ASK",
+          "actual_execution_verified": false
+        },
+        "15": {
+          "target_ms": 1794161790777,
+          "closed_price_direction_pct": -0.06835676286147674,
+          "executable_quote_return_pct": -0.06538667300719193,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MEASURED_PUBLIC_BID_ASK",
+          "actual_execution_verified": false
+        },
+        "30": {
+          "target_ms": 1794162690777,
+          "closed_price_direction_pct": 0.25856688560643715,
+          "executable_quote_return_pct": 0.24371396302680481,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MEASURED_PUBLIC_BID_ASK",
+          "actual_execution_verified": false
+        },
+        "60": {
+          "target_ms": 1794164490777,
+          "closed_price_direction_pct": 0.270455018277993,
+          "executable_quote_return_pct": 0.20210426202221912,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MEASURED_PUBLIC_BID_ASK",
+          "actual_execution_verified": false
+        }
+      },
+      "observed_path": {
+        "max_adverse_pct": -0.2496582060274646,
+        "max_favorable_pct": 0.37448730904118865,
+        "coverage_start_delay_ms": 18031,
+        "max_observed_quote_gap_ms": 601968,
+        "complete_tick_path_verified": false
+      }
+    },
+    {
+      "id": "bitget:PUMPUSDT:1794183390096",
+      "venue": "bitget",
+      "symbol": "PUMPUSDT",
+      "direction": "LONG",
+      "issued_at_ms": 1794183390096,
+      "cohort": "LEGACY_NO_RSI",
+      "entry_quote": {
+        "bid": 0.003587,
+        "ask": 0.003588,
+        "at_ms": 1794183387193
+      },
+      "entry_confirmed": false,
+      "horizons": {
+        "5": {
+          "target_ms": 1794183690096,
+          "closed_price_direction_pct": -1.2682926829268304,
+          "executable_quote_return_pct": -1.6443701226309893,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MEASURED_PUBLIC_BID_ASK",
+          "actual_execution_verified": false
+        },
+        "15": {
+          "target_ms": 1794184290096,
+          "closed_price_direction_pct": -0.7665505226480906,
+          "executable_quote_return_pct": -0.9197324414715768,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MEASURED_PUBLIC_BID_ASK",
+          "actual_execution_verified": false
+        },
+        "30": {
+          "target_ms": 1794185190096,
+          "closed_price_direction_pct": -0.6271777003484358,
+          "executable_quote_return_pct": -0.5574136008918651,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MEASURED_PUBLIC_BID_ASK",
+          "actual_execution_verified": false
+        },
+        "60": {
+          "target_ms": 1794186990096,
+          "closed_price_direction_pct": -0.8222996515679482,
+          "executable_quote_return_pct": -1.0312151616499454,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MEASURED_PUBLIC_BID_ASK",
+          "actual_execution_verified": false
+        }
+      },
+      "observed_path": {
+        "max_adverse_pct": -1.6722408026755842,
+        "max_favorable_pct": 1.0033444816053505,
+        "coverage_start_delay_ms": 77698,
+        "max_observed_quote_gap_ms": 310292,
+        "complete_tick_path_verified": false
+      }
+    },
+    {
+      "id": "bitget:JCTUSDT:1794188790009",
+      "venue": "bitget",
+      "symbol": "JCTUSDT",
+      "direction": "SHORT",
+      "issued_at_ms": 1794188790009,
+      "cohort": "LEGACY_NO_RSI",
+      "entry_quote": {
+        "bid": 0.01001,
+        "ask": 0.010019,
+        "at_ms": 1794188785609
+      },
+      "entry_confirmed": false,
+      "horizons": {
+        "5": {
+          "target_ms": 1794189090009,
+          "closed_price_direction_pct": 0.1847321383993128,
+          "executable_quote_return_pct": 0.3296703296703301,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MEASURED_PUBLIC_BID_ASK",
+          "actual_execution_verified": false
+        },
+        "15": {
+          "target_ms": 1794189690009,
+          "closed_price_direction_pct": 4.248839183184372,
+          "executable_quote_return_pct": 4.32567432567432,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MEASURED_PUBLIC_BID_ASK",
+          "actual_execution_verified": false
+        },
+        "30": {
+          "target_ms": 1794190590009,
+          "closed_price_direction_pct": 3.5698237555544354,
+          "executable_quote_return_pct": 5.014985014985005,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MEASURED_PUBLIC_BID_ASK",
+          "actual_execution_verified": false
+        },
+        "60": {
+          "target_ms": 1794192390009,
+          "closed_price_direction_pct": 8.302960706974872,
+          "executable_quote_return_pct": 8.031968031968024,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MEASURED_PUBLIC_BID_ASK",
+          "actual_execution_verified": false
+        }
+      },
+      "observed_path": {
+        "max_adverse_pct": -5.294705294705304,
+        "max_favorable_pct": 8.431568431568424,
+        "coverage_start_delay_ms": 15794,
+        "max_observed_quote_gap_ms": 303803,
+        "complete_tick_path_verified": false
+      }
+    },
+    {
+      "id": "bitget:ICNTUSDT:1794190290510",
+      "venue": "bitget",
+      "symbol": "ICNTUSDT",
+      "direction": "SHORT",
+      "issued_at_ms": 1794190290510,
+      "cohort": "LEGACY_NO_RSI",
+      "entry_quote": {
+        "bid": 0.3415,
+        "ask": 0.3418,
+        "at_ms": 1794190287569
+      },
+      "entry_confirmed": false,
+      "horizons": {
+        "5": {
+          "target_ms": 1794190590510,
+          "closed_price_direction_pct": -0.21952290355626847,
+          "executable_quote_return_pct": -0.02928257686676105,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MEASURED_PUBLIC_BID_ASK",
+          "actual_execution_verified": false
+        },
+        "15": {
+          "target_ms": 1794191190510,
+          "closed_price_direction_pct": -0.6292989901946378,
+          "executable_quote_return_pct": -0.4099560761346872,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MEASURED_PUBLIC_BID_ASK",
+          "actual_execution_verified": false
+        },
+        "30": {
+          "target_ms": 1794192090510,
+          "closed_price_direction_pct": -0.9805356358846717,
+          "executable_quote_return_pct": -1.6691068814055585,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MEASURED_PUBLIC_BID_ASK",
+          "actual_execution_verified": false
+        },
+        "60": {
+          "target_ms": 1794193890510,
+          "closed_price_direction_pct": -0.39514122640129656,
+          "executable_quote_return_pct": -0.292825768667643,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MEASURED_PUBLIC_BID_ASK",
+          "actual_execution_verified": false
+        }
+      },
+      "observed_path": {
+        "max_adverse_pct": -4.948755490483154,
+        "max_favorable_pct": 0.7027818448023464,
+        "coverage_start_delay_ms": 19459,
+        "max_observed_quote_gap_ms": 310471,
+        "complete_tick_path_verified": false
+      }
+    },
+    {
+      "id": "bithumb:KRW-RSR:1794220898331",
+      "venue": "bithumb",
+      "symbol": "KRW-RSR",
+      "direction": "BUY",
+      "issued_at_ms": 1794220898331,
+      "cohort": "V45_CONTEXT_UNVERIFIED",
+      "entry_quote": {
+        "bid": 2.431,
+        "ask": 2.435,
+        "at_ms": 1794220896769
+      },
+      "entry_confirmed": false,
+      "horizons": {
+        "5": {
+          "target_ms": 1794221198331,
+          "closed_price_direction_pct": 0.8220304151253632,
+          "executable_quote_return_pct": 0.1642710472279152,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MEASURED_PUBLIC_BID_ASK",
+          "actual_execution_verified": false
+        },
+        "15": {
+          "target_ms": 1794221798331,
+          "closed_price_direction_pct": 0.9453349773941744,
+          "executable_quote_return_pct": 0.5749486652977254,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MEASURED_PUBLIC_BID_ASK",
+          "actual_execution_verified": false
+        },
+        "30": {
+          "target_ms": 1794222698331,
+          "closed_price_direction_pct": -0.9042334566378818,
+          "executable_quote_return_pct": -1.1909650924024628,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MEASURED_PUBLIC_BID_ASK",
+          "actual_execution_verified": false
+        },
+        "60": {
+          "target_ms": 1794224498331,
+          "closed_price_direction_pct": -4.2334566378955945,
+          "executable_quote_return_pct": -4.188911704312115,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MEASURED_PUBLIC_BID_ASK",
+          "actual_execution_verified": false
+        }
+      },
+      "observed_path": {
+        "max_adverse_pct": -4.394250513347031,
+        "max_favorable_pct": 1.0677618069815153,
+        "coverage_start_delay_ms": 18711,
+        "max_observed_quote_gap_ms": 311283,
+        "complete_tick_path_verified": false
+      }
+    },
+    {
+      "id": "bitget:IDOLUSDT:1794233493528",
+      "venue": "bitget",
+      "symbol": "IDOLUSDT",
+      "direction": "SHORT",
+      "issued_at_ms": 1794233493528,
+      "cohort": "V45_DIRECTION_OBSERVATION",
+      "entry_quote": {
+        "bid": 0.034167,
+        "ask": 0.034198,
+        "at_ms": 1794233490570
+      },
+      "entry_confirmed": false,
+      "horizons": {
+        "5": {
+          "target_ms": 1794233793528,
+          "closed_price_direction_pct": 3.746068894902377,
+          "executable_quote_return_pct": 2.759973073433448,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MEASURED_PUBLIC_BID_ASK",
+          "actual_execution_verified": false
+        },
+        "15": {
+          "target_ms": 1794234393528,
+          "closed_price_direction_pct": 3.3628318584070893,
+          "executable_quote_return_pct": 3.155091169842253,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MEASURED_PUBLIC_BID_ASK",
+          "actual_execution_verified": false
+        },
+        "30": {
+          "target_ms": 1794235293528,
+          "closed_price_direction_pct": 8.58772763841148,
+          "executable_quote_return_pct": 9.269177861679406,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MEASURED_PUBLIC_BID_ASK",
+          "actual_execution_verified": false
+        },
+        "60": {
+          "target_ms": 1794237093528,
+          "closed_price_direction_pct": 8.397571856944353,
+          "executable_quote_return_pct": 8.382357245295182,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MEASURED_PUBLIC_BID_ASK",
+          "actual_execution_verified": false
+        }
+      },
+      "observed_path": {
+        "max_adverse_pct": 0.0263412064272604,
+        "max_favorable_pct": 9.977463634501133,
+        "coverage_start_delay_ms": 51575,
+        "max_observed_quote_gap_ms": 314914,
+        "complete_tick_path_verified": false
+      }
+    },
+    {
+      "id": "bithumb:KRW-MERL:1794235894207",
+      "venue": "bithumb",
+      "symbol": "KRW-MERL",
+      "direction": "BUY",
+      "issued_at_ms": 1794235894207,
+      "cohort": "V45_CONTEXT_UNVERIFIED",
+      "entry_quote": {
+        "bid": 46.49,
+        "ask": 46.5,
+        "at_ms": 1794235892506
+      },
+      "entry_confirmed": false,
+      "horizons": {
+        "5": {
+          "target_ms": 1794236194207,
+          "closed_price_direction_pct": -1.92493816539413,
+          "executable_quote_return_pct": -2.3655913978494647,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MEASURED_PUBLIC_BID_ASK",
+          "actual_execution_verified": false
+        },
+        "15": {
+          "target_ms": 1794236794207,
+          "closed_price_direction_pct": 0.09678460049467041,
+          "executable_quote_return_pct": -0.731182795698937,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MEASURED_PUBLIC_BID_ASK",
+          "actual_execution_verified": false
+        },
+        "30": {
+          "target_ms": 1794237694207,
+          "closed_price_direction_pct": -1.946445854392953,
+          "executable_quote_return_pct": -2.236559139784944,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MEASURED_PUBLIC_BID_ASK",
+          "actual_execution_verified": false
+        },
+        "60": {
+          "target_ms": 1794239494207,
+          "closed_price_direction_pct": 3.2369071943219696,
+          "executable_quote_return_pct": 3.5698924731182746,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MEASURED_PUBLIC_BID_ASK",
+          "actual_execution_verified": false
+        }
+      },
+      "observed_path": {
+        "max_adverse_pct": -4.537634408602154,
+        "max_favorable_pct": 4.946236559139772,
+        "coverage_start_delay_ms": 18260,
+        "max_observed_quote_gap_ms": 315062,
+        "complete_tick_path_verified": false
+      }
+    },
+    {
+      "id": "bitget:ONDOUSDT:1794241593906",
+      "venue": "bitget",
+      "symbol": "ONDOUSDT",
+      "direction": "SHORT",
+      "issued_at_ms": 1794241593906,
+      "cohort": "V45_DIRECTION_OBSERVATION",
+      "entry_quote": {
+        "bid": 0.3822,
+        "ask": 0.3823,
+        "at_ms": 1794241590669
+      },
+      "entry_confirmed": false,
+      "horizons": {
+        "5": {
+          "target_ms": 1794241893906,
+          "closed_price_direction_pct": 0.8763897972530965,
+          "executable_quote_return_pct": 1.0465724751439047,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MEASURED_PUBLIC_BID_ASK",
+          "actual_execution_verified": false
+        },
+        "15": {
+          "target_ms": 1794242493906,
+          "closed_price_direction_pct": 1.1118378024852826,
+          "executable_quote_return_pct": 1.098901098901094,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MEASURED_PUBLIC_BID_ASK",
+          "actual_execution_verified": false
+        },
+        "30": {
+          "target_ms": 1794243393906,
+          "closed_price_direction_pct": 1.4519293655984256,
+          "executable_quote_return_pct": 1.5960230245944518,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MEASURED_PUBLIC_BID_ASK",
+          "actual_execution_verified": false
+        },
+        "60": {
+          "target_ms": 1794245193906,
+          "closed_price_direction_pct": null,
+          "executable_quote_return_pct": null,
+          "closed_price_status": "PENDING",
+          "executable_quote_status": "PENDING",
+          "actual_execution_verified": false
+        }
+      },
+      "observed_path": {
+        "max_adverse_pct": 0.39246467817896424,
+        "max_favorable_pct": 2.74725274725275,
+        "coverage_start_delay_ms": 83849,
+        "max_observed_quote_gap_ms": 308845,
+        "complete_tick_path_verified": false
+      }
+    }
+  ],
+  "price_direction_definition": "SIGNED_FUTURE_CLOSED_PRICE_VERSUS_ACK_MID_REFERENCE_NOT_EXECUTION",
+  "executable_definition": "LONG_OR_BUY_ENTRY_ASK_EXIT_BID_SHORT_ENTRY_BID_EXIT_ASK",
+  "all_time_history_complete": false,
+  "forecasts_and_candidates_not_interchangeable": true,
+  "forecast_accuracy_improvement_proven": false,
+  "account_profit_verified": false,
+  "orders_sent": false,
+  "telegram_sent": false
+}
