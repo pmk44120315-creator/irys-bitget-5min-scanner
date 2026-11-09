@@ -1,0 +1,81 @@
+name: V44 clean production environment and actual-alert audit
+on:
+  push:
+    branches: [fix/irys-v44-runtime-outcomes-20261109]
+    paths: ['.github/workflows/v44-recovery-review.yml','verification/workflows/**','.github/v43_source_lease.json']
+  pull_request:
+    branches: [main]
+    paths: ['tests/**','verification/workflows/**','.github/workflows/**']
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  repair_audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Test unmodified market checks with no third-party package installed
+        run: |
+          mkdir -p v44_evidence
+          set -o pipefail
+          python -S -m unittest discover -s tests -v 2>&1 | tee v44_evidence/production_after.log
+      - name: Run all original YAML assertions in their explicit verification environment
+        run: |
+          python -m pip install 'PyYAML==6.0.2'
+          set -o pipefail
+          python -m unittest discover -s verification/workflows -v 2>&1 | tee v44_evidence/config_after.log
+          node --test tests/test_v42_ack_feedback.mjs tests/test_v43*.mjs > v44_evidence/node_contracts.log
+          python - <<'PY'
+          from pathlib import Path
+          import json,subprocess
+          for p,want in json.loads(Path('.github/v43_source_lease.json').read_text()).items():
+            got=subprocess.check_output(['git','hash-object',p],text=True).strip()
+            assert got==want,(p,got,want)
+          print('UNCHANGED_TEST_ASSERTIONS_AND_V43_SOURCE_VERIFIED')
+          PY
+          git rev-parse HEAD > v44_evidence/verified_commit.txt
+          git archive --format=zip --output=v44_evidence/source.zip HEAD
+      - name: Audit actual server acknowledgements and subsequent official prices read only
+        if: github.event_name != 'pull_request'
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          node --input-type=module <<'JS'
+          import {writeFileSync} from 'node:fs';
+          import {evaluateAckHistory} from './research/v42_actual_ack_evaluation.mjs';
+          const repo='pmk44120315-creator/irys-bitget-5min-scanner',raw='https://raw.githubusercontent.com/'+repo;
+          const get=async(url,auth=false)=>{const r=await fetch(url,{headers:{accept:'application/json','User-Agent':'IRYS-V44-readonly',...(auth?{authorization:'Bearer '+process.env.GITHUB_TOKEN}:{})},signal:AbortSignal.timeout(30000)});if(!r.ok)throw Error('HTTP_'+r.status);return r.json()};
+          const save=(p,x)=>writeFileSync('v44_evidence/'+p,JSON.stringify(x,null,2));
+          const h=await get('https://irys-surge-monitor.vhehwpfl.workers.dev/?v44readonly='+Date.now()),l=h.last||{},d=l.v30DirectionalDelivery||{},history=d.public_ack_history;
+          save('health.json',{checked_at_utc:new Date().toISOString(),version:l.codeVersion,time:l.time,status:l.status,entry_enabled:h.marketNotificationsEnabled,risk_enabled:h.marketRiskWarningsEnabled,delivery_status:d.status,dispatch:d.dispatch_revalidation,feed:d.feed,history_records:history?.retained_ack_records,source_at_ms:d.source_at_ms,phone_delivery_verified:false});
+          const old=await get(raw+'/data/irys-v39-ack-feedback/data/v42_actual_ack_evaluation.json');
+          const result=await evaluateAckHistory({history,old,now:Date.now()});save('actual_ack_outcomes.json',result);save('public_ack_history.json',history);
+          for(const [branch,file,out] of [['data/irys-v43-stream-evidence','v43_stream_latest.json','latest_stream.json'],['data/irys-v43-stream-evidence','v43_actual_quote_outcomes.json','actual_quote_outcomes.json'],['main','latest.json','collector_snapshot.json']])save(out,await get(raw+'/'+branch+'/data/'+file));
+          const runs=await get('https://api.github.com/repos/'+repo+'/actions/workflows/v43-observation.yml/runs?per_page=10&status=success',true);
+          save('stream_runs.json',runs.workflow_runs.map(x=>({id:x.id,created_at:x.created_at,head_sha:x.head_sha,status:x.status,conclusion:x.conclusion,url:x.html_url})));
+          console.log('V44_ACTUAL_ALERT_AUDIT',JSON.stringify({diagnostics:result.diagnostics,summary:result.summary,recent:result.events.slice(-8).map(e=>({symbol:e.symbol,venue:e.venue,direction:e.direction,issued_at_ms:e.issued_at_ms,outcomes:e.outcomes}))}));
+          JS
+      - name: Hash all evidence
+        if: always()
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import hashlib,json
+          p=Path('v44_evidence');p.mkdir(exist_ok=True)
+          d={str(f.relative_to(p)):{'bytes':f.stat().st_size,'sha256':hashlib.sha256(f.read_bytes()).hexdigest()} for f in p.rglob('*') if f.is_file()}
+          (p/'manifest.json').write_text(json.dumps(d,indent=2))
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: v44-recovery-and-actual-alert-evidence
+          path: v44_evidence/
+          retention-days: 30
+          if-no-files-found: error
