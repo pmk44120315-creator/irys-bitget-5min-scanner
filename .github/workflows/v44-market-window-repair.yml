@@ -1,0 +1,92 @@
+name: V44 exact market observation window regression repair
+on:
+  push:
+    branches: [fix/irys-v44-runtime-outcomes-20261109]
+    paths: ['.github/workflows/v44-market-window-repair.yml']
+permissions:
+  contents: write
+jobs:
+  repair:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Pin the failing per-market coverage contract
+        run: |
+          mkdir -p v44_window
+          cat > tests/test_v43_market_coverage.mjs <<'JS'
+          import test from 'node:test';import assert from 'node:assert/strict';
+          import {StreamState} from '../deployment/v43_stream_core.mjs';
+          const T=1794180000000;
+          function q(at){return {kind:'book',venue:'bitget',symbol:'AAAUSDT',at_ms:at,at_us:at*1000,received_at_ms:at+1,bid:100,ask:101,bid_size:2,ask_size:1,bids:[[100,2]],asks:[[101,1]],sequence:String(at),snapshot:true}}
+          test('newly watched market cannot inherit a minute of evidence from an older venue connection',()=>{const s=new StreamState();s.open('bitget','c',T-120000);s.accept(q(T),'c');const f=s.snapshot('bitget','AAAUSDT',T+10000);assert.equal(f.unbroken_window,false);assert.equal(f.market_observation_span_ms,9999)});
+          test('market removed and later re-added starts a new observable window without old CVD',()=>{const s=new StreamState();s.open('bitget','c',T-120000);s.accept(q(T-90000),'c');assert.equal(typeof s.forgetMarket,'function');s.forgetMarket('bitget','AAAUSDT');s.accept(q(T),'c');const f=s.snapshot('bitget','AAAUSDT',T+10000);assert.equal(f.unbroken_window,false);assert.equal(f.book_count,1)});
+          test('genuinely observed market can complete its window without adding any live signal gate',()=>{const s=new StreamState();s.open('bitget','c',T-120000);s.accept(q(T-61000),'c');s.accept(q(T),'c');const f=s.snapshot('bitget','AAAUSDT',T+1000);assert.equal(f.unbroken_window,true);assert.equal(f.trade_permission,false)});
+          JS
+          set +e
+          node --test tests/test_v43_market_coverage.mjs > v44_window/before.log 2>&1
+          CODE=$?
+          set -e
+          test "$CODE" -ne 0
+          grep -q 'not ok 1' v44_window/before.log
+      - name: Fix market-specific observation age and discard stale state when watchlist removes market
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import hashlib,json
+          p=Path('deployment/v43_stream_core.mjs');s=p.read_text()
+          changes=[(' accept(e,connection){',' forgetMarket(venue,symbol){this.markets.delete(marketKey(venue,symbol));}\n accept(e,connection){'),
+          ('s.out_of_order_books=0;}','s.out_of_order_books=0;s.observed_since_ms=null;}'),
+          ("  if(e.kind==='book')s.lastBook=e;","  if(e.kind==='book'){s.lastBook=e;s.observed_since_ms??=e.received_at_ms;}"),
+          ('   unbroken_window:!!c&&c.closed_at_ms===null&&c.opened_at_ms<=start,reconnects:c?.reconnects??0,','   unbroken_window:!!c&&c.closed_at_ms===null&&s?.segment===c.id&&safe(s?.observed_since_ms)&&s.observed_since_ms<=start,\n   market_observed_since_ms:s?.segment===c?.id?s?.observed_since_ms??null:null,\n   market_observation_span_ms:s?.segment===c?.id&&safe(s?.observed_since_ms)?Math.max(0,now-s.observed_since_ms):0,reconnects:c?.reconnects??0,')]
+          for a,b in changes:
+            assert s.count(a)==1,a;s=s.replace(a,b)
+          p.write_text(s)
+          p=Path('deployment/v43_stream_runner.mjs');s=p.read_text()
+          a='if(JSON.stringify([next.bitget,next.bithumb])!==JSON.stringify([watch.bitget,watch.bithumb])){info.watch_changes++;watch=next;'
+          b="if(JSON.stringify([next.bitget,next.bithumb])!==JSON.stringify([watch.bitget,watch.bithumb])){info.watch_changes++;\n    for(const v of ['bitget','bithumb'])for(const symbol of watch[v]||[])if(!next[v].includes(symbol))core.forgetMarket(v,symbol);\n    watch=next;"
+          assert s.count(a)==1;s=s.replace(a,b);p.write_text(s)
+          p=Path('.github/v43_source_lease.json');d=json.loads(p.read_text())
+          for f in ['deployment/v43_stream_core.mjs','deployment/v43_stream_runner.mjs','tests/test_v43_market_coverage.mjs']:
+            raw=Path(f).read_bytes();d[f]=hashlib.sha1(b'blob '+str(len(raw)).encode()+b'\0'+raw).hexdigest()
+          p.write_text(json.dumps(d,indent=2)+'\n')
+          PY
+      - name: Run clean production, original stream contracts and separate workflow assertions
+        run: |
+          set -o pipefail
+          python -S -m unittest discover -s tests -v 2>&1 | tee v44_window/python.log
+          node --test tests/test_v42_ack_feedback.mjs tests/test_v43*.mjs 2>&1 | tee v44_window/node.log
+          python -m pip install 'PyYAML==6.0.2'
+          python -m unittest discover -s verification/workflows -v 2>&1 | tee v44_window/config.log
+      - name: Preserve only verified source changes on the existing review branch
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add deployment/v43_stream_core.mjs deployment/v43_stream_runner.mjs tests/test_v43_market_coverage.mjs .github/v43_source_lease.json
+          git diff --staged > v44_window/fix.patch
+          git commit -m 'fix(V44): per-market observed duration and reset removed watch state; no entry gate changes'
+          git push origin HEAD:refs/heads/fix/irys-v44-runtime-outcomes-20261109
+          git rev-parse HEAD > v44_window/verified_commit.txt
+      - name: Preserve all actual test and source evidence
+        if: always()
+        run: |
+          mkdir -p v44_window
+          git archive --format=zip --output=v44_window/source.zip HEAD deployment/v43_stream_core.mjs deployment/v43_stream_runner.mjs tests/test_v43_market_coverage.mjs .github/v43_source_lease.json
+          python - <<'PY'
+          from pathlib import Path
+          import hashlib,json
+          p=Path('v44_window');d={str(f.relative_to(p)):{'bytes':f.stat().st_size,'sha256':hashlib.sha256(f.read_bytes()).hexdigest()} for f in p.rglob('*') if f.is_file()}
+          (p/'manifest.json').write_text(json.dumps(d,indent=2))
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: v44-market-specific-window-proof
+          path: v44_window/
+          retention-days: 30
+          if-no-files-found: error

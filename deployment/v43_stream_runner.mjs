@@ -91,7 +91,9 @@ export async function collect({duration_ms=0,out_dir='v43_stream',old_quotes_pat
     else count(info.source_errors,'ACTUAL_ACK_HISTORY_MISSING');
    }else count(info.source_errors,'ACK_HISTORY_READ');
    const next=selectWatchlist(packet,history,at);
-   if(JSON.stringify([next.bitget,next.bithumb])!==JSON.stringify([watch.bitget,watch.bithumb])){info.watch_changes++;watch=next;
+   if(JSON.stringify([next.bitget,next.bithumb])!==JSON.stringify([watch.bitget,watch.bithumb])){info.watch_changes++;
+    for(const v of ['bitget','bithumb'])for(const symbol of watch[v]||[])if(!next[v].includes(symbol))core.forgetMarket(v,symbol);
+    watch=next;
     for(const v of ['bitget','bithumb']){const c=current.get(v);if(c?.ws.readyState===WebSocket.OPEN)c.resubscribe();}}
   }catch(e){count(info.source_errors,'SOURCE_SCHEMA:'+String(e.message));}finally{refreshing=false;}
  }

@@ -1,0 +1,66 @@
+name: V44 original overnight stream comparison (NO LIVE SIGNAL CHANGE)
+on:
+  push:
+    branches: [fix/irys-v44-runtime-outcomes-20261109]
+    paths: ['.github/workflows/v44-stream-history.yml']
+permissions:
+  contents: read
+  actions: read
+jobs:
+  study:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify reviewed sources and clean production tests
+        run: |
+          mkdir -p v44_backdata
+          cat <<'SUMS' | sha256sum -c -
+          076097b5970538b2e1760c87590ec4932711e18e91eb5a1a4bebbb8162475e5b  research/v44_stream_backtest.py
+          b27da3c89fe75344d52b626bf1bdbfd4fa24f70fa64ac578966abfd42f85062b  research/v44_collect_history.py
+          ff917cf1c59447a82d592f81b150cc8d4b845f7448fbcc3146422d5bd53eae55  tests/test_v44_stream_backtest.py
+          SUMS
+          set -o pipefail
+          python -S -m unittest discover -s tests -v 2>&1 | tee v44_backdata/production_tests.log
+      - name: Restore every available original session in predeclared window and compare frozen hypotheses
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          set -o pipefail
+          python -S research/v44_collect_history.py --start 2026-11-08T13:11:11Z --end 2026-11-09T01:04:00Z --out v44_backdata/study | tee v44_backdata/study.log
+      - name: Read current original collector and actual quote outcomes after recovery
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import urllib.request,json,datetime
+          base='https://raw.githubusercontent.com/pmk44120315-creator/irys-bitget-5min-scanner/'
+          def get(url):
+            with urllib.request.urlopen(url,timeout=30) as r:return json.load(r)
+          a=get(base+'main/data/latest.json');q=get(base+'data/irys-v43-stream-evidence/data/v43_actual_quote_outcomes.json')
+          h=get('https://irys-surge-monitor.vhehwpfl.workers.dev/?v44readonly=final');l=h.get('last',{});d=l.get('v30DirectionalDelivery',{})
+          out={'checked_at_utc':datetime.datetime.now(datetime.timezone.utc).isoformat(),'collector_kst':a.get('collector_kst'),'collector_status':a.get('collector_status'),'finished_utc':a.get('finished_utc'),'errors':a.get('errors'),
+            'worker_version':l.get('codeVersion'),'worker_time':l.get('time'),'worker_status':l.get('status'),'delivery_status':d.get('status'),'dispatch':d.get('dispatch_revalidation'),
+            'recent_actual_quote_outcomes':q.get('events',[])[-4:],'quote_summary':q.get('summary'),'orders_sent':False,'telegram_sent':False}
+          Path('v44_backdata/final_runtime_and_quotes.json').write_text(json.dumps(out,indent=2));print('V44_RUNTIME_READBACK',json.dumps(out))
+          PY
+      - name: Preserve exact comparison and test evidence
+        if: always()
+        run: |
+          mkdir -p v44_backdata
+          git rev-parse HEAD > v44_backdata/source_commit.txt
+          git archive --format=zip --output=v44_backdata/source.zip HEAD research/v44_stream_backtest.py research/v44_collect_history.py tests/test_v44_stream_backtest.py
+          python - <<'PY'
+          from pathlib import Path
+          import json,hashlib
+          p=Path('v44_backdata');m={str(f.relative_to(p)):{'bytes':f.stat().st_size,'sha256':hashlib.sha256(f.read_bytes()).hexdigest()} for f in p.rglob('*') if f.is_file()}
+          (p/'manifest.json').write_text(json.dumps(m,indent=2))
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: v44-original-overnight-stream-comparison
+          path: v44_backdata/
+          retention-days: 30
+          if-no-files-found: error
