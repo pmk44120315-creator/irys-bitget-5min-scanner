@@ -1,5 +1,5 @@
-import test from 'node:test';import assert from 'node:assert/strict';import {existsSync,readFileSync} from 'node:fs';import {item,T} from './fixtures/v30_pair.mjs';
-const target=new URL('../deployment/IRYS_V45_RSI_WORKER.mjs',import.meta.url);
+import test from 'node:test';import assert from 'node:assert/strict';import {existsSync,readFileSync} from 'node:fs';import {item,T} from '../../tests/fixtures/v30_pair.mjs';
+const target=new URL('../../deployment/IRYS_V45_RSI_WORKER.mjs',import.meta.url);
 async function simulate({extreme=false,missing=false,reverse=false,venue='bitget'}={}){
  assert(existsSync(target),'V45 actual compiled worker required');const m=await import(target);let now=T+1000;const state={},kv=new Map(),sends=[],calls=[];const it=item('LONG',venue);
  const doc={version:'IRYS_V30_PUBLIC_PAIRED_DIRECTION_V1',source:'OFFICIAL_PUBLIC_RUNNER',model_digest:m.V30_PRODUCER_DIGEST,started_at_ms:T-30000,at_ms:T,items:[it],orders_sent:false,telegram_sent:false};
@@ -17,7 +17,7 @@ test('extreme price progression is visibly cautioned instead of automatically re
 test('missing context is not fabricated neutral and cannot claim new entry confirmation',async()=>{const r=await simulate({missing:true});assert.equal(r.out.sent,1);assert.match(r.sends[0].text,/미확인/);assert.equal(r.out.entry_context.last_sent.role,'CONTEXT_UNVERIFIED')});
 test('original live quote reversal protection still prevents sending',async()=>{const r=await simulate({reverse:true});assert.equal(r.out.sent,0);assert.equal(r.sends.length,0)});
 test('spot context can use existing GitHub transport but keeps its own fresh official quote',async()=>{const r=await simulate({venue:'bithumb'});assert.equal(r.out.sent,1);assert.equal(r.state.v30ActualForecasts[0].venue,'bithumb');assert(r.calls.some(u=>u.includes('api.bithumb.com')))});
-test('original direction policy, reservation, risk lane and Cron not changed',()=>{assert(existsSync(target));const a=readFileSync(new URL('../deployment/IRYS_V421_DISPATCH_WORKER.mjs',import.meta.url),'utf8'),b=readFileSync(target,'utf8');
+test('original direction policy, reservation, risk lane and Cron not changed',()=>{assert(existsSync(target));const a=readFileSync(new URL('../../deployment/IRYS_V421_DISPATCH_WORKER.mjs',import.meta.url),'utf8'),b=readFileSync(target,'utf8');
  for(const [s,e] of [['function v30Qualify(','function v30FuturesCandidates('],['function v29CheckPair(','function v29DeliveryPolicy('],['function v31EntryBudget(','function v31ShouldRecord('],['async function v34WorkerReview(','const V30_PRODUCER_DIGEST='],['async function v30ReviewAndDeliver(','/** V42.1:']]){assert.equal(a.slice(a.indexOf(s),a.indexOf(e)),b.slice(b.indexOf(s),b.indexOf(e)))}
  assert.equal(a.split('  async scheduled(_controller,env){')[1],b.split('  async scheduled(_controller,env){')[1].split('\nexport {v45')[0]);
 });

@@ -1,0 +1,88 @@
+name: V45 actual-message RSI context and guarded-build verification (NO DEPLOY)
+on:
+  push:
+    branches: [fix/irys-v45-rsi-entry-context-20261109]
+    paths: ['deployment/v45*.mjs','deployment/build_v45*.py','tests/test_v45*.mjs','verification/v45/**','.github/workflows/v45-verify.yml']
+permissions:
+  contents: read
+  actions: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify exact independently tested source bytes
+        run: |
+          mkdir -p v45_verified
+          cat <<'SUMS' | sha256sum -c -
+          2747c2416e89f55cae2c1fe8f4d4350b896614248dfe29113843d9b959cc689d  deployment/v45_rsi_context.mjs
+          bb9f106bf667aa4a3e6ec7e7867bbe2f896b653992beea39906be77de5f60116  deployment/v45_quote_producer.mjs
+          869db6adb55278e546da809d25d1a9c77aaf7e3b94c4a2278f5ecd3068d613d1  deployment/build_v45_worker.py
+          9c2f2d6b658a8e291958808303fa365fd6f874ef4b12beb4490fdbb436e96bb5  deployment/build_v45_release_guard.py
+          87190124d6e02f981de90a4712b645d7b8f102491a588660cf7072000bab2952  tests/test_v45_rsi_context.mjs
+          fe8dfdd399caf36fcefb79538ba0cb9d80761fa6f55462b7713d2ee77c4edee1  tests/test_v45_producer.mjs
+          83cc13b4cacd404b730bdd27c89ed6b78b21992840ac4c5415e39a3df8f677f5  verification/v45/test_v45_worker.mjs
+          48a89b88b844d4dfc84b8eacbacc89aa6d8d55a56d00a7cbd51838584193a11b  verification/v45/test_v45_release_guard.mjs
+          b3122fd4016454fde365d9f00eb681a698b014a27bf864e9e41ebd55778ef5a8  .github/workflows/v30-public-direction-producer.yml
+          SUMS
+      - uses: actions/download-artifact@v4
+        with:
+          name: v421-live-transport-deployment-proof
+          run-id: 42466573860
+          github-token: ${{ github.token }}
+          path: /tmp/v421
+      - name: Build exclusively from the exact deployed Worker and derive guarded rollback
+        run: |
+          cp /tmp/v421/IRYS_V421_DISPATCH_WORKER.mjs deployment/
+          python deployment/build_v45_worker.py deployment/IRYS_V421_DISPATCH_WORKER.mjs deployment/IRYS_V45_RSI_WORKER.mjs
+          python deployment/build_v45_release_guard.py deployment/release_v45_guarded.mjs
+          echo 'f78b500927f41af3412c17bd3b47c25e3d9fba9c6d156a72302c67266a2a40cd  deployment/IRYS_V45_RSI_WORKER.mjs' | sha256sum -c -
+          echo '8eba8ee332559ea726775c670304ea8e663b2b664a7a1a02690082dd2bfa2d15  deployment/release_v45_guarded.mjs' | sha256sum -c -
+          node --check deployment/IRYS_V45_RSI_WORKER.mjs
+      - name: Production-compatible and relevant original regressions plus new actual-send tests
+        run: |
+          set -o pipefail
+          python -S -m unittest discover -s tests -v 2>&1 | tee v45_verified/python.log
+          node --test tests/test_v30_core.mjs tests/test_v30_producer.mjs tests/test_v30_delivery.mjs tests/test_v35_lifecycle.mjs tests/test_v35_producer.mjs tests/test_v42_ack_feedback.mjs tests/test_v43*.mjs tests/test_v45*.mjs verification/v45/*.mjs 2>&1 | tee v45_verified/node.log
+      - name: Confirm original native current candle formats on both venues with public GET only
+        run: |
+          node --input-type=module <<'JS'
+          import {writeFileSync} from 'node:fs';import {publicReader} from './deployment/v30_producer.mjs';import {v45ClosedBars,v45Frame} from './deployment/v45_rsi_context.mjs';
+          const read=publicReader(),rows=[];
+          for(const [venue,symbol] of [['bitget','BTCUSDT'],['bithumb','KRW-BTC']])for(const m of [1,5]){
+            const at=Date.now(),end=Math.floor(at/(m*60000))*m*60000;
+            const params=venue==='bitget'?{symbol,productType:'USDT-FUTURES',granularity:m+'m',endTime:String(end),limit:'200'}:{market:symbol,count:'200'};
+            const url=(venue==='bitget'?'https://api.bitget.com/api/v2/mix/market/history-candles':'https://api.bithumb.com/v1/candles/minutes/'+m)+'?'+new URLSearchParams(params);
+            try{const raw=await read(url),now=Date.now(),bars=v45ClosedBars(raw,venue,symbol,m,now),frame=v45Frame(bars,m,now);rows.push({venue,symbol,m,status:'NATIVE_RSI_VERIFIED',frame});}
+            catch(e){rows.push({venue,symbol,m,status:'UNAVAILABLE',reason:String(e.message)});}
+          }
+          writeFileSync('v45_verified/native_candle_probe.json',JSON.stringify({rows,no_alerts_or_orders:true},null,2));console.log('V45_NATIVE_CONTEXT_PROBE',JSON.stringify(rows));
+          if(rows.some(r=>r.status!=='NATIVE_RSI_VERIFIED'))throw Error('NATIVE_CONTEXT_PROBE_INCOMPLETE');
+          JS
+      - name: Preserve exact sources, built artifact and test evidence
+        if: always()
+        run: |
+          mkdir -p v45_verified
+          git rev-parse HEAD > v45_verified/source_commit.txt
+          git archive --format=zip --output=v45_verified/source.zip HEAD
+          if test -f deployment/IRYS_V45_RSI_WORKER.mjs; then cp deployment/IRYS_V45_RSI_WORKER.* v45_verified/; fi
+          if test -f deployment/release_v45_guarded.mjs; then cp deployment/release_v45_guarded.mjs v45_verified/; fi
+          python - <<'PY'
+          from pathlib import Path
+          import hashlib,json
+          p=Path('v45_verified');m={str(f.relative_to(p)):{'bytes':f.stat().st_size,'sha256':hashlib.sha256(f.read_bytes()).hexdigest()} for f in p.rglob('*') if f.is_file()}
+          (p/'manifest.json').write_text(json.dumps(m,indent=2))
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: v45-verified-live-context-build
+          path: v45_verified/
+          retention-days: 30
+          if-no-files-found: error
