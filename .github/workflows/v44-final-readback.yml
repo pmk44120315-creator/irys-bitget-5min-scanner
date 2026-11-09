@@ -1,0 +1,86 @@
+name: V44 natural runtime and analysis readback (NO DEPLOY OR MESSAGES)
+on:
+  push:
+    branches: [fix/irys-v44-runtime-outcomes-20261109]
+    paths: ['.github/workflows/v44-final-readback.yml']
+permissions:
+  contents: read
+  actions: read
+jobs:
+  readback:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Confirm main contains exactly reviewed change and no new live direction policy
+        run: |
+          mkdir -p v44_final
+          git rev-parse HEAD > v44_final/main_commit.txt
+          git fetch --quiet --depth=1 origin 54545084ac12a418ba1caa673c9f7d2c9a301854
+          git diff --exit-code FETCH_HEAD HEAD -- research/v44_stream_backtest.py research/v44_collect_history.py deployment/v43_stream_core.mjs deployment/v43_stream_runner.mjs .github/workflows/v43-observation.yml .github/v43_source_lease.json
+          git fetch --quiet --depth=1 origin 1c47b7faab850cc09659aeff0abbc28ce0365956
+          git diff --exit-code FETCH_HEAD HEAD -- deployment/v421_runner_quote.mjs deployment/v30_delivery.mjs deployment/v30_core.mjs deployment/release_v421_guarded.mjs
+      - name: Observe natural new analysis completion and original alert health without force scan
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          node --input-type=module <<'JS'
+          import {writeFileSync} from 'node:fs';import assert from 'node:assert/strict';
+          const repo='pmk44120315-creator/irys-bitget-5min-scanner',api='https://api.github.com/repos/'+repo,raw='https://raw.githubusercontent.com/'+repo;
+          const get=async url=>{const r=await fetch(url,{headers:{accept:'application/json','User-Agent':'IRYS-V44-final-readonly',...(url.startsWith(api)?{authorization:'Bearer '+process.env.GITHUB_TOKEN}:{})},signal:AbortSignal.timeout(20000)});if(!r.ok)throw Error('PUBLIC_HTTP_'+r.status);return r.json()};
+          const merge=await get(api+'/pulls/56');assert.equal(merge.merged,true);const cutoff=Date.parse(merge.merged_at),deadline=Date.now()+12*60000;
+          let verified=false;
+          while(Date.now()<deadline){
+            const rs=await get(api+'/actions/runs?per_page=100');
+            const candidates=rs.workflow_runs.filter(r=>r.head_branch==='main'&&r.event==='workflow_run'&&r.path==='.github/workflows/v43-observation.yml'&&Date.parse(r.created_at)>=cutoff);
+            const outcomes=[];
+            for(const r of candidates){if(r.status!=='completed')continue;const j=await get(api+'/actions/runs/'+r.id+'/jobs?per_page=100');const jobs=j.jobs.map(x=>({id:x.id,name:x.name,status:x.status,conclusion:x.conclusion}));outcomes.push({id:r.id,created_at:r.created_at,conclusion:r.conclusion,head_sha:r.head_sha,jobs});}
+            const good=outcomes.find(r=>['collect','publish','analyze'].every(name=>r.jobs.some(j=>j.name===name&&j.conclusion==='success')));
+            writeFileSync('v44_final/progress.json',JSON.stringify({checked_at_utc:new Date().toISOString(),merged_at:merge.merged_at,observed_runs:outcomes,in_progress:candidates.filter(x=>x.status!=='completed').map(x=>({id:x.id,status:x.status}))},null,2));
+            if(good){
+              const [h,latest,qs,cohort,stream,artifacts]=await Promise.all([
+                get('https://irys-surge-monitor.vhehwpfl.workers.dev/?v44readonly='+Date.now()),get(raw+'/main/data/latest.json'),
+                get(raw+'/data/irys-v43-stream-evidence/data/v43_actual_quote_outcomes.json'),
+                get(raw+'/data/irys-v39-ack-feedback/data/v42_actual_ack_evaluation.json'),
+                get(raw+'/data/irys-v43-stream-evidence/data/v43_stream_latest.json'),
+                get(api+'/actions/runs/'+good.id+'/artifacts?per_page=100')]);
+              const l=h.last||{},d=l.v30DirectionalDelivery||{};
+              const proof={checked_at_utc:new Date().toISOString(),merged_at:merge.merged_at,merge_sha:merge.merge_commit_sha,
+                natural_workflow:good,analysis_artifacts:artifacts.artifacts.filter(a=>a.name.startsWith('v44-forward-comparison')).map(a=>({id:a.id,name:a.name,digest:a.digest,size:a.size_in_bytes})),
+                collector:{status:latest.collector_status,started_kst:latest.collector_kst,finished_utc:latest.finished_utc,errors:latest.errors},
+                worker:{version:l.codeVersion,time:l.time,status:l.status,entry_enabled:h.marketNotificationsEnabled,risk_enabled:h.marketRiskWarningsEnabled,delivery_status:d.status,dispatch:d.dispatch_revalidation},
+                stream:{session:stream.session,status:stream.status,ended_at_ms:stream.ended_at_ms,source_errors:stream.source_errors,frame_errors:stream.frame_errors,features:stream.features_frozen,
+                  market_coverage_fields_observed:(stream.latest_features||[]).some(x=>Object.hasOwn(x.feature||{},'market_observation_span_ms'))},
+                actual_ack_summary:cohort.summary,actual_quote_summary:qs.summary,recent_actual_quotes:qs.events.slice(-4),
+                orders_sent:false,telegram_sent:false,live_direction_model_changed:false,forecast_accuracy_improvement_proven:false};
+              writeFileSync('v44_final/verified_readback.json',JSON.stringify(proof,null,2));
+              assert.equal(latest.collector_status,'PASS');assert(Date.now()-Date.parse(latest.finished_utc)<15*60000);
+              assert.equal(l.codeVersion,'IRYS-V42.1-TRUSTED-RUNNER-DISPATCH-20261108');assert.equal(l.status,'PASS');
+              assert.equal(h.marketNotificationsEnabled,true);assert.equal(h.marketRiskWarningsEnabled,true);
+              assert.equal(proof.stream.market_coverage_fields_observed,true);assert(proof.analysis_artifacts.length>0);
+              console.log('V44_NATURAL_ANALYSIS_AND_RUNTIME_VERIFIED',JSON.stringify(proof));verified=true;break;
+            }
+            await new Promise(r=>setTimeout(r,15000));
+          }
+          assert(verified,'NATURAL_ANALYSIS_NOT_YET_VERIFIED');
+          JS
+      - name: Preserve truthful status and exact evidence hashes
+        if: always()
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import json,hashlib
+          p=Path('v44_final');p.mkdir(exist_ok=True);m={str(f.relative_to(p)):{'bytes':f.stat().st_size,'sha256':hashlib.sha256(f.read_bytes()).hexdigest()} for f in p.rglob('*') if f.is_file()}
+          (p/'manifest.json').write_text(json.dumps(m,indent=2))
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: v44-natural-runtime-analysis-proof
+          path: v44_final/
+          retention-days: 30
+          if-no-files-found: error
