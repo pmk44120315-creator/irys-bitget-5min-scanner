@@ -1,0 +1,67 @@
+name: V46 current actual-alert and research audit (READ ONLY)
+on:
+  push:
+    branches: [fix/irys-v46-full-audit-20261110]
+    paths: ['.github/workflows/v46-current-audit.yml']
+permissions:
+  contents: read
+  actions: read
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Pin current source and capture public runtime without private Telegram metadata
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p v46_audit/data v46_audit/candles
+          git rev-parse HEAD > v46_audit/source_commit.txt
+          git archive --format=zip --output=v46_audit/source.zip HEAD deployment research tests verification .github docs
+          node --input-type=module <<'JS'
+          import {writeFileSync} from 'node:fs';
+          import {evaluateAckHistory} from './research/v42_actual_ack_evaluation.mjs';
+          const repo='pmk44120315-creator/irys-bitget-5min-scanner',api='https://api.github.com/repos/'+repo,raw='https://raw.githubusercontent.com/'+repo;
+          const save=(n,x)=>writeFileSync('v46_audit/'+n,JSON.stringify(x,null,2));
+          const get=async u=>{const r=await fetch(u,{headers:{accept:'application/json','cache-control':'no-cache','User-Agent':'IRYS-V46-public-evidence-audit',...(u.startsWith(api+'/')?{authorization:'Bearer '+process.env.GITHUB_TOKEN}:{})},signal:AbortSignal.timeout(25000)});if(!r.ok)throw Error('HTTP_'+r.status);return r.json()};
+          const errors=[],asof=Date.now();let health=null,history=null;
+          try{const h=await get('https://irys-surge-monitor.vhehwpfl.workers.dev/?v46readonly='+asof),l=h.last||{},d=l.v30DirectionalDelivery||{};
+            health={checked_at_ms:Date.now(),version:l.codeVersion,time:l.time,status:l.status,rsi_enabled:h.rsiEntryContextEnabled,entry_enabled:h.marketNotificationsEnabled,risk_enabled:h.marketRiskWarningsEnabled,
+             delivery_status:d.status,feed:d.feed,source_at_ms:d.source_at_ms,source_summary:d.source_summary,rejection_reasons:d.rejection_reasons,dispatch:d.dispatch_revalidation,entry_context:d.entry_context,lifecycle:d.signal_lifecycle,risk:l.v34MarketRisk?.status,phone_delivery_verified:false};
+            history=d.public_ack_history;if(history?.private_messages_exported!==false)throw Error('ACK_PROJECTION_NOT_VERIFIED');save('public_ack_history.json',history);save('health.json',health);
+          }catch(e){errors.push({stage:'HEALTH',error:e.message});}
+          let old=null;const requests=[['main','latest.json'],['main','v30_direction_latest.json'],['main','v36_shadow_latest.json'],['main','v36_shadow_state.json'],['main','v37_early_latest.json'],['main','v38_continuation_latest.json'],['data/irys-v421-dispatch-quotes','v421_dispatch_quotes.json'],['data/irys-v43-stream-evidence','v43_stream_latest.json'],['data/irys-v43-stream-evidence','v43_actual_quote_outcomes.json'],['data/irys-v39-ack-feedback','v42_actual_ack_evaluation.json']];
+          for(const [branch,file] of requests){try{const d=await get(raw+'/'+branch+'/data/'+file+'?v46='+asof);save('data/'+file,d);if(file==='v42_actual_ack_evaluation.json')old=d;}catch(e){errors.push({stage:file,error:e.message});}}
+          if(history&&old){try{const d=await evaluateAckHistory({history,old,now:Date.now()});save('fresh_actual_ack_evaluation.json',d);}catch(e){errors.push({stage:'ACK_EVALUATION',error:e.message});}}
+          const runs=await get(api+'/actions/runs?branch=main&per_page=100');const records=runs.workflow_runs.map(r=>({id:r.id,name:r.name,path:r.path,status:r.status,conclusion:r.conclusion,event:r.event,created_at:r.created_at,head_sha:r.head_sha}));save('runs.json',{asof_ms:Date.now(),scope:'LATEST100_MAIN_RUNS',records});
+          for(const r of records.filter(x=>x.conclusion==='failure')){const j=await get(api+'/actions/runs/'+r.id+'/jobs?per_page=100');save('failed_'+r.id+'.json',j.jobs.map(x=>({id:x.id,name:x.name,conclusion:x.conclusion,steps:x.steps})));}
+          const sr=await get(api+'/actions/workflows/v43-observation.yml/runs?per_page=3&status=success');const ra=[];
+          for(const r of sr.workflow_runs){const a=await get(api+'/actions/runs/'+r.id+'/artifacts?per_page=100');ra.push({id:r.id,created_at:r.created_at,head_sha:r.head_sha,artifacts:a.artifacts.map(x=>({id:x.id,name:x.name,size_in_bytes:x.size_in_bytes,digest:x.digest,expired:x.expired}))});}save('recent_stream_artifacts.json',ra);
+          const markets=[['bitget','B2USDT'],['bithumb','KRW-PIEVERSE'],['bithumb','KRW-PYR']];
+          for(const [venue,symbol] of markets){const u=venue==='bitget'?'https://api.bitget.com/api/v2/mix/market/history-candles?'+new URLSearchParams({symbol,productType:'USDT-FUTURES',granularity:'5m',limit:'200',endTime:String(Date.now())}):'https://api.bithumb.com/v1/candles/minutes/5?'+new URLSearchParams({market:symbol,count:'200'});
+            try{save('candles/'+venue+'_'+symbol+'.json',{venue,symbol,received_at_ms:Date.now(),response:await get(u)});}catch(e){errors.push({stage:'RESEARCH_'+symbol,error:e.message});}await new Promise(r=>setTimeout(r,400));}
+          const contexts=history?.records?.filter(e=>e.entry_context_v45)||[];
+          for(const e of contexts){for(const m of [1,5]){const u=e.venue==='bitget'?'https://api.bitget.com/api/v2/mix/market/history-candles?'+new URLSearchParams({symbol:e.symbol,productType:'USDT-FUTURES',granularity:m+'m',limit:'200',endTime:String(Math.floor(e.issued_at_ms/(m*60000))*m*60000)}):'https://api.bithumb.com/v1/candles/minutes/'+m+'?'+new URLSearchParams({market:e.symbol,count:'200',to:new Date(Math.floor(e.issued_at_ms/(m*60000))*m*60000+9*3600000).toISOString().slice(0,19)});
+            try{save('candles/ack_'+e.venue+'_'+e.symbol+'_'+e.issued_at_ms+'_'+m+'m.json',{venue:e.venue,symbol:e.symbol,issued_at_ms:e.issued_at_ms,m,received_at_ms:Date.now(),response:await get(u)});}catch(err){errors.push({stage:'CONTEXT_'+e.symbol+'_'+m,error:err.message});}await new Promise(r=>setTimeout(r,400));}}
+          save('receipt.json',{started_at_ms:asof,finished_at_ms:Date.now(),health,actual_records:history?.records?.length,v45_records:contexts.length,errors,production_modified:false,orders_sent:false,telegram_sent:false});
+          console.log('V46_CURRENT_AUDIT',JSON.stringify({health,actual_records:history?.records?.length,v45_records:contexts.length,errors,failed_main_runs:records.filter(x=>x.conclusion==='failure')}));
+          JS
+      - name: Hash evidence
+        if: always()
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import hashlib,json
+          p=Path('v46_audit');p.mkdir(exist_ok=True);m={str(f.relative_to(p)):{'bytes':f.stat().st_size,'sha256':hashlib.sha256(f.read_bytes()).hexdigest()} for f in p.rglob('*') if f.is_file()}
+          (p/'manifest.json').write_text(json.dumps(m,indent=2))
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: v46-current-audit
+          path: v46_audit/
+          retention-days: 30
+          if-no-files-found: error
