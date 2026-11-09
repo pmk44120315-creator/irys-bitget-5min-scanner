@@ -1,10 +1,14 @@
-name: V44 production recovery and actual-alert source audit
+name: V44 clean production environment and actual-alert audit
 on:
   push:
     branches: [fix/irys-v44-runtime-outcomes-20261109]
-    paths: ['.github/workflows/v44-recovery-review.yml']
+    paths: ['.github/workflows/v44-recovery-review.yml','verification/workflows/**','.github/v43_source_lease.json']
+  pull_request:
+    branches: [main]
+    paths: ['tests/**','verification/workflows/**','.github/workflows/**']
+  workflow_dispatch:
 permissions:
-  contents: write
+  contents: read
   actions: read
 jobs:
   repair_audit:
@@ -17,57 +21,29 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Reproduce real production failure before changing source
+      - name: Test unmodified market checks with no third-party package installed
         run: |
           mkdir -p v44_evidence
-          set +e
-          python -S -m unittest discover -s tests -v > v44_evidence/before.log 2>&1
-          CODE=$?
-          set -e
-          test "$CODE" -ne 0
-          grep -q "No module named 'yaml'" v44_evidence/before.log
-          echo V44_REPRODUCED_PRODUCTION_DEPENDENCY_FAILURE
-      - name: Isolate YAML-only verification without deleting any assertions
-        run: |
-          python - <<'PY'
-          from pathlib import Path
-          import json,shutil,hashlib
-          checks={}
-          for name in ['test_v43_workflow.py','test_v43_observation_workflow.py']:
-            old=Path('tests')/name;raw=old.read_bytes();dest=Path('verification/workflows')/name
-            dest.parent.mkdir(parents=True,exist_ok=True);shutil.move(old,dest)
-            assert dest.read_bytes()==raw;checks[name]=hashlib.sha256(raw).hexdigest()
-          p=Path('.github/workflows/v43-integration.yml');s=p.read_text()
-          assert s.count("      - run: python -m pip install")==1
-          s=s.replace("'tests/test_v43*',", "'tests/test_v43*','verification/workflows/**',")
-          s=s.replace("      - run: python -m pip install", "      - name: Check production tests without installed third-party packages\n        run: python -S -m unittest discover -s tests -v\n      - run: python -m pip install",1)
-          old='          python -m unittest discover -s tests -v 2>&1 | tee v43_verified/python.log'
-          assert s.count(old)==1
-          s=s.replace(old,'          python -S -m unittest discover -s tests -v 2>&1 | tee v43_verified/python.log\n          python -m unittest discover -s verification/workflows -v 2>&1 | tee v43_verified/workflow_tests.log')
-          s=s.replace('HEAD deployment tests .github','HEAD deployment tests verification .github');p.write_text(s)
-          p=Path('.github/v43_source_lease.json');m=json.loads(p.read_text())
-          for name in ['test_v43_workflow.py','test_v43_observation_workflow.py']:m['verification/workflows/'+name]=m.pop('tests/'+name)
-          p.write_text(json.dumps(m,indent=2)+'\n')
-          Path('v44_evidence/config_assertions_preserved.json').write_text(json.dumps(checks,indent=2))
-          PY
-      - name: Verify real production environment and all relocated assertions
-        run: |
           set -o pipefail
           python -S -m unittest discover -s tests -v 2>&1 | tee v44_evidence/production_after.log
+      - name: Run all original YAML assertions in their explicit verification environment
+        run: |
           python -m pip install 'PyYAML==6.0.2'
+          set -o pipefail
           python -m unittest discover -s verification/workflows -v 2>&1 | tee v44_evidence/config_after.log
           node --test tests/test_v42_ack_feedback.mjs tests/test_v43*.mjs > v44_evidence/node_contracts.log
-      - name: Commit only verified dependency-boundary repair to review branch
-        run: |
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add tests/test_v43_workflow.py tests/test_v43_observation_workflow.py verification/workflows/ .github/workflows/v43-integration.yml .github/v43_source_lease.json
-          git diff --staged > v44_evidence/repair.patch
-          git commit -m 'fix(V44): preserve YAML config checks outside stdlib production test discovery'
-          git push origin HEAD:refs/heads/fix/irys-v44-runtime-outcomes-20261109
+          python - <<'PY'
+          from pathlib import Path
+          import json,subprocess
+          for p,want in json.loads(Path('.github/v43_source_lease.json').read_text()).items():
+            got=subprocess.check_output(['git','hash-object',p],text=True).strip()
+            assert got==want,(p,got,want)
+          print('UNCHANGED_TEST_ASSERTIONS_AND_V43_SOURCE_VERIFIED')
+          PY
           git rev-parse HEAD > v44_evidence/verified_commit.txt
           git archive --format=zip --output=v44_evidence/source.zip HEAD
       - name: Audit actual server acknowledgements and subsequent official prices read only
+        if: github.event_name != 'pull_request'
         env:
           GITHUB_TOKEN: ${{ github.token }}
         run: |
@@ -86,7 +62,7 @@ jobs:
           save('stream_runs.json',runs.workflow_runs.map(x=>({id:x.id,created_at:x.created_at,head_sha:x.head_sha,status:x.status,conclusion:x.conclusion,url:x.html_url})));
           console.log('V44_ACTUAL_ALERT_AUDIT',JSON.stringify({diagnostics:result.diagnostics,summary:result.summary,recent:result.events.slice(-8).map(e=>({symbol:e.symbol,venue:e.venue,direction:e.direction,issued_at_ms:e.issued_at_ms,outcomes:e.outcomes}))}));
           JS
-      - name: Hash original evidence and record failures without hiding them
+      - name: Hash all evidence
         if: always()
         run: |
           python - <<'PY'
