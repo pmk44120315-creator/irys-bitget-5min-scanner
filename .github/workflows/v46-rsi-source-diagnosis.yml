@@ -1,0 +1,52 @@
+name: V46 native RSI source diagnosis (READ ONLY)
+on:
+  push:
+    branches: [fix/irys-v46-full-audit-20261110]
+    paths: ['.github/workflows/v46-rsi-source-diagnosis.yml']
+permissions:
+  contents: read
+  actions: read
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Reconstruct original published context and inspect independent official candles
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p v46_rsi
+          node --input-type=module <<'JS'
+          import {writeFileSync} from 'node:fs';import {v45AttachContext,v45Frame,v45ClosedBars} from './deployment/v45_rsi_context.mjs';
+          const repo='pmk44120315-creator/irys-bitget-5min-scanner',api='https://api.github.com/repos/'+repo,raw='https://raw.githubusercontent.com/'+repo;
+          const get=async u=>{const r=await fetch(u,{headers:{accept:'application/json','User-Agent':'IRYS-native-RSI-source-diagnosis',...(u.startsWith(api+'/')?{authorization:'Bearer '+process.env.GITHUB_TOKEN}:{})},signal:AbortSignal.timeout(20000)});if(!r.ok)throw Error('HTTP_'+r.status);return r.json()};
+          const h=await get('https://irys-surge-monitor.vhehwpfl.workers.dev/?v46readonly='+Date.now()),history=h.last.v30DirectionalDelivery.public_ack_history;const rows=[];
+          for(const e of history.records.filter(x=>x.entry_context_v45&&x.venue==='bithumb')){
+            const cs=await get(api+'/commits?'+new URLSearchParams({sha:'data/irys-v421-dispatch-quotes',path:'data/v421_dispatch_quotes.json',until:new Date(e.issued_at_ms+10000).toISOString(),per_page:'2'}));
+            for(const c of cs){const b=await get(raw+'/'+c.sha+'/data/v421_dispatch_quotes.json');const doc={at_ms:e.source_packet_at_ms,model_digest:b.source_model_digest};const evaluated=v45AttachContext(b,{candidate:{venue:e.venue,symbol:e.symbol,direction:e.direction}},doc,e.entry_quote,e.issued_at_ms);
+              const out={symbol:e.symbol,issued_at_ms:e.issued_at_ms,publication_sha:c.sha,commit_at:c.commit.committer.date,source_packet_at_ms:e.source_packet_at_ms,batch_packet_at_ms:b.source_packet_at_ms,published_before_ack:Date.parse(c.commit.committer.date)<=e.issued_at_ms,evaluated};rows.push(out);writeFileSync('v46_rsi/original_'+e.symbol+'_'+c.sha+'.json',JSON.stringify({ack:e,context_batch:b,evaluation:out},null,2));
+            }
+          }
+          const native=[];
+          for(const symbol of ['RSR','MERL'])for(const m of [1,5]){
+            const legacyURL='https://api.bithumb.com/public/candlestick/'+symbol+'_KRW/'+m+'m?count=200';const modernURL='https://api.bithumb.com/v1/candles/minutes/'+m+'?'+new URLSearchParams({market:'KRW-'+symbol,count:'200'});
+            const [old,d]=await Promise.all([get(legacyURL),get(modernURL)]);const at=Date.now();
+            const bs=old?.status==='0000'?old.data.map(x=>[Number(x[0]),Number(x[1]),Number(x[3]),Number(x[4]),Number(x[2])]).filter(x=>x[0]+m*60000<=at):[];
+            const ms=v45ClosedBars(d,'bithumb','KRW-'+symbol,m,at);const gap=b=>b.slice(1).filter((x,i)=>x[0]-b[i][0]!==m*60000).length;
+            let indicator=null,error=null;try{indicator=v45Frame(bs,m,at)}catch(e){error=e.message}
+            const map=new Map(ms.map(x=>[x[0],x]));const overlap=bs.filter(x=>map.has(x[0]));const conflicts=overlap.filter(x=>JSON.stringify(x)!==JSON.stringify(map.get(x[0])));
+            const row={symbol,m,received_at_ms:at,legacy_status:old.status,legacy_bars:bs.length,legacy_gaps:gap(bs),modern_bars:ms.length,modern_gaps:gap(ms),overlap:overlap.length,conflicts:conflicts.length,indicator,error};native.push(row);
+            writeFileSync('v46_rsi/native_'+symbol+'_'+m+'m.json',JSON.stringify({row,legacy:old,modern:d},null,2));await new Promise(r=>setTimeout(r,400));
+          }
+          writeFileSync('v46_rsi/diagnosis.json',JSON.stringify({rows,native,orders_sent:false,telegram_sent:false},null,2));console.log('V46_RSI_DIAGNOSIS',JSON.stringify({rows,native}));
+          JS
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: v46-native-rsi-diagnosis
+          path: v46_rsi/
+          retention-days: 30
+          if-no-files-found: error
