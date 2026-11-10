@@ -16,6 +16,6 @@ class ObservationWorkflowTests(unittest.TestCase):
   self.assertIn('data/irys-v43-stream-evidence',s);self.assertIn('cmp ',s);self.assertNotIn('push --force',s)
   self.assertNotIn('CF_TOKEN',s);self.assertNotIn('TELEGRAM',s);self.assertNotIn('wrangler',s)
  def test_all_original_frames_kept_for_stated_artifact_retention_without_daily_continuity_claim(self):
-  w,s=self.read();self.assertIn('--duration-ms 300000',s)
+  w,s=self.read();self.assertIn('--duration-ms 360000',s)
   uploads=[x for x in w['jobs']['collect']['steps'] if x.get('uses')=='actions/upload-artifact@v4'];self.assertEqual(uploads[0]['with']['retention-days'],'1')
 if __name__=='__main__':unittest.main()

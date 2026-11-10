@@ -32,7 +32,7 @@ jobs:
             fi
           done
       - name: Observe candidate streams throughout one existing discovery cycle
-        run: node deployment/v43_stream_runner.mjs --duration-ms 300000 --out v43_stream
+        run: node deployment/v43_stream_runner.mjs --duration-ms 360000 --out v43_stream
       - uses: actions/upload-artifact@v4
         if: always()
         with:

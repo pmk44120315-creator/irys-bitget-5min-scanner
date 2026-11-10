@@ -10,6 +10,7 @@ import {normalizeFrame,StreamState} from './v43_stream_core.mjs';
 import {QuoteOutcomeTracker} from './v43_quote_outcomes.mjs';
 import {selectWatchlist} from './v43_collection_state.mjs';
 import {assessDirectionAndEntry} from './v43_direction_entry.mjs';
+import {WatchEpochs} from './v47_stream_integrity.mjs';
 const ROOT='https://raw.githubusercontent.com/pmk44120315-creator/irys-bitget-5min-scanner';
 const HEALTH='https://irys-surge-monitor.vhehwpfl.workers.dev/';
 const WS={bitget:'wss://ws.bitget.com/v2/ws/public',bithumb:'wss://ws-api.bithumb.com/websocket/v1'};
@@ -24,12 +25,14 @@ async function get(url){
 export async function collect({duration_ms=0,out_dir='v43_stream',old_quotes_path='data/v43_actual_quote_outcomes.json',old_latest_path='data/v43_stream_latest.json'}={}){
  if(!Number.isSafeInteger(duration_ms)||duration_ms<0)throw Error('OBSERVATION_DURATION_INVALID');
  mkdirSync(out_dir,{recursive:true});const start=Date.now(),session=String(process.env.GITHUB_RUN_ID||randomUUID())+'-'+String(process.env.GITHUB_RUN_ATTEMPT||1);
- const old=load(old_quotes_path),prior=load(old_latest_path),tracker=new QuoteOutcomeTracker(old),core=new StreamState();
+ const old=load(old_quotes_path),prior=load(old_latest_path),tracker=new QuoteOutcomeTracker(old),core=new StreamState(),epochs=new WatchEpochs();
  const info={version:'V43_PUBLIC_CONTINUOUS_SESSION_V1',session,started_at_ms:start,ended_at_ms:null,requested_duration_ms:duration_ms,
   execution_kind:duration_ms?'BOUNDED_HOSTED_OBSERVATION_SESSION':'RESIDENT_PROCESS',
-  previous_session_end_ms:prior?.ended_at_ms??null,inter_session_gap_ms:prior?.ended_at_ms?Math.max(0,start-prior.ended_at_ms):null,
+  previous_session_end_ms:prior?.ended_at_ms??null,inter_session_gap_ms:null,
+  publication_reference_age_ms:prior?.ended_at_ms?Math.max(0,start-prior.ended_at_ms):null,
+  inter_session_gap_verified:false,collector_revision:"V47_RECEIVE_EPOCH_COVERAGE",
   all_day_continuity_verified:false,connections:[],frames:0,normalized_events:0,accepted_events:0,source_refreshes:0,
-  source_errors:{},frame_errors:{},watch_changes:0,quotes_observed:0,features_frozen:0,max_processing_delay_ms:0,
+  source_errors:{},frame_errors:{},transition_discards:{},watch_changes:0,quotes_observed:0,features_frozen:0,max_processing_delay_ms:0,
   private_endpoints_used:false,orders_sent:false,telegram_sent:false,live_alert_engine_modified:false};
  const rawFile=createWriteStream(out_dir+'/raw_frames.jsonl.gz'),raw=createGzip({level:6});raw.pipe(rawFile);
  const featureFile=createWriteStream(out_dir+'/frozen_features.jsonl.gz'),featureZip=createGzip({level:6});featureZip.pipe(featureFile);
@@ -62,14 +65,15 @@ export async function collect({duration_ms=0,out_dir='v43_stream',old_quotes_pat
   };
   ws.onmessage=ev=>{
    if(stopping)return;
-   const received=Date.now();c.last_receive_ms=received;const text=typeof ev.data==='string'?ev.data:Buffer.from(ev.data).toString('utf8');
+   const received=Date.now(),receivedWatch=epochs.capture(venue);c.last_receive_ms=received;const text=typeof ev.data==='string'?ev.data:Buffer.from(ev.data).toString('utf8');
    c.queue=c.queue.then(async()=>{
     if(fatal)return;info.frames++;record.frames++;info.max_processing_delay_ms=Math.max(info.max_processing_delay_ms,Date.now()-received);
     await write(raw,{venue,session:record.connection_id,received_at_ms:received,raw:text});
     let events;try{events=normalizeFrame(venue,text,received)}catch(e){count(info.frame_errors,venue+':'+String(e.message));return;}
     for(const e of events){
-     info.normalized_events++;if(!(watch[venue]||[]).includes(e.symbol)){count(info.frame_errors,venue+':UNWATCHED_IDENTITY');continue;}
-     try{if(core.accept(e,record.connection_id)){info.accepted_events++;if(e.kind==='book'){info.quotes_observed++;tracker.observe({...e,segment:record.connection_id},received);}}}
+     info.normalized_events++;const membership=epochs.classify(venue,e.symbol,received,receivedWatch);
+     if(!membership.accept){count(membership.error?info.frame_errors:info.transition_discards,venue+':'+membership.reason);continue;}
+     try{if(core.accept(e,record.connection_id)){info.accepted_events++;if(e.kind==='book'){info.quotes_observed++;record.first_book_received_ms??=received;record.last_book_received_ms=received;tracker.observe({...e,segment:record.connection_id},received);}}}
      catch(err){count(info.frame_errors,venue+':'+String(err.message));}
     }
    }).catch(e=>{fatal=e;stopping=true;});
@@ -92,6 +96,7 @@ export async function collect({duration_ms=0,out_dir='v43_stream',old_quotes_pat
    }else count(info.source_errors,'ACK_HISTORY_READ');
    const next=selectWatchlist(packet,history,at);
    if(JSON.stringify([next.bitget,next.bithumb])!==JSON.stringify([watch.bitget,watch.bithumb])){info.watch_changes++;
+    for(const v of ['bitget','bithumb'])epochs.replace(v,next[v],at);
     for(const v of ['bitget','bithumb'])for(const symbol of watch[v]||[])if(!next[v].includes(symbol))core.forgetMarket(v,symbol);
     watch=next;
     for(const v of ['bitget','bithumb']){const c=current.get(v);if(c?.ws.readyState===WebSocket.OPEN)c.resubscribe();}}
@@ -115,7 +120,8 @@ export async function collect({duration_ms=0,out_dir='v43_stream',old_quotes_pat
   await Promise.all([...current.values()].map(c=>c.queue));while(refreshing||featureBusy)await sleep(20);raw.end();featureZip.end();await Promise.all([finished(rawFile),finished(featureFile)]);
   process.removeListener('SIGTERM',signal);process.removeListener('SIGINT',signal);
  }
- info.ended_at_ms=Date.now();info.stop_reason??=fatal?'FATAL_INGESTION':'OBSERVATION_SESSION_COMPLETE';
+ info.ended_at_ms=Date.now();for(const c of info.connections)if(c.closed_at_ms===null){c.closed_at_ms=info.ended_at_ms;c.reason='SESSION_SHUTDOWN';}
+ info.stop_reason??=fatal?'FATAL_INGESTION':'OBSERVATION_SESSION_COMPLETE';
  info.watchlist=watch;info.sources=sourceHashes;info.outcome_summary=tracker.export(info.ended_at_ms).summary;
  info.raw_sha256=createHash('sha256').update(readFileSync(out_dir+'/raw_frames.jsonl.gz')).digest('hex');
  info.features_sha256=createHash('sha256').update(readFileSync(out_dir+'/frozen_features.jsonl.gz')).digest('hex');

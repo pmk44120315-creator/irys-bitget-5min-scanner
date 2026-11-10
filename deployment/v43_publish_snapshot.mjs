@@ -2,9 +2,10 @@
  * No HTTP, trading, Telegram or production code writes. Caller owns non-force
  * Git publication and byte-for-byte remote readback.
  */
-import {readFileSync,writeFileSync,mkdirSync,renameSync} from 'node:fs';
+import {readFileSync,writeFileSync,mkdirSync,renameSync,readdirSync} from 'node:fs';
 import {join,resolve} from 'node:path';import {createHash} from 'node:crypto';import {pathToFileURL} from 'node:url';
 import {mergeQuoteLedgers} from './v43_collection_state.mjs';
+import {summarizeSessions} from './v47_stream_integrity.mjs';
 const hash=x=>createHash('sha256').update(x).digest('hex');
 function read(path,missing=false){try{return JSON.parse(readFileSync(path,'utf8'))}catch(e){if(missing&&e.code==='ENOENT')return null;throw e}}
 function put(path,x){writeFileSync(path+'.tmp',JSON.stringify(x,null,2)+'\n');renameSync(path+'.tmp',path);}
@@ -27,6 +28,13 @@ export function publishSnapshot({sessionDir,targetDir}){
  if(oldSession&&JSON.stringify(oldSession)!==JSON.stringify(s))throw Error('IMMUTABLE_SESSION_CONFLICT');
  if(oldLatest&&(oldLatest.version!==s.version||!Number.isSafeInteger(oldLatest.ended_at_ms)||oldLatest.live_entry_enabled!==false))throw Error('EXISTING_LATEST_SCHEMA');
  const merged=mergeQuoteLedgers(oldQuotes,q);
+ const historical=[];try{for(const n of readdirSync(join(data,'v43_sessions'))){if(!/^[A-Za-z0-9_-]+\.json$/.test(n))continue;const x=read(join(data,'v43_sessions',n));if(x.ended_at_ms>=s.ended_at_ms-86400000&&x.session!==s.session)historical.push(x);}}catch(e){if(e.code!=='ENOENT')throw e;}
+ const coverage=summarizeSessions([...historical,s]);
+ const preceding=historical.filter(x=>x.started_at_ms<s.started_at_ms);
+ const predecessorEnd=preceding.length?Math.max(...preceding.map(x=>x.ended_at_ms)):null;
+ l.coverage_v47={...coverage,publication_predecessor_gap_ms:predecessorEnd===null?null:Math.max(0,s.started_at_ms-predecessorEnd),
+  current_session_overlap_ms:predecessorEnd===null?null:Math.max(0,predecessorEnd-s.started_at_ms),
+  publication_cutoff_ms:s.ended_at_ms,complete_data_history_verified:false};
  const latestChanged=!oldLatest||s.ended_at_ms>oldLatest.ended_at_ms||(s.ended_at_ms===oldLatest.ended_at_ms&&s.session===oldLatest.session);
  mkdirSync(join(data,'v43_sessions'),{recursive:true});
  put(join(data,'v43_actual_quote_outcomes.json'),merged);
