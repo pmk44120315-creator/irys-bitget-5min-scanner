@@ -1,0 +1,85 @@
+name: V47 natural overlapping collector and publication verification
+on:
+  push:
+    branches: [fix/irys-v47-stream-integrity-20261110]
+    paths: ['.github/workflows/v47-natural-readback.yml']
+permissions:
+  contents: read
+  actions: read
+jobs:
+  readback:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Exact main source and unchanged signal/risk source comparison
+        run: |
+          mkdir -p v47_live
+          git rev-parse HEAD > v47_live/main_commit.txt
+          git fetch --quiet --depth=1 origin 2a154997237ed9a5b75779de95ac9932d039321a
+          git diff --exit-code FETCH_HEAD HEAD -- deployment/v43_stream_runner.mjs deployment/v43_publish_snapshot.mjs deployment/v47_stream_integrity.mjs .github/workflows/v43-observation.yml
+          git fetch --quiet --depth=1 origin 1e6bad0f551090f78c3965257d2e2cbb88f4718c
+          git diff --exit-code FETCH_HEAD HEAD -- deployment/v30_core.mjs deployment/v30_delivery.mjs deployment/v45_rsi_context.mjs deployment/build_v46_worker.py .github/workflows/v30-public-direction-producer.yml
+      - name: Observe actual automatic collection, publication and overlap without deploying or sending
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          node --input-type=module <<'JS'
+          import {writeFileSync} from 'node:fs';import assert from 'node:assert/strict';
+          const repo='pmk44120315-creator/irys-bitget-5min-scanner',api='https://api.github.com/repos/'+repo,raw='https://raw.githubusercontent.com/'+repo;
+          const get=async u=>{const r=await fetch(u,{headers:{accept:'application/json','cache-control':'no-cache','User-Agent':'IRYS-V47-readonly',...(u.startsWith(api+'/')?{authorization:'Bearer '+process.env.GITHUB_TOKEN}:{})},signal:AbortSignal.timeout(25000)});if(!r.ok)throw Error('HTTP_'+r.status);return r.json()};
+          const pr=await get(api+'/pulls/60');assert.equal(pr.merged,true);const cutoff=Date.parse(pr.merged_at),seen=new Map();
+          while(true){
+            const d=await get(raw+'/data/irys-v43-stream-evidence/data/v43_stream_latest.json?v47='+Date.now());
+            if(d.collector_revision==='V47_RECEIVE_EPOCH_COVERAGE'&&d.started_at_ms>=cutoff){
+              const id=Number(d.session.split('-')[0]),j=await get(api+'/actions/runs/'+id+'/jobs?per_page=100');
+              const jobs=j.jobs.map(x=>({name:x.name,conclusion:x.conclusion,status:x.status}));
+              if(jobs.some(x=>x.conclusion==='failure')){writeFileSync('v47_live/failed_jobs.json',JSON.stringify({id,jobs},null,2));throw Error('NATURAL_PIPELINE_FAILURE');}
+              if(['collect','publish','analyze'].every(n=>jobs.some(x=>x.name===n&&x.conclusion==='success'))){
+                seen.set(d.session,d);writeFileSync('v47_live/session_'+d.session+'.json',JSON.stringify(d,null,2));
+              }
+            }
+            writeFileSync('v47_live/progress.json',JSON.stringify({checked_at_utc:new Date().toISOString(),verified_sessions:[...seen.keys()],latest_session:d.session,latest_revision:d.collector_revision??null},null,2));
+            if(seen.size>=2&&d.coverage_v47?.current_session_overlap_ms>0){
+              const sessions=[...seen.values()].sort((a,b)=>a.started_at_ms-b.started_at_ms),latest=sessions.at(-1),prev=sessions.at(-2);
+              assert(latest.started_at_ms<prev.ended_at_ms,'NEW_SESSIONS_DID_NOT_OVERLAP');
+              for(const v of ['bitget','bithumb']){
+                const a=prev.connections.filter(x=>x.venue===v),b=latest.connections.filter(x=>x.venue===v);
+                const end=Math.max(...a.map(x=>x.last_book_received_ms??0)),start=Math.min(...b.map(x=>x.first_book_received_ms??Infinity));
+                assert(start<=end,'BOOK_RECEIPT_ENVELOPES_DID_NOT_OVERLAP_'+v);
+              }
+              const h=await get('https://irys-surge-monitor.vhehwpfl.workers.dev/?v47readonly='+Date.now()),l=h.last||{},delivery=l.v30DirectionalDelivery||{};
+              const quality=await get(raw+'/data/irys-v39-ack-feedback/data/v46_actual_quality.json');
+              const result={checked_at_utc:new Date().toISOString(),main_merge:pr.merge_commit_sha,merged_at:pr.merged_at,
+                sessions:sessions.map(s=>({id:s.session,started:s.started_at_ms,ended:s.ended_at_ms,requested_duration_ms:s.requested_duration_ms,frames:s.frames,quotes:s.quotes_observed,source_errors:s.source_errors,frame_errors:s.frame_errors,transitions:s.transition_discards,connections:s.connections})),
+                last_process_overlap_ms:prev.ended_at_ms-latest.started_at_ms,both_venue_book_envelopes_overlap:true,
+                publication_coverage_version:d.coverage_v47.version,worker:{version:l.codeVersion,time:l.time,status:l.status,entry_enabled:h.marketNotificationsEnabled,risk_enabled:h.marketRiskWarningsEnabled,delivery_status:delivery.status,dispatch:delivery.dispatch_revalidation},
+                current_quality:{asof_ms:quality.asof_ms,groups:quality.groups,diagnostics:quality.diagnostics},
+                all_symbols_continuous_verified:false,market_tape_completeness_verified:false,new_forecast_accuracy_proven:false,no_forced_scan:true,orders_sent:false,telegram_sent:false};
+              writeFileSync('v47_live/verified_runtime.json',JSON.stringify(result,null,2));
+              assert.equal(l.codeVersion,'IRYS-V46-NATIVE-CONTEXT-QUALITY-20261110');assert.equal(l.status,'PASS');assert.equal(h.marketNotificationsEnabled,true);assert.equal(h.marketRiskWarningsEnabled,true);
+              console.log('V47_NATURAL_OVERLAP_AND_PUBLICATION_VERIFIED',JSON.stringify(result));break;
+            }
+            await new Promise(r=>setTimeout(r,20000));
+          }
+          JS
+      - name: Preserve verified evidence and any failures
+        if: always()
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import json,hashlib
+          p=Path('v47_live');p.mkdir(exist_ok=True);m={f.name:{'bytes':f.stat().st_size,'sha256':hashlib.sha256(f.read_bytes()).hexdigest()} for f in p.iterdir() if f.is_file()}
+          (p/'manifest.json').write_text(json.dumps(m,indent=2))
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: v47-natural-overlap-proof
+          path: v47_live/
+          retention-days: 30
+          if-no-files-found: error
