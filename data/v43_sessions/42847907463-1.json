@@ -1,0 +1,300 @@
+{
+  "version": "V43_PUBLIC_CONTINUOUS_SESSION_V1",
+  "session": "42847907463-1",
+  "started_at_ms": 1794325621062,
+  "ended_at_ms": 1794325981281,
+  "requested_duration_ms": 360000,
+  "execution_kind": "BOUNDED_HOSTED_OBSERVATION_SESSION",
+  "previous_session_end_ms": 1794325386470,
+  "inter_session_gap_ms": null,
+  "publication_reference_age_ms": 234592,
+  "inter_session_gap_verified": false,
+  "collector_revision": "V47_RECEIVE_EPOCH_COVERAGE",
+  "all_day_continuity_verified": false,
+  "connections": [
+    {
+      "venue": "bitget",
+      "connection_id": "bitget:42847907463-1:7093cbf9-a2e2-4fa2-8314-6dfeff3e775e",
+      "opened_at_ms": 1794325622700,
+      "closed_at_ms": 1794325981281,
+      "frames": 56524,
+      "reason": "SESSION_SHUTDOWN",
+      "first_book_received_ms": 1794325623151,
+      "last_book_received_ms": 1794325981269
+    },
+    {
+      "venue": "bithumb",
+      "connection_id": "bithumb:42847907463-1:2ba79646-f846-469e-9188-3ede69f01a04",
+      "opened_at_ms": 1794325622615,
+      "closed_at_ms": 1794325981281,
+      "frames": 19225,
+      "reason": "SESSION_SHUTDOWN",
+      "first_book_received_ms": 1794325622800,
+      "last_book_received_ms": 1794325981264
+    }
+  ],
+  "frames": 75749,
+  "normalized_events": 91731,
+  "accepted_events": 88454,
+  "source_refreshes": 12,
+  "source_errors": {},
+  "frame_errors": {},
+  "transition_discards": {
+    "bitget:UNSUBSCRIBE_IN_FLIGHT": 60,
+    "bithumb:UNSUBSCRIBE_IN_FLIGHT": 17
+  },
+  "watch_changes": 3,
+  "quotes_observed": 57381,
+  "features_frozen": 908,
+  "max_processing_delay_ms": 7,
+  "private_endpoints_used": false,
+  "orders_sent": false,
+  "telegram_sent": false,
+  "live_alert_engine_modified": false,
+  "latest_worker_version": "IRYS-V46-NATIVE-CONTEXT-QUALITY-20261110",
+  "latest_ack_records": 82,
+  "stop_reason": "OBSERVATION_SESSION_COMPLETE",
+  "watchlist": {
+    "asof_ms": 1794325952692,
+    "bitget": [
+      "AIOUSDT",
+      "AKEUSDT",
+      "ALCHUSDT",
+      "ARXUSDT",
+      "BARDUSDT",
+      "BASEDUSDT",
+      "BNTUSDT",
+      "BRUSDT",
+      "BTCUSDT",
+      "BTWUSDT",
+      "CAPUSDT",
+      "CHRUSDT",
+      "FLUIDUSDT",
+      "GASUSDT",
+      "ICNTUSDT",
+      "MERLUSDT",
+      "ONEUSDT",
+      "PIEVERSEUSDT",
+      "SFPUSDT",
+      "TRUSTUSDT",
+      "UAIUSDT",
+      "XPINUSDT",
+      "ZORAUSDT"
+    ],
+    "bithumb": [
+      "KRW-BARD",
+      "KRW-BR",
+      "KRW-BTC",
+      "KRW-COTI",
+      "KRW-EDGEX",
+      "KRW-ICNT",
+      "KRW-IRYS",
+      "KRW-KAITO",
+      "KRW-KITE",
+      "KRW-SHIB",
+      "KRW-SONIC",
+      "KRW-US",
+      "KRW-ZK"
+    ],
+    "reasons": {
+      "bithumb:KRW-EDGEX": [
+        "CURRENT_DISCOVERY_OBSERVATION"
+      ],
+      "bithumb:KRW-BARD": [
+        "CURRENT_DISCOVERY_OBSERVATION"
+      ],
+      "bithumb:KRW-ZK": [
+        "CURRENT_DISCOVERY_OBSERVATION"
+      ],
+      "bithumb:KRW-ICNT": [
+        "CURRENT_DISCOVERY_OBSERVATION"
+      ],
+      "bithumb:KRW-BR": [
+        "CURRENT_DISCOVERY_OBSERVATION"
+      ],
+      "bithumb:KRW-SONIC": [
+        "CURRENT_DISCOVERY_OBSERVATION"
+      ],
+      "bithumb:KRW-SHIB": [
+        "CURRENT_DISCOVERY_OBSERVATION"
+      ],
+      "bithumb:KRW-COTI": [
+        "CURRENT_DISCOVERY_OBSERVATION"
+      ],
+      "bithumb:KRW-IRYS": [
+        "CURRENT_DISCOVERY_OBSERVATION"
+      ],
+      "bithumb:KRW-KAITO": [
+        "CURRENT_DISCOVERY_OBSERVATION"
+      ],
+      "bithumb:KRW-US": [
+        "CURRENT_DISCOVERY_OBSERVATION"
+      ],
+      "bithumb:KRW-KITE": [
+        "CURRENT_DISCOVERY_OBSERVATION"
+      ],
+      "bitget:AKEUSDT": [
+        "CURRENT_DISCOVERY_OBSERVATION"
+      ],
+      "bitget:ONEUSDT": [
+        "CURRENT_DISCOVERY_OBSERVATION"
+      ],
+      "bitget:AIOUSDT": [
+        "CURRENT_DISCOVERY_OBSERVATION"
+      ],
+      "bitget:UAIUSDT": [
+        "CURRENT_DISCOVERY_OBSERVATION"
+      ],
+      "bitget:ICNTUSDT": [
+        "CURRENT_DISCOVERY_OBSERVATION"
+      ],
+      "bitget:PIEVERSEUSDT": [
+        "CURRENT_DISCOVERY_OBSERVATION"
+      ],
+      "bitget:MERLUSDT": [
+        "CURRENT_DISCOVERY_OBSERVATION"
+      ],
+      "bitget:XPINUSDT": [
+        "CURRENT_DISCOVERY_OBSERVATION"
+      ],
+      "bitget:BARDUSDT": [
+        "CURRENT_DISCOVERY_OBSERVATION"
+      ],
+      "bitget:BRUSDT": [
+        "CURRENT_DISCOVERY_OBSERVATION"
+      ],
+      "bitget:FLUIDUSDT": [
+        "CURRENT_DISCOVERY_OBSERVATION"
+      ],
+      "bitget:BASEDUSDT": [
+        "CURRENT_DISCOVERY_OBSERVATION"
+      ],
+      "bitget:CAPUSDT": [
+        "CURRENT_DISCOVERY_OBSERVATION"
+      ],
+      "bitget:ZORAUSDT": [
+        "CURRENT_DISCOVERY_OBSERVATION"
+      ],
+      "bitget:SFPUSDT": [
+        "CURRENT_DISCOVERY_OBSERVATION"
+      ],
+      "bitget:BNTUSDT": [
+        "CURRENT_DISCOVERY_OBSERVATION"
+      ],
+      "bitget:GASUSDT": [
+        "CURRENT_DISCOVERY_OBSERVATION"
+      ],
+      "bitget:ALCHUSDT": [
+        "CURRENT_DISCOVERY_OBSERVATION"
+      ],
+      "bitget:CHRUSDT": [
+        "CURRENT_DISCOVERY_OBSERVATION"
+      ],
+      "bitget:ARXUSDT": [
+        "CURRENT_DISCOVERY_OBSERVATION"
+      ],
+      "bitget:TRUSTUSDT": [
+        "CURRENT_DISCOVERY_OBSERVATION"
+      ],
+      "bitget:BTWUSDT": [
+        "CURRENT_DISCOVERY_OBSERVATION"
+      ]
+    },
+    "source_packet_current": true,
+    "arbitrary_candidate_cap": false
+  },
+  "sources": [
+    {
+      "at_ms": 1794325621869,
+      "packet_at_ms": 1794325283322,
+      "packet_sha256": "c5767e158fdb0047813a28e14758995bc5e3b07f427e689f5de2201a24481ae3"
+    },
+    {
+      "at_ms": 1794325652087,
+      "packet_at_ms": 1794325587958,
+      "packet_sha256": "95e11a956955285c923ad3c52c989a8ebe4beecf7eff87c59785b4ee8fa250aa"
+    },
+    {
+      "at_ms": 1794325682583,
+      "packet_at_ms": 1794325587958,
+      "packet_sha256": "95e11a956955285c923ad3c52c989a8ebe4beecf7eff87c59785b4ee8fa250aa"
+    },
+    {
+      "at_ms": 1794325712090,
+      "packet_at_ms": 1794325587958,
+      "packet_sha256": "95e11a956955285c923ad3c52c989a8ebe4beecf7eff87c59785b4ee8fa250aa"
+    },
+    {
+      "at_ms": 1794325742099,
+      "packet_at_ms": 1794325587958,
+      "packet_sha256": "95e11a956955285c923ad3c52c989a8ebe4beecf7eff87c59785b4ee8fa250aa"
+    },
+    {
+      "at_ms": 1794325772105,
+      "packet_at_ms": 1794325587958,
+      "packet_sha256": "95e11a956955285c923ad3c52c989a8ebe4beecf7eff87c59785b4ee8fa250aa"
+    },
+    {
+      "at_ms": 1794325802951,
+      "packet_at_ms": 1794325587958,
+      "packet_sha256": "95e11a956955285c923ad3c52c989a8ebe4beecf7eff87c59785b4ee8fa250aa"
+    },
+    {
+      "at_ms": 1794325832100,
+      "packet_at_ms": 1794325587958,
+      "packet_sha256": "95e11a956955285c923ad3c52c989a8ebe4beecf7eff87c59785b4ee8fa250aa"
+    },
+    {
+      "at_ms": 1794325862101,
+      "packet_at_ms": 1794325587958,
+      "packet_sha256": "95e11a956955285c923ad3c52c989a8ebe4beecf7eff87c59785b4ee8fa250aa"
+    },
+    {
+      "at_ms": 1794325892427,
+      "packet_at_ms": 1794325587958,
+      "packet_sha256": "95e11a956955285c923ad3c52c989a8ebe4beecf7eff87c59785b4ee8fa250aa"
+    },
+    {
+      "at_ms": 1794325922361,
+      "packet_at_ms": 1794325587958,
+      "packet_sha256": "95e11a956955285c923ad3c52c989a8ebe4beecf7eff87c59785b4ee8fa250aa"
+    },
+    {
+      "at_ms": 1794325952692,
+      "packet_at_ms": 1794325900063,
+      "packet_sha256": "c4e545735041bc67d08bee62c836348cea7c9f0d233004498a75c4688cf7c94f"
+    }
+  ],
+  "outcome_summary": {
+    "actual_ack_records": 82,
+    "horizons": {
+      "5": {
+        "measured": 11,
+        "quote_positive": 6,
+        "missing": 71,
+        "pending": 0
+      },
+      "15": {
+        "measured": 11,
+        "quote_positive": 4,
+        "missing": 71,
+        "pending": 0
+      },
+      "30": {
+        "measured": 11,
+        "quote_positive": 5,
+        "missing": 71,
+        "pending": 0
+      },
+      "60": {
+        "measured": 11,
+        "quote_positive": 6,
+        "missing": 71,
+        "pending": 0
+      }
+    }
+  },
+  "raw_sha256": "bcd1f4fc13eeb9120e23de8c950f1cb84c364e903583d026c7c42e87537d4218",
+  "features_sha256": "66110bca857e643a313bbd926e4d2e42f7b0d17e8a4a971e6ef6f0c56b9d6ce7",
+  "status": "OBSERVED"
+}
