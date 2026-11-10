@@ -1,0 +1,56 @@
+name: V48 current source and runtime evidence (NO DEPLOY)
+on:
+  push:
+    branches: [fix/irys-v48-final-upgrade-20261111]
+    paths: ['.github/workflows/v48-snapshot.yml']
+permissions:
+  contents: read
+  actions: read
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Preserve exact current source and read-only evidence
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p v48_baseline
+          git rev-parse HEAD > v48_baseline/source_commit.txt
+          git ls-tree -r HEAD > v48_baseline/source_tree.txt
+          git archive --format=zip --output=v48_baseline/source.zip HEAD
+          curl --fail --silent --show-error --max-time 30 'https://irys-surge-monitor.vhehwpfl.workers.dev/' -o v48_baseline/public_health.json
+          git fetch --quiet --depth=1 origin data/irys-v39-ack-feedback
+          git rev-parse FETCH_HEAD > v48_baseline/ack_commit.txt
+          git show FETCH_HEAD:data/v42_actual_ack_evaluation.json > v48_baseline/v42_actual_ack_evaluation.json
+          git show FETCH_HEAD:data/v46_actual_quality.json > v48_baseline/v46_actual_quality.json
+          git fetch --quiet --depth=1 origin data/irys-v43-stream-evidence
+          git rev-parse FETCH_HEAD > v48_baseline/stream_commit.txt
+          git show FETCH_HEAD:data/v43_stream_latest.json > v48_baseline/v43_stream_latest.json
+          git show FETCH_HEAD:data/v43_actual_quote_outcomes.json > v48_baseline/v43_actual_quote_outcomes.json
+          gh api 'repos/pmk44120315-creator/irys-bitget-5min-scanner/actions/runs?per_page=50' > v48_baseline/recent_runs.json
+      - name: Current standard-library regression
+        run: |
+          set -o pipefail
+          python -S -m unittest discover -s tests -v 2>&1 | tee v48_baseline/python_baseline.log
+      - name: Preserve manifest including any failure evidence
+        if: always()
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import hashlib,json
+          p=Path('v48_baseline');p.mkdir(exist_ok=True)
+          rows={f.name:{'bytes':f.stat().st_size,'sha256':hashlib.sha256(f.read_bytes()).hexdigest()} for f in p.iterdir() if f.is_file()}
+          (p/'manifest.json').write_text(json.dumps(rows,indent=2))
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: v48-current-baseline
+          path: v48_baseline/
+          retention-days: 30
+          if-no-files-found: error
