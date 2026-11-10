@@ -70,7 +70,7 @@ export class QuoteOutcomeTracker{
     if(delay>this.tolerance){if(!e.quote_outcomes[h]?.first_late_quote)e.quote_outcomes[h]={status:'UNMEASURED_TARGET_GAP',target_ms:target,
       first_late_quote:{at_ms:q.at_ms,delay_ms:delay,bid:q.bid,ask:q.ask},actual_execution_verified:false};continue;}
     e.quote_outcomes[h]={status:'MEASURED_WS_QUOTE',target_ms:target,target_delay_ms:delay,
-     provider_at_ms:q.at_ms,received_at_ms:q.received_at_ms,source_segment:q.segment??'UNSPECIFIED',
+     provider_at_ms:q.at_ms,provider_sequence:q.sequence??null,received_at_ms:q.received_at_ms,source_segment:q.segment??'UNSPECIFIED',
      entry_reference:entry,exit_quote:{bid:q.bid,ask:q.ask,at_ms:q.at_ms,at_us:q.at_us},signed_quote_return_pct:ret,
      signed_mid_change_pct:(short?-1:1)*100*((q.bid+q.ask)/(e.entry_quote.bid+e.entry_quote.ask)-1),
      after_assumed_0_20pct_cost:ret-.2,fee_schedule_verified:false,actual_execution_verified:false,
