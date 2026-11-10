@@ -1,0 +1,72 @@
+name: V47 exact-source stream integrity and original replay verification
+on:
+  push:
+    branches: [fix/irys-v47-stream-integrity-20261110]
+    paths: ['.github/workflows/v47-integrity-verify.yml','verification/v47/apply_patch.py']
+permissions:
+  contents: write
+  actions: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Apply only exact existing-source delta already tested locally
+        run: |
+          mkdir -p v47_verified
+          cat <<'SHA' | sha256sum -c -
+          43dd64c4ef88ea7d3c71edecd27e723244d79bedcd23669d0705b6a76038eb33  deployment/v47_stream_integrity.mjs
+          88fc7ccbb7fa7621933a21f1ddbc4f846f9b693556571f7859f0dcd5702d8f96  tests/test_v47_stream_integrity.mjs
+          34662adbb679cefa703826f2761cf5b507ba7c118dc42b1788eb5d35d1f13152  verification/v47/apply_patch.py
+          8e964c17f975493ee12f9c14ca74e59bfee99ca30416cd27c20bdebbf2a97268  verification/v47/replay_original.mjs
+          SHA
+          python verification/v47/apply_patch.py
+          node --check deployment/v43_stream_runner.mjs
+      - name: All original production Python and affected stream contracts
+        run: |
+          set -o pipefail
+          python -S -m unittest discover -s tests -v 2>&1 | tee v47_verified/python.log
+          node --test tests/test_v42_ack_feedback.mjs tests/test_v43*.mjs tests/test_v47*.mjs 2>&1 | tee v47_verified/node.log
+          python -m pip install 'PyYAML==6.0.2'
+          python -m unittest discover -s verification/workflows -v 2>&1 | tee v47_verified/workflows.log
+      - uses: actions/download-artifact@v4
+        with:
+          name: v43-observation-42791465821-1
+          run-id: 42791465821
+          github-token: ${{ github.token }}
+          path: /tmp/v47-original
+      - name: Replay every original frame from the diagnosed incident
+        run: node verification/v47/replay_original.mjs /tmp/v47-original v47_verified/replayed_original.json
+      - name: Commit only tested code delta to review branch, never main or Worker
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add deployment/v43_stream_runner.mjs deployment/v43_publish_snapshot.mjs verification/workflows/test_v43_observation_workflow.py .github/v43_source_lease.json
+          git diff --staged > v47_verified/verified_delta.patch
+          git commit -m 'fix(V47): apply verified receive epochs and persisted interval coverage'
+          git push origin HEAD:refs/heads/fix/irys-v47-stream-integrity-20261110
+          git rev-parse HEAD > v47_verified/verified_commit.txt
+      - name: Preserve exact source and honest test evidence
+        if: always()
+        run: |
+          mkdir -p v47_verified
+          git archive --format=zip --output=v47_verified/source.zip HEAD deployment tests verification .github
+          python - <<'PY'
+          from pathlib import Path
+          import hashlib,json
+          p=Path('v47_verified');m={str(f.relative_to(p)):{'bytes':f.stat().st_size,'sha256':hashlib.sha256(f.read_bytes()).hexdigest()} for f in p.rglob('*') if f.is_file()}
+          (p/'manifest.json').write_text(json.dumps(m,indent=2))
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: v47-stream-integrity-verified
+          path: v47_verified/
+          retention-days: 30
+          if-no-files-found: error
