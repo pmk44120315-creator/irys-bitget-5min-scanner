@@ -26,7 +26,12 @@ export function mergeQuoteLedgers(old,incoming){
   for(const [h,v] of Object.entries(e.quote_outcomes)){
    const prior=a.quote_outcomes[h];
    if(prior?.status==='MEASURED_WS_QUOTE'){
-    if(v.status==='MEASURED_WS_QUOTE'&&v.provider_at_ms===prior.provider_at_ms&&JSON.stringify(v.exit_quote)!==JSON.stringify(prior.exit_quote))throw Error('MEASURED_SAME_TIME_QUOTE_CONFLICT');
+    if(v.status==='MEASURED_WS_QUOTE'&&v.provider_at_ms===prior.provider_at_ms){
+     const a=prior.exit_quote,b=v.exit_quote,sameMicro=(a.at_us??prior.provider_at_ms*1000)===(b.at_us??v.provider_at_ms*1000);
+     const ordered=prior.provider_sequence!=null&&v.provider_sequence!=null&&/^\d+$/.test(String(prior.provider_sequence))&&/^\d+$/.test(String(v.provider_sequence));
+     const sameSequence=!ordered||String(prior.provider_sequence)===String(v.provider_sequence);
+     if(sameMicro&&sameSequence&&(a.bid!==b.bid||a.ask!==b.ask))throw Error('MEASURED_SAME_TIME_QUOTE_CONFLICT');
+    }
     continue;
    }
    if(v.status==='MEASURED_WS_QUOTE'||!prior)a.quote_outcomes[h]=structuredClone(v);
