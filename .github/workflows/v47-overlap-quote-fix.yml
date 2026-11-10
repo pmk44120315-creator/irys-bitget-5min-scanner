@@ -1,0 +1,94 @@
+name: V47 overlap quote identity repair and regression
+on:
+  push:
+    branches: [fix/irys-v47-stream-integrity-20261110]
+    paths: ['.github/workflows/v47-overlap-quote-fix.yml']
+permissions:
+  contents: write
+jobs:
+  repair:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Reproduce missing provider identity before fixing it
+        run: |
+          mkdir -p v47_overlap
+          cat > tests/test_v47_overlap_quotes.mjs <<'JS'
+          import test from 'node:test';import assert from 'node:assert/strict';
+          import {mergeQuoteLedgers} from '../deployment/v43_collection_state.mjs';
+          import {QuoteOutcomeTracker} from '../deployment/v43_quote_outcomes.mjs';
+          const T=1794300000000;
+          function ledger(){const t=new QuoteOutcomeTracker();t.addHistory({version:'V42_DISPATCH_QUOTE_AND_COMPLETE_ACK_V1',private_messages_exported:false,records:[{venue:'bitget',symbol:'AAAUSDT',direction:'LONG',issued_at_ms:T,entry_quote:{bid:100,ask:100.1,at_ms:T},api_ack_recorded:true,actual_execution_verified:false}]},T);t.observe({kind:'book',venue:'bitget',symbol:'AAAUSDT',at_ms:T+300000,at_us:(T+300000)*1000,received_at_ms:T+300001,bid:101,ask:101.1,segment:'a',sequence:'100'},T+300001);return t.export(T+300001)}
+          test('same millisecond with distinct exchange microseconds is not contradictory quote',()=>{const a=ledger(),b=structuredClone(a);b.events[0].quote_outcomes[5].exit_quote.at_us++;b.events[0].quote_outcomes[5].exit_quote.bid=101.05;assert.doesNotThrow(()=>mergeQuoteLedgers(a,b));assert.equal(mergeQuoteLedgers(a,b).events[0].quote_outcomes[5].exit_quote.bid,101)});
+          test('same provider millisecond with distinct exchange sequence remains distinct evidence',()=>{const a=ledger(),b=structuredClone(a);a.events[0].quote_outcomes[5].provider_sequence='100';b.events[0].quote_outcomes[5].provider_sequence='101';b.events[0].quote_outcomes[5].exit_quote.bid=101.05;assert.doesNotThrow(()=>mergeQuoteLedgers(a,b))});
+          test('same exact clock and sequence with contradictory prices still fails closed',()=>{const a=ledger(),b=structuredClone(a);a.events[0].quote_outcomes[5].provider_sequence='100';b.events[0].quote_outcomes[5].provider_sequence='100';b.events[0].quote_outcomes[5].exit_quote.bid=105;assert.throws(()=>mergeQuoteLedgers(a,b),/CONFLICT/)});
+          test('newly measured outcome retains exact original provider sequence for future merges',()=>{const a=ledger();assert.equal(a.events[0].quote_outcomes[5].provider_sequence,'100')});
+          JS
+          set +e
+          node --test tests/test_v47_overlap_quotes.mjs > v47_overlap/red.log 2>&1
+          CODE=$?
+          set -e
+          test "$CODE" -ne 0
+          grep -q '# fail 3' v47_overlap/red.log
+      - name: Retain exact sequence and compare original quote identity without replacing frozen outcomes
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import hashlib,json
+          expected={'deployment/v43_quote_outcomes.mjs':'4f1b2d65ea820ecfc9ea0c697cbcd9e329c66851','deployment/v43_collection_state.mjs':'b1cee009f65567e2f16762e580b0767e2d4be32e'}
+          for name,sha in expected.items():
+            b=Path(name).read_bytes();assert hashlib.sha1(b'blob '+str(len(b)).encode()+b'\0'+b).hexdigest()==sha,name
+          p=Path('deployment/v43_quote_outcomes.mjs');s=p.read_text();a='provider_at_ms:q.at_ms,received_at_ms:q.received_at_ms,source_segment:';b='provider_at_ms:q.at_ms,provider_sequence:q.sequence??null,received_at_ms:q.received_at_ms,source_segment:';assert s.count(a)==1;p.write_text(s.replace(a,b))
+          p=Path('deployment/v43_collection_state.mjs');s=p.read_text();a="if(v.status==='MEASURED_WS_QUOTE'&&v.provider_at_ms===prior.provider_at_ms&&JSON.stringify(v.exit_quote)!==JSON.stringify(prior.exit_quote))throw Error('MEASURED_SAME_TIME_QUOTE_CONFLICT');"
+          b="""if(v.status==='MEASURED_WS_QUOTE'&&v.provider_at_ms===prior.provider_at_ms){
+               const a=prior.exit_quote,b=v.exit_quote,sameMicro=(a.at_us??prior.provider_at_ms*1000)===(b.at_us??v.provider_at_ms*1000);
+               const ordered=prior.provider_sequence!=null&&v.provider_sequence!=null&&/^\\d+$/.test(String(prior.provider_sequence))&&/^\\d+$/.test(String(v.provider_sequence));
+               const sameSequence=!ordered||String(prior.provider_sequence)===String(v.provider_sequence);
+               if(sameMicro&&sameSequence&&(a.bid!==b.bid||a.ask!==b.ask))throw Error('MEASURED_SAME_TIME_QUOTE_CONFLICT');
+              }"""
+          assert s.count(a)==1;p.write_text(s.replace(a,b))
+          p=Path('.github/v43_source_lease.json');d=json.loads(p.read_text())
+          for f in [*expected,'tests/test_v47_overlap_quotes.mjs']:
+            b=Path(f).read_bytes();d[f]=hashlib.sha1(b'blob '+str(len(b)).encode()+b'\0'+b).hexdigest()
+          p.write_text(json.dumps(d,indent=2)+'\n')
+          PY
+      - name: Verify real production baseline and affected old/new contracts
+        run: |
+          set -o pipefail
+          python -S -m unittest discover -s tests -v 2>&1 | tee v47_overlap/python.log
+          node --test tests/test_v42_ack_feedback.mjs tests/test_v43*.mjs tests/test_v47*.mjs 2>&1 | tee v47_overlap/node.log
+          python -m pip install 'PyYAML==6.0.2'
+          python -m unittest discover -s verification/workflows -v 2>&1 | tee v47_overlap/workflows.log
+      - name: Commit verified delta only to review branch
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add deployment/v43_quote_outcomes.mjs deployment/v43_collection_state.mjs tests/test_v47_overlap_quotes.mjs .github/v43_source_lease.json
+          git diff --staged > v47_overlap/verified.patch
+          git commit -m 'fix(V47): disambiguate overlapping real quote timestamps and preserve exact sequence'
+          git push origin HEAD:refs/heads/fix/irys-v47-stream-integrity-20261110
+          git rev-parse HEAD > v47_overlap/verified_commit.txt
+      - name: Preserve source and failed-then-passing regression evidence
+        if: always()
+        run: |
+          mkdir -p v47_overlap
+          git archive --format=zip --output=v47_overlap/source.zip HEAD deployment/v43_quote_outcomes.mjs deployment/v43_collection_state.mjs tests/test_v47_overlap_quotes.mjs .github/v43_source_lease.json
+          python - <<'PY'
+          from pathlib import Path
+          import hashlib,json
+          p=Path('v47_overlap');m={f.name:{'bytes':f.stat().st_size,'sha256':hashlib.sha256(f.read_bytes()).hexdigest()} for f in p.iterdir() if f.is_file()}
+          (p/'manifest.json').write_text(json.dumps(m,indent=2))
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: v47-overlap-quote-identity-proof
+          path: v47_overlap/
+          retention-days: 30
+          if-no-files-found: error
