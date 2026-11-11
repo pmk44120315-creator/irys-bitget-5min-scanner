@@ -1,0 +1,102 @@
+name: V48 actual-alert direction and original evidence audit (READ ONLY)
+on:
+  push:
+    branches: [feature/irys-v48-direction-audit-20261112]
+    paths: ['.github/workflows/v48-evidence-audit.yml']
+permissions:
+  contents: read
+  actions: read
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Pin original source and capture actual ACKs and native market history
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p v48_audit/data v48_audit/candles v48_audit/published
+          git rev-parse HEAD > v48_audit/source_commit.txt
+          git archive --format=zip --output=v48_audit/source.zip HEAD deployment research tests verification .github
+          python - <<'PY'
+          import json,time,datetime,urllib.request,urllib.parse,urllib.error,os,hashlib
+          from pathlib import Path
+          P=Path('v48_audit');repo='pmk44120315-creator/irys-bitget-5min-scanner';api='https://api.github.com/repos/'+repo;raw='https://raw.githubusercontent.com/'+repo
+          started=int(time.time()*1000);errors=[];reads=[]
+          def save(n,x):
+            p=P/n;p.parent.mkdir(parents=True,exist_ok=True);p.write_text(json.dumps(x,ensure_ascii=False,allow_nan=False,separators=(',',':')))
+          def get(u):
+            headers={'Accept':'application/json','Cache-Control':'no-cache','User-Agent':'IRYS-V48-readonly-audit'}
+            if u.startswith(api+'/'):headers['Authorization']='Bearer '+os.environ['GITHUB_TOKEN']
+            try:
+              with urllib.request.urlopen(urllib.request.Request(u,headers=headers),timeout=25) as r:d=json.load(r)
+              reads.append({'url':u,'at_ms':int(time.time()*1000),'status':'RECEIVED'});return d
+            except Exception as e:
+              reads.append({'url':u,'at_ms':int(time.time()*1000),'status':'FAILED','type':type(e).__name__});raise
+          h=get('https://irys-surge-monitor.vhehwpfl.workers.dev/?v48readonly='+str(started));last=h.get('last',{});d=last.get('v30DirectionalDelivery',{});history=d.get('public_ack_history')
+          assert history and history.get('private_messages_exported') is False
+          save('ack_history.json',history)
+          save('health.json',{'checked_at_ms':int(time.time()*1000),'version':last.get('codeVersion'),'time':last.get('time'),'status':last.get('status'),'entry_enabled':h.get('marketNotificationsEnabled'),'risk_enabled':h.get('marketRiskWarningsEnabled'),'delivery_status':d.get('status'),'feed':d.get('feed'),'dispatch':d.get('dispatch_revalidation'),'entry_context':d.get('entry_context'),'evaluated':d.get('evaluated'),'ready':d.get('ready'),'sent':d.get('sent'),'source_summary':d.get('source_summary'),'rejection_reasons':d.get('rejection_reasons'),'risk_status':last.get('v34MarketRisk',{}).get('status'),'device_receipt_verified':False})
+          for branch,f in [('main','latest.json'),('main','v30_direction_latest.json'),('main','v30_state.json'),('main','v36_shadow_state.json'),('main','v37_early_state.json'),('main','v38_continuation_latest.json'),('data/irys-v43-stream-evidence','v43_stream_latest.json'),('data/irys-v43-stream-evidence','v43_actual_quote_outcomes.json'),('data/irys-v39-ack-feedback','v42_actual_ack_evaluation.json'),('data/irys-v39-ack-feedback','v46_actual_quality.json')]:
+            try:save('data/'+f,get(raw+'/'+branch+'/data/'+f))
+            except Exception as e:errors.append({'stage':f,'type':type(e).__name__})
+          runs=get(api+'/actions/runs?branch=main&per_page=100')['workflow_runs']
+          save('recent_runs.json',[{k:r.get(k) for k in ['id','name','path','created_at','updated_at','status','conclusion','head_sha']} for r in runs])
+          for r in runs:
+            if r.get('conclusion')=='failure':
+              try:save('failure_'+str(r['id'])+'.json',get(api+'/actions/runs/'+str(r['id'])+'/jobs?per_page=100'))
+              except Exception as e:errors.append({'stage':'failure_jobs','type':type(e).__name__})
+          inventory=[]
+          for e in history['records']:
+            for m in (1,5):
+              t=e['issued_at_ms'];v=e['venue'];s=e['symbol'];end=min(started//(m*60000)*(m*60000),((t+62*60000)//(m*60000)+1)*m*60000)
+              params={'symbol':s,'productType':'USDT-FUTURES','granularity':str(m)+'m','endTime':end,'limit':200} if v=='bitget' else {'market':s,'count':200,'to':datetime.datetime.fromtimestamp(end/1000+9*3600,datetime.timezone.utc).strftime('%Y-%m-%dT%H:%M:%S')}
+              url=('https://api.bitget.com/api/v2/mix/market/history-candles' if v=='bitget' else 'https://api.bithumb.com/v1/candles/minutes/'+str(m))+'?'+urllib.parse.urlencode(params)
+              rec={'venue':v,'symbol':s,'issued_at_ms':t,'minutes':m,'reconstructed_after_event':True,'filename':v+'_'+s+'_'+str(t)+'_'+str(m)+'m.json'}
+              time.sleep(.4)
+              try:
+                x=get(url)
+                valid=isinstance(x,dict) and x.get('code')=='00000' and isinstance(x.get('data'),list) and len(x['data'])>0 if v=='bitget' else isinstance(x,list) and len(x)>0 and all(b.get('market')==s for b in x)
+                rec['status']='NATIVE_RESPONSE_VALID' if valid else 'PROVIDER_SCHEMA_ERROR';save('candles/'+rec['filename'],{'receipt':rec,'response':x})
+              except Exception as err:rec.update(status='UNAVAILABLE',error_type=type(err).__name__)
+              inventory.append(rec)
+          # Reuse actual published source generations, not reconstructed hindsight indicators.
+          for e in history['records']:
+            if not e.get('source_packet_at_ms') or not e.get('entry_context_v45'):continue
+            key=e['venue']+'_'+e['symbol']+'_'+str(e['issued_at_ms'])
+            try:
+              until=datetime.datetime.fromtimestamp((e['issued_at_ms']+10000)/1000,datetime.timezone.utc).isoformat()
+              commits=get(api+'/commits?'+urllib.parse.urlencode({'sha':'data/irys-v421-dispatch-quotes','path':'data/v421_dispatch_quotes.json','until':until,'per_page':3}))
+              match=None
+              for c in commits:
+                batch=get(raw+'/'+c['sha']+'/data/v421_dispatch_quotes.json')
+                if batch.get('source_packet_at_ms')==e['source_packet_at_ms']:
+                  stamp=c['commit']['committer']['date'];match={'publication_sha':c['sha'],'publication_at':stamp,'batch':batch};break
+              if match:
+                src=match['batch'].get('published_source_commit');match['source_packet']=get(raw+'/'+src+'/data/v30_direction_latest.json')
+                save('published/'+key+'.json',match)
+              else:errors.append({'stage':'published_'+key,'type':'EXACT_GENERATION_UNAVAILABLE'})
+            except Exception as err:errors.append({'stage':'published_'+key,'type':type(err).__name__})
+          save('candle_inventory.json',inventory);save('read_receipts.json',reads)
+          save('audit_receipt.json',{'started_at_ms':started,'finished_at_ms':int(time.time()*1000),'actual_ack_records':len(history['records']),'candle_responses':len(inventory),'invalid_candle_responses':sum(r['status']!='NATIVE_RESPONSE_VALID' for r in inventory),'errors':errors,'production_modified':False,'orders_sent':False,'telegram_sent':False})
+          print('V48_ACTUAL_ALERT_AUDIT',json.dumps({'ack':len(history['records']),'candles':len(inventory),'invalid':sum(r['status']!='NATIVE_RESPONSE_VALID' for r in inventory),'errors':errors}))
+          PY
+      - name: Preserve exact evidence hashes including unavailable inputs
+        if: always()
+        run: |
+          python - <<'PY'
+          import hashlib,json
+          from pathlib import Path
+          p=Path('v48_audit');m={str(f.relative_to(p)):{'bytes':f.stat().st_size,'sha256':hashlib.sha256(f.read_bytes()).hexdigest()} for f in p.rglob('*') if f.is_file()}
+          (p/'manifest.json').write_text(json.dumps(m,indent=2))
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: v48-actual-alert-causal-audit
+          path: v48_audit/
+          retention-days: 30
+          if-no-files-found: error
