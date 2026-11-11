@@ -1,6 +1,6 @@
 {
   "version": "V43_ACTUAL_ACK_STREAM_QUOTES_V1",
-  "asof_ms": 1794390175512,
+  "asof_ms": 1794390472883,
   "target_tolerance_ms": 5000,
   "events": [
     {
@@ -5718,15 +5718,32 @@
           "liquidity_size_and_fills_verified": false
         },
         "60": {
-          "status": "PENDING_HORIZON",
+          "status": "MEASURED_WS_QUOTE",
           "target_ms": 1794390394321,
-          "actual_execution_verified": false
+          "target_delay_ms": 28,
+          "provider_at_ms": 1794390394349,
+          "provider_sequence": "666677877351",
+          "received_at_ms": 1794390394425,
+          "source_segment": "bitget:42997316856-1:c0f7b621-b26d-4994-81a8-a5b1d3497e5c",
+          "entry_reference": 0.03871,
+          "exit_quote": {
+            "bid": 0.03799,
+            "ask": 0.03802,
+            "at_ms": 1794390394349,
+            "at_us": 1794390394349000
+          },
+          "signed_quote_return_pct": -1.8599845001291637,
+          "signed_mid_change_pct": -1.7323852617970315,
+          "after_assumed_0_20pct_cost": -2.059984500129164,
+          "fee_schedule_verified": false,
+          "actual_execution_verified": false,
+          "liquidity_size_and_fills_verified": false
         }
       },
       "observed_path": {
-        "quote_observations": 10276,
+        "quote_observations": 10310,
         "first_quote_ms": 1794386845005,
-        "last_quote_ms": 1794390175394,
+        "last_quote_ms": 1794390399134,
         "coverage_start_delay_ms": 50684,
         "max_observed_quote_gap_ms": 253778,
         "segments": [
@@ -5740,7 +5757,8 @@
           "bitget:42994520483-1:27ffdc0c-efef-4836-b250-c51265e71b30",
           "bitget:42995219495-1:9a757a71-592f-4c03-9fd9-a71f672a24f4",
           "bitget:42995911915-1:b4edab71-73ca-4064-900a-948925a90f9c",
-          "bitget:42996636567-1:944ee05c-8c92-4285-8fa9-e1a20b1260b4"
+          "bitget:42996636567-1:944ee05c-8c92-4285-8fa9-e1a20b1260b4",
+          "bitget:42997316856-1:c0f7b621-b26d-4994-81a8-a5b1d3497e5c"
         ],
         "max_favorable_pct": 0.10333247222940045,
         "max_adverse_pct": -4.546628778093531,
@@ -5780,10 +5798,10 @@
         "pending": 0
       },
       "60": {
-        "measured": 16,
+        "measured": 17,
         "quote_positive": 7,
         "missing": 71,
-        "pending": 1
+        "pending": 0
       }
     }
   },
