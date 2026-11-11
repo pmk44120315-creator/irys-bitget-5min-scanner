@@ -1,6 +1,6 @@
 {
   "version": "V42_COMPLETE_ACTUAL_ACK_OUTCOMES_V1",
-  "asof_ms": 1794408417549,
+  "asof_ms": 1794408729866,
   "source": "PUBLIC_WORKER_RETAINED_ACTUAL_ACK_RECORDS_AND_OFFICIAL_NATIVE_CANDLES",
   "events": [
     {
@@ -9704,7 +9704,26 @@
       "reference_quote_age_ms": 2070,
       "outcomes": {
         "5": {
-          "status": "PENDING_HORIZON"
+          "status": "MEASURED_MINUTE_CLOSE_PROXY",
+          "target_ms": 1794408394278,
+          "closed_at_ms": 1794408420000,
+          "target_offset_ms": 25722,
+          "horizon_reference": "FIRST_CLOSED_MINUTE_AT_OR_AFTER_TARGET",
+          "direction": "SHORT",
+          "reference_entry_bid_or_ask": 0.06753,
+          "target_close": 0.06751,
+          "signed_price_pct": 0.029616466755522097,
+          "positive_direction": true,
+          "scenario_after_0_20pct_cost": -0.1703835332444779,
+          "actual_execution_verified": false,
+          "path_minutes_observed": 5,
+          "path_minutes_expected": 5,
+          "max_favorable_pct": 0.4886717014660258,
+          "max_adverse_pct": -0.11846586702206618,
+          "first_reference_break_close_ms": null,
+          "path_scope": "FULL_POST_ACK_MINUTES_ONLY",
+          "intraminute_order_known": false,
+          "observed_extrema_are_bounds_not_complete_tick_path": true
         },
         "15": {
           "status": "PENDING_HORIZON"
@@ -9723,19 +9742,19 @@
     "invalid": 0,
     "conflicts": 0,
     "provider_errors": 0,
-    "new_events": 1,
-    "labels_added": 0
+    "new_events": 0,
+    "labels_added": 1
   },
   "summary": {
     "actual_ack_records": 92,
     "horizons": {
       "5": {
-        "measured": 91,
-        "directional_positive": 30,
+        "measured": 92,
+        "directional_positive": 31,
         "flat": 0,
-        "pending": 1,
+        "pending": 0,
         "missing": 0,
-        "mean_signed_price_pct": -0.3011569132895943
+        "mean_signed_price_pct": -0.29756155046301697
       },
       "15": {
         "measured": 91,
