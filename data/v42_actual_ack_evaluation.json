@@ -1,6 +1,6 @@
 {
   "version": "V42_COMPLETE_ACTUAL_ACK_OUTCOMES_V1",
-  "asof_ms": 1794385316760,
+  "asof_ms": 1794385609591,
   "source": "PUBLIC_WORKER_RETAINED_ACTUAL_ACK_RECORDS_AND_OFFICIAL_NATIVE_CANDLES",
   "events": [
     {
@@ -9170,23 +9170,54 @@
         }
       },
       "invalidation_reference": 0.06795
+    },
+    {
+      "id": "bithumb:KRW-MPLX:1794385589360",
+      "venue": "bithumb",
+      "symbol": "KRW-MPLX",
+      "direction": "BUY",
+      "issued_at_ms": 1794385589360,
+      "entry_quote": {
+        "bid": 93.1,
+        "ask": 93.11,
+        "at_ms": 1794385588176
+      },
+      "api_ack_recorded": true,
+      "actual_execution_verified": false,
+      "dispatch_revalidated": true,
+      "reference_quote_age_ms": 1184,
+      "outcomes": {
+        "5": {
+          "status": "PENDING_HORIZON"
+        },
+        "15": {
+          "status": "PENDING_HORIZON"
+        },
+        "30": {
+          "status": "PENDING_HORIZON"
+        },
+        "60": {
+          "status": "PENDING_HORIZON"
+        }
+      },
+      "invalidation_reference": 91.97
     }
   ],
   "diagnostics": {
     "invalid": 0,
     "conflicts": 0,
     "provider_errors": 0,
-    "new_events": 0,
+    "new_events": 1,
     "labels_added": 0
   },
   "summary": {
-    "actual_ack_records": 86,
+    "actual_ack_records": 87,
     "horizons": {
       "5": {
         "measured": 86,
         "directional_positive": 29,
         "flat": 0,
-        "pending": 0,
+        "pending": 1,
         "missing": 0,
         "mean_signed_price_pct": -0.2656952018761939
       },
@@ -9194,7 +9225,7 @@
         "measured": 86,
         "directional_positive": 41,
         "flat": 0,
-        "pending": 0,
+        "pending": 1,
         "missing": 0,
         "mean_signed_price_pct": 0.037785212738682
       },
@@ -9202,7 +9233,7 @@
         "measured": 86,
         "directional_positive": 40,
         "flat": 0,
-        "pending": 0,
+        "pending": 1,
         "missing": 0,
         "mean_signed_price_pct": 0.22037113817990234
       },
@@ -9210,14 +9241,14 @@
         "measured": 86,
         "directional_positive": 41,
         "flat": 0,
-        "pending": 0,
+        "pending": 1,
         "missing": 0,
         "mean_signed_price_pct": 1.057681567429585
       }
     },
     "all_time_capture_complete": false,
     "actual_execution_verified": false,
-    "new_dispatch_revalidated": 17,
+    "new_dispatch_revalidated": 18,
     "legacy_quote_basis": 69
   },
   "telegram_sent": false,
