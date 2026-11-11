@@ -1,0 +1,83 @@
+name: V48 original prospective response comparison inputs (NO LIVE CHANGE)
+on:
+  push:
+    branches: [feature/irys-v48-direction-audit-20261112]
+    paths: ['.github/workflows/v48-paired-response-audit.yml']
+permissions:
+  contents: read
+  actions: read
+jobs:
+  recover:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/download-artifact@v4
+        with:
+          name: v48-actual-alert-causal-audit
+          run-id: 43072658716
+          github-token: ${{ github.token }}
+          path: initial
+      - name: Retrieve immutable original generations and independent post-target candles
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p v48_response/packets v48_response/candles
+          python - <<'PY'
+          import json,time,datetime,urllib.request,urllib.parse,hashlib,concurrent.futures
+          from pathlib import Path
+          import os
+          out=Path('v48_response');state=json.loads(Path('initial/data/v36_shadow_state.json').read_text());events=state['events'];repo='pmk44120315-creator/irys-bitget-5min-scanner';api='https://api.github.com/repos/'+repo;raw='https://raw.githubusercontent.com/'+repo
+          def save(n,d):(out/n).write_text(json.dumps(d,separators=(',',':'),allow_nan=False))
+          def get(u):
+            h={'Accept':'application/json','User-Agent':'IRYS-V48-original-packet-replay'}
+            if u.startswith(api+'/'):h['Authorization']='Bearer '+os.environ['GITHUB_TOKEN']
+            with urllib.request.urlopen(urllib.request.Request(u,headers=h),timeout=25) as r:return json.load(r)
+          iso=lambda t:datetime.datetime.fromtimestamp(t/1000,datetime.timezone.utc).isoformat()
+          times={e['created_from_public_packet_at_ms'] for e in events};start=min(times)-600000;end=max(e['issued_at_ms'] for e in events);commits=[];page=1
+          while True:
+            r=get(api+'/commits?'+urllib.parse.urlencode({'path':'data/v30_direction_latest.json','sha':'main','since':iso(start),'until':iso(end),'per_page':100,'page':page}));commits+=r
+            if len(r)<100:break
+            page+=1
+          receipts=[]
+          def packet(c):
+            try:
+              p=get(raw+'/'+c['sha']+'/data/v30_direction_latest.json')
+              if p.get('at_ms') not in times:return {'sha':c['sha'],'status':'OTHER_GENERATION'}
+              name='packets/'+c['sha']+'.json';save(name,p)
+              return {'sha':c['sha'],'status':'RECOVERED','file':name,'at_ms':p['at_ms'],'published_at':c['commit']['committer']['date']}
+            except Exception as e:return {'sha':c['sha'],'status':'UNAVAILABLE','type':type(e).__name__}
+          with concurrent.futures.ThreadPoolExecutor(max_workers=4) as pool:receipts=list(pool.map(packet,commits))
+          save('packet_receipts.json',receipts);save('state.json',state)
+          # Broad discovery-independent response eligibility; not selected on future results.
+          selected=[e for e in events if e.get('direction_response',{}).get('hypotheses',{}).get('price_response') not in (None,'NO_BUY') or e.get('baseline_ready')]
+          candles=[]
+          for e in selected:
+            t=e['issued_at_ms'];v=e['venue'];s=e['symbol'];end=((t+61*60000)//60000+1)*60000
+            args={'symbol':s,'productType':'USDT-FUTURES','granularity':'1m','endTime':end,'limit':200} if v=='bitget' else {'market':s,'count':200,'to':datetime.datetime.fromtimestamp(end/1000+32400,datetime.timezone.utc).strftime('%Y-%m-%dT%H:%M:%S')}
+            u=('https://api.bitget.com/api/v2/mix/market/history-candles' if v=='bitget' else 'https://api.bithumb.com/v1/candles/minutes/1')+'?'+urllib.parse.urlencode(args)
+            time.sleep(.35);name='candles/'+v+'_'+s+'_'+str(t)+'.json'
+            try:
+              d=get(u);save(name,{'event_id':e['id'],'received_at_ms':int(time.time()*1000),'response':d});candles.append({'id':e['id'],'file':name,'status':'RECEIVED'})
+            except Exception as err:candles.append({'id':e['id'],'status':'UNAVAILABLE','type':type(err).__name__})
+          save('candle_receipts.json',candles)
+          save('receipt.json',{'source_events':len(events),'original_generations':len(times),'recovered_packets':sum(x['status']=='RECOVERED' for x in receipts),'comparison_events':len(selected),'candle_responses':sum(x['status']=='RECEIVED' for x in candles),'selection_uses_outcomes':False,'telegram_sent':False,'orders_sent':False,'production_modified':False})
+          print((out/'receipt.json').read_text())
+          PY
+      - name: Preserve input identity and missing sources
+        if: always()
+        run: |
+          python - <<'PY'
+          import json,hashlib
+          from pathlib import Path
+          p=Path('v48_response');m={str(f.relative_to(p)):{'bytes':f.stat().st_size,'sha256':hashlib.sha256(f.read_bytes()).hexdigest()} for f in p.rglob('*') if f.is_file()}
+          (p/'manifest.json').write_text(json.dumps(m,indent=2))
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: v48-original-response-replay-inputs
+          path: v48_response/
+          retention-days: 30
+          if-no-files-found: error
