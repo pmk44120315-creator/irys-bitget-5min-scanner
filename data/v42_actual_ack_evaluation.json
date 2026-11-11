@@ -1,6 +1,6 @@
 {
   "version": "V42_COMPLETE_ACTUAL_ACK_OUTCOMES_V1",
-  "asof_ms": 1794390407855,
+  "asof_ms": 1794390709693,
   "source": "PUBLIC_WORKER_RETAINED_ACTUAL_ACK_RECORDS_AND_OFFICIAL_NATIVE_CANDLES",
   "events": [
     {
@@ -9361,7 +9361,26 @@
           "observed_extrema_are_bounds_not_complete_tick_path": true
         },
         "60": {
-          "status": "PENDING_HORIZON"
+          "status": "MEASURED_MINUTE_CLOSE_PROXY",
+          "target_ms": 1794390394321,
+          "closed_at_ms": 1794390420000,
+          "target_offset_ms": 25679,
+          "horizon_reference": "FIRST_CLOSED_MINUTE_AT_OR_AFTER_TARGET",
+          "direction": "LONG",
+          "reference_entry_bid_or_ask": 0.03871,
+          "target_close": 0.03772,
+          "signed_price_pct": -2.5574786876776168,
+          "positive_direction": false,
+          "scenario_after_0_20pct_cost": -2.757478687677617,
+          "actual_execution_verified": false,
+          "path_minutes_observed": 60,
+          "path_minutes_expected": 60,
+          "max_favorable_pct": 0.30999741668820135,
+          "max_adverse_pct": -4.44329630586412,
+          "first_reference_break_close_ms": 1794386880000,
+          "path_scope": "FULL_POST_ACK_MINUTES_ONLY",
+          "intraminute_order_known": false,
+          "observed_extrema_are_bounds_not_complete_tick_path": true
         }
       },
       "invalidation_reference": 0.03844
@@ -9372,7 +9391,7 @@
     "conflicts": 0,
     "provider_errors": 0,
     "new_events": 0,
-    "labels_added": 0
+    "labels_added": 1
   },
   "summary": {
     "actual_ack_records": 88,
@@ -9402,12 +9421,12 @@
         "mean_signed_price_pct": 0.23222156767926042
       },
       "60": {
-        "measured": 87,
+        "measured": 88,
         "directional_positive": 42,
         "flat": 0,
-        "pending": 1,
+        "pending": 0,
         "missing": 0,
-        "mean_signed_price_pct": 1.0500918878461274
+        "mean_signed_price_pct": 1.0090967676697213
       }
     },
     "all_time_capture_complete": false,
