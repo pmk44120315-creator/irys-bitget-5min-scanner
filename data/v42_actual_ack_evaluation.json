@@ -1,6 +1,6 @@
 {
   "version": "V42_COMPLETE_ACTUAL_ACK_OUTCOMES_V1",
-  "asof_ms": 1794422816884,
+  "asof_ms": 1794423118530,
   "source": "PUBLIC_WORKER_RETAINED_ACTUAL_ACK_RECORDS_AND_OFFICIAL_NATIVE_CANDLES",
   "events": [
     {
@@ -9852,7 +9852,26 @@
           "observed_extrema_are_bounds_not_complete_tick_path": true
         },
         "15": {
-          "status": "PENDING_HORIZON"
+          "status": "MEASURED_MINUTE_CLOSE_PROXY",
+          "target_ms": 1794422794493,
+          "closed_at_ms": 1794422820000,
+          "target_offset_ms": 25507,
+          "horizon_reference": "FIRST_CLOSED_MINUTE_AT_OR_AFTER_TARGET",
+          "direction": "LONG",
+          "reference_entry_bid_or_ask": 1.05988,
+          "target_close": 1.06867,
+          "signed_price_pct": 0.8293391704721431,
+          "positive_direction": true,
+          "scenario_after_0_20pct_cost": 0.6293391704721432,
+          "actual_execution_verified": false,
+          "path_minutes_observed": 15,
+          "path_minutes_expected": 15,
+          "max_favorable_pct": 1.9285202098350718,
+          "max_adverse_pct": -0.10001132203644181,
+          "first_reference_break_close_ms": null,
+          "path_scope": "FULL_POST_ACK_MINUTES_ONLY",
+          "intraminute_order_known": false,
+          "observed_extrema_are_bounds_not_complete_tick_path": true
         },
         "30": {
           "status": "PENDING_HORIZON"
@@ -9869,7 +9888,7 @@
     "conflicts": 0,
     "provider_errors": 0,
     "new_events": 0,
-    "labels_added": 0
+    "labels_added": 1
   },
   "summary": {
     "actual_ack_records": 93,
@@ -9883,12 +9902,12 @@
         "mean_signed_price_pct": -0.2786369132642355
       },
       "15": {
-        "measured": 92,
-        "directional_positive": 44,
+        "measured": 93,
+        "directional_positive": 45,
         "flat": 0,
-        "pending": 1,
+        "pending": 0,
         "missing": 0,
-        "mean_signed_price_pct": 0.09960177653647381
+        "mean_signed_price_pct": 0.10744841518094338
       },
       "30": {
         "measured": 92,
