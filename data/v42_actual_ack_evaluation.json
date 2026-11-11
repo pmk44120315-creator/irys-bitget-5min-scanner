@@ -1,6 +1,6 @@
 {
   "version": "V42_COMPLETE_ACTUAL_ACK_OUTCOMES_V1",
-  "asof_ms": 1794384710423,
+  "asof_ms": 1794385006476,
   "source": "PUBLIC_WORKER_RETAINED_ACTUAL_ACK_RECORDS_AND_OFFICIAL_NATIVE_CANDLES",
   "events": [
     {
@@ -9147,7 +9147,26 @@
           "observed_extrema_are_bounds_not_complete_tick_path": true
         },
         "60": {
-          "status": "PENDING_HORIZON"
+          "status": "MEASURED_MINUTE_CLOSE_PROXY",
+          "target_ms": 1794384691899,
+          "closed_at_ms": 1794384720000,
+          "target_offset_ms": 28101,
+          "horizon_reference": "FIRST_CLOSED_MINUTE_AT_OR_AFTER_TARGET",
+          "direction": "LONG",
+          "reference_entry_bid_or_ask": 0.0682,
+          "target_close": 0.06821,
+          "signed_price_pct": 0.014662756598249338,
+          "positive_direction": true,
+          "scenario_after_0_20pct_cost": -0.18533724340175067,
+          "actual_execution_verified": false,
+          "path_minutes_observed": 60,
+          "path_minutes_expected": 60,
+          "max_favorable_pct": 1.5542521994134972,
+          "max_adverse_pct": -0.26392961876833265,
+          "first_reference_break_close_ms": null,
+          "path_scope": "FULL_POST_ACK_MINUTES_ONLY",
+          "intraminute_order_known": false,
+          "observed_extrema_are_bounds_not_complete_tick_path": true
         }
       },
       "invalidation_reference": 0.06795
@@ -9158,7 +9177,7 @@
     "conflicts": 0,
     "provider_errors": 0,
     "new_events": 0,
-    "labels_added": 0
+    "labels_added": 1
   },
   "summary": {
     "actual_ack_records": 86,
@@ -9188,12 +9207,12 @@
         "mean_signed_price_pct": 0.22037113817990234
       },
       "60": {
-        "measured": 85,
-        "directional_positive": 40,
+        "measured": 86,
+        "directional_positive": 41,
         "flat": 0,
-        "pending": 1,
+        "pending": 0,
         "missing": 0,
-        "mean_signed_price_pct": 1.069952376968777
+        "mean_signed_price_pct": 1.057681567429585
       }
     },
     "all_time_capture_complete": false,
