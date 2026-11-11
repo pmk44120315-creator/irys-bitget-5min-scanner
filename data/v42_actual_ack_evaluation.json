@@ -1,6 +1,6 @@
 {
   "version": "V42_COMPLETE_ACTUAL_ACK_OUTCOMES_V1",
-  "asof_ms": 1794411713912,
+  "asof_ms": 1794412017381,
   "source": "PUBLIC_WORKER_RETAINED_ACTUAL_ACK_RECORDS_AND_OFFICIAL_NATIVE_CANDLES",
   "events": [
     {
@@ -9789,7 +9789,26 @@
           "observed_extrema_are_bounds_not_complete_tick_path": true
         },
         "60": {
-          "status": "PENDING_HORIZON"
+          "status": "MEASURED_MINUTE_CLOSE_PROXY",
+          "target_ms": 1794411694278,
+          "closed_at_ms": 1794411720000,
+          "target_offset_ms": 25722,
+          "horizon_reference": "FIRST_CLOSED_MINUTE_AT_OR_AFTER_TARGET",
+          "direction": "SHORT",
+          "reference_entry_bid_or_ask": 0.06753,
+          "target_close": 0.06747,
+          "signed_price_pct": 0.08884940026655519,
+          "positive_direction": true,
+          "scenario_after_0_20pct_cost": -0.11115059973344482,
+          "actual_execution_verified": false,
+          "path_minutes_observed": 60,
+          "path_minutes_expected": 60,
+          "max_favorable_pct": 1.5104398045313272,
+          "max_adverse_pct": -1.8510291722197314,
+          "first_reference_break_close_ms": 1794409260000,
+          "path_scope": "FULL_POST_ACK_MINUTES_ONLY",
+          "intraminute_order_known": false,
+          "observed_extrema_are_bounds_not_complete_tick_path": true
         }
       },
       "invalidation_reference": 0.06771
@@ -9800,7 +9819,7 @@
     "conflicts": 0,
     "provider_errors": 0,
     "new_events": 0,
-    "labels_added": 0
+    "labels_added": 1
   },
   "summary": {
     "actual_ack_records": 92,
@@ -9830,12 +9849,12 @@
         "mean_signed_price_pct": 0.20131810465257652
       },
       "60": {
-        "measured": 91,
-        "directional_positive": 43,
+        "measured": 92,
+        "directional_positive": 44,
         "flat": 0,
-        "pending": 1,
+        "pending": 0,
         "missing": 0,
-        "mean_signed_price_pct": 0.9440371892278224
+        "mean_signed_price_pct": 0.9347416697825912
       }
     },
     "all_time_capture_complete": false,
