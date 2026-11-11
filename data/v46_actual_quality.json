@@ -1,10 +1,10 @@
 {
   "version": "V46_ACTUAL_DELIVERY_QUALITY_V1",
-  "asof_ms": 1794385636357,
+  "asof_ms": 1794385937828,
   "input_asof_ms": {
-    "history": 1794385589642,
-    "minute": 1794385609591,
-    "quotes": 1794385367170
+    "history": 1794385886816,
+    "minute": 1794385909463,
+    "quotes": 1794385677192
   },
   "diagnostics": {
     "invalid_ack": 0,
@@ -23,8 +23,8 @@
             "positive": 29,
             "negative": 57,
             "flat": 0,
-            "pending": 1,
-            "missing": 0,
+            "pending": 0,
+            "missing": 1,
             "mean_pct": -0.21635767223789168,
             "median_pct": -0.3567336601046023
           },
@@ -33,8 +33,8 @@
             "positive": 8,
             "negative": 7,
             "flat": 0,
-            "pending": 1,
-            "missing": 71,
+            "pending": 0,
+            "missing": 72,
             "mean_pct": -0.13045973564259444,
             "median_pct": 0.025171577692838915,
             "mean_after_assumed_0_20pct_cost": -0.33045973564259445,
@@ -635,8 +635,8 @@
             "positive": 0,
             "negative": 0,
             "flat": 0,
-            "pending": 1,
-            "missing": 0,
+            "pending": 0,
+            "missing": 1,
             "mean_pct": null,
             "median_pct": null
           },
@@ -645,8 +645,8 @@
             "positive": 0,
             "negative": 0,
             "flat": 0,
-            "pending": 1,
-            "missing": 0,
+            "pending": 0,
+            "missing": 1,
             "mean_pct": null,
             "median_pct": null,
             "mean_after_assumed_0_20pct_cost": null,
@@ -5477,8 +5477,8 @@
           "target_ms": 1794385889360,
           "closed_price_direction_pct": null,
           "executable_quote_return_pct": null,
-          "closed_price_status": "PENDING",
-          "executable_quote_status": "PENDING",
+          "closed_price_status": "MISSING",
+          "executable_quote_status": "MISSING",
           "actual_execution_verified": false
         },
         "15": {
@@ -5505,6 +5505,13 @@
           "executable_quote_status": "PENDING",
           "actual_execution_verified": false
         }
+      },
+      "observed_path": {
+        "max_adverse_pct": -2.5024164966168994,
+        "max_favorable_pct": -0.12887981956826167,
+        "coverage_start_delay_ms": 58587,
+        "max_observed_quote_gap_ms": 195,
+        "complete_tick_path_verified": false
       }
     }
   ],
