@@ -1,10 +1,10 @@
 {
   "version": "V46_ACTUAL_DELIVERY_QUALITY_V1",
-  "asof_ms": 1794422238134,
+  "asof_ms": 1794422544398,
   "input_asof_ms": {
-    "history": 1794422186338,
-    "minute": 1794422210721,
-    "quotes": 1794421973267
+    "history": 1794422489896,
+    "minute": 1794422515126,
+    "quotes": 1794422275851
   },
   "diagnostics": {
     "invalid_ack": 0,
@@ -19,25 +19,25 @@
       "horizons": {
         "5": {
           "closed_price_direction": {
-            "measured": 92,
-            "positive": 31,
+            "measured": 93,
+            "positive": 32,
             "negative": 61,
             "flat": 0,
             "pending": 0,
-            "missing": 1,
-            "mean_pct": -0.24825796119781313,
-            "median_pct": -0.3567336601046023
+            "missing": 0,
+            "mean_pct": -0.22931763847816097,
+            "median_pct": -0.3522080736927835
           },
           "executable_quote": {
-            "measured": 21,
-            "positive": 10,
+            "measured": 22,
+            "positive": 11,
             "negative": 11,
             "flat": 0,
             "pending": 0,
-            "missing": 72,
-            "mean_pct": -0.29118532336883146,
-            "median_pct": -0.02928257686676105,
-            "mean_after_assumed_0_20pct_cost": -0.4911853233688315,
+            "missing": 71,
+            "mean_pct": -0.20705823949088972,
+            "median_pct": -0.002055499586961067,
+            "mean_after_assumed_0_20pct_cost": -0.4070582394908897,
             "fee_schedule_verified": false
           }
         },
@@ -427,25 +427,25 @@
       "horizons": {
         "5": {
           "closed_price_direction": {
-            "measured": 9,
-            "positive": 4,
+            "measured": 10,
+            "positive": 5,
             "negative": 5,
             "flat": 0,
             "pending": 0,
-            "missing": 1,
-            "mean_pct": -0.09310617663398604,
-            "median_pct": -0.26517160390939765
+            "missing": 0,
+            "mean_pct": 0.06752364620239648,
+            "median_pct": -0.10667714846444021
           },
           "executable_quote": {
-            "measured": 9,
-            "positive": 5,
+            "measured": 10,
+            "positive": 6,
             "negative": 4,
             "flat": 0,
             "pending": 0,
-            "missing": 1,
-            "mean_pct": -0.1375420183998831,
-            "median_pct": 0.025171577692838915,
-            "mean_after_assumed_0_20pct_cost": -0.33754201839988307,
+            "missing": 0,
+            "mean_pct": 0.032173235634693896,
+            "median_pct": 0.07181872235745945,
+            "mean_after_assumed_0_20pct_cost": -0.1678267643653061,
             "fee_schedule_verified": false
           }
         },
@@ -5805,10 +5805,10 @@
       "horizons": {
         "5": {
           "target_ms": 1794422194493,
-          "closed_price_direction_pct": null,
-          "executable_quote_return_pct": null,
-          "closed_price_status": "MISSING",
-          "executable_quote_status": "MISSING",
+          "closed_price_direction_pct": 1.5131920517298392,
+          "executable_quote_return_pct": 1.5596105219458867,
+          "closed_price_status": "MEASURED_CLOSE_PROXY",
+          "executable_quote_status": "MEASURED_PUBLIC_BID_ASK",
           "actual_execution_verified": false
         },
         "15": {
@@ -5835,6 +5835,13 @@
           "executable_quote_status": "PENDING",
           "actual_execution_verified": false
         }
+      },
+      "observed_path": {
+        "max_adverse_pct": -0.17643506812092813,
+        "max_favorable_pct": 1.8568139789410187,
+        "coverage_start_delay_ms": 53079,
+        "max_observed_quote_gap_ms": 2203,
+        "complete_tick_path_verified": false
       }
     }
   ],
