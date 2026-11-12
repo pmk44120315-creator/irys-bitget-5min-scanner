@@ -1,0 +1,10 @@
+import assert from 'node:assert/strict';import {writeFileSync,mkdirSync} from 'node:fs';import {dirname} from 'node:path';
+import {v36NativeHistory,officialReader} from '../../deployment/v36_runner.mjs';
+import {v48LabelClose} from '../../deployment/v48_measurement.mjs';
+const now=Date.now(),M=60000,end=Math.floor(now/M)*M-120*M;
+const result=await v36NativeHistory([{venue:'bithumb',symbol:'KRW-BTC',history_end_ms:end},{venue:'bitget',symbol:'BTCUSDT',history_end_ms:end}],officialReader(),now);
+const checks=result.pages.map(p=>{assert(p.bars.length>0);assert(p.bars.every(b=>b.start_ms+M<=end));const e={venue:p.venue,symbol:p.symbol,direction:p.venue==='bithumb'?'BUY':'LONG',issued_at_ms:end-60*M,first_complete_start_ms:end-60*M,entry_price:p.bars[0].close};const o=v48LabelClose(e,p.bars,now,60);assert.equal(o.status,'MEASURED_DIRECTION');assert.equal(o.close_at_ms,end);return {venue:p.venue,symbol:p.symbol,bars:p.bars.length,first_ms:p.bars[0].start_ms,last_close_ms:p.bars.at(-1).start_ms+M,outcome:o};});
+const out={at_ms:now,source:'OFFICIAL_PUBLIC_HISTORY',errors:result.errors,checks,orders_sent:false,telegram_sent:false};
+const dest=process.argv[2]||'v48_verified/official_smoke.json';mkdirSync(dirname(dest),{recursive:true});writeFileSync(dest,JSON.stringify(out,null,2));
+assert.equal(checks.length,2,'BOTH_OFFICIAL_VENUES_MUST_HAVE_REAL_CLOSED_HISTORY');assert.equal(result.errors.length,0);
+console.log('V48_OFFICIAL_HISTORICAL_WINDOWS_VERIFIED',JSON.stringify(checks.map(x=>({venue:x.venue,bars:x.bars.length,last_close_ms:x.last_close_ms}))));

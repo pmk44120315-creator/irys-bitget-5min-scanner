@@ -1,3 +1,4 @@
+import {researchClose,cohortConvention} from './v48_downstream_clock.mjs';
 /**
  * Competing observations, frozen before outcomes are available.
  * This module has no network, Telegram, order, training or promotion capability.
@@ -49,6 +50,7 @@ function directionResponseHypotheses(observation,now){
  */
 function compareDirectionHypotheses(events,{now,horizon=5}={}){
  if(!Array.isArray(events)||!Number.isSafeInteger(now)||![5,15,30,60].includes(horizon))throw new TypeError('INVALID_COMPARISON_INPUT');
+ const horizon_reference=cohortConvention(events);
  const totals=()=>({positive:0,negative:0,flat:0,sum_signed_change_pct:0,mean_signed_change_pct:null});
  const strategies=Object.fromEntries(STRATEGIES.map(k=>[k,{supported_decisions:0,matched:0,coverage:0,decision_coverage:0,
   alternative:totals(),baseline:totals()}]));
@@ -76,9 +78,8 @@ function compareDirectionHypotheses(events,{now,horizon=5}={}){
   if(now<target){excluded.pending_horizon++;continue;}
   const label=e.direction_outcomes?.[horizon];
   if(label?.status!=='MEASURED_DIRECTION'){excluded.missing_label++;continue;}
-  // V36's existing convention is the last closed minute at/before the horizon.
-  // Keep the convention explicit; it is not exact execution at the target second.
-  const expectedClose=Math.floor(target/60000)*60000;
+  // Preserve archived semantics while accepting the explicit corrected V48 clock.
+  const expectedClose=researchClose(e,label,target);
   if(!finite(e.entry_price)||e.entry_price<=0||label.entry_quote_reference!==e.entry_price||
    !finite(label.target_close)||label.target_close<=0||label.horizon_minutes!==horizon||label.target_ms!==target||
    label.close_at_ms!==expectedClose||label.close_at_ms>now||label.close_at_ms<=e.issued_at_ms||label.actual_execution_verified!==false){
@@ -95,7 +96,7 @@ function compareDirectionHypotheses(events,{now,horizon=5}={}){
   if(s.matched){s.alternative.mean_signed_change_pct=s.alternative.sum_signed_change_pct/s.matched;s.baseline.mean_signed_change_pct=s.baseline.sum_signed_change_pct/s.matched;}
  }
  return {version:VERSION,horizon_minutes:horizon,asof_ms:now,valid_decisions,measured_records,excluded,strategies,
-  horizon_reference:'LAST_CLOSED_MINUTE_AT_OR_BEFORE_TARGET',common_price_reference_not_executable:true,
+  horizon_reference,common_price_reference_not_executable:true,
   costs_included:false,actual_telegram_ack_verified:false,independent_samples_verified:false,
   prediction_accuracy_proven:false,auto_promote:false};
 }
