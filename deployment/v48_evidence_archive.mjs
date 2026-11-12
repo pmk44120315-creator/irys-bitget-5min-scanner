@@ -3,6 +3,10 @@ import {mkdirSync,readdirSync,readFileSync,writeFileSync,renameSync,existsSync,r
 import {join} from 'node:path';
 import {createHash,randomUUID} from 'node:crypto';
 const VERSION='V48_PUBLIC_RESEARCH_ARCHIVE_V1';
+const MAX_FILE_BYTES=16*1024*1024;
+function shard(name){const m=/^(\d{4}-\d\d-\d\d)(?:\.(\d{6}))?\.jsonl$/.exec(name);return m?{day:m[1],part:m[2]===undefined?0:Number(m[2]),name}:null;}
+function shardOrder(a,b){const x=shard(a),y=shard(b);return x.day.localeCompare(y.day)||x.part-y.part;}
+function shardName(day,part){if(part>999999)throw Error('V48_ARCHIVE_SHARD_CAPACITY');return day+(part?'.'+String(part).padStart(6,'0'):'')+'.jsonl';}
 const MUTABLE=new Set(['outcomes','direction_outcomes','legacy_outcomes_v37','legacy_direction_outcomes_v36','direction_measurement_version','native_history_last_attempt_at_ms']);
 function canonical(x){
  if(typeof x==='number'&&!Number.isFinite(x))throw Error('V48_ARCHIVE_NONFINITE');
@@ -19,7 +23,7 @@ function immutable(e){return Object.fromEntries(Object.entries(e).filter(([k])=>
 function load(root){
  const latest=new Map(),identities=new Map(),seen=new Map(),files=new Map();let revisions=0;
  if(!existsSync(root))return {latest,identities,seen,files,revisions};
- for(const name of readdirSync(root).filter(n=>/^\d{4}-\d\d-\d\d\.jsonl$/.test(n)).sort()){
+ for(const name of readdirSync(root).filter(n=>shard(n)!==null).sort(shardOrder)){
   const text=readFileSync(join(root,name),'utf8');files.set(name,text);
   if(text&&!text.endsWith('\n'))throw Error('V48_ARCHIVE_TRUNCATED');
   for(const line of text.split('\n').filter(Boolean)){
@@ -35,10 +39,12 @@ function load(root){
  return {latest,identities,seen,files,revisions};
 }
 export function v48ReadArchive(root){const a=load(root);return {version:VERSION,events:[...a.latest.values()].map(r=>r.event),revisions:a.revisions,unique_events:a.latest.size};}
-export function v48ArchiveSnapshot(root,events,{now,kind}={}){
+export function v48ArchiveSnapshot(root,events,{now,kind,max_file_bytes=MAX_FILE_BYTES}={}){
+ if(!Number.isSafeInteger(max_file_bytes)||max_file_bytes<1024||max_file_bytes>MAX_FILE_BYTES)throw Error('V48_ARCHIVE_FILE_CAPACITY');
  if(!['v36','v37'].includes(kind))throw Error('V48_ARCHIVE_KIND');
  if(!Number.isSafeInteger(now)||now<0||!Array.isArray(events))throw Error('V48_ARCHIVE_CLOCK_OR_INPUT');
- const a=load(root),writes=new Map();let appended=0;
+ const a=load(root),writes=new Map(),tails=new Map(),sizes=new Map();let appended=0;
+ for(const [name,text]of a.files){const info=shard(name);sizes.set(name,Buffer.byteLength(text,'utf8'));const last=tails.get(info.day);if(!last||info.part>last.part)tails.set(info.day,info);}
  // Validate the entire batch before changing any existing archive file.
  for(const raw of events){
   const e=cleanEvent(raw),id=e.id;
@@ -49,12 +55,17 @@ export function v48ArchiveSnapshot(root,events,{now,kind}={}){
   if(a.seen.get(id)?.has(digest))continue;
   const row={version:VERSION,kind,event_id:id,identity_sha256:identity,record_sha256:digest,
    previous_record_sha256:a.latest.get(id)?.record_sha256??null,archived_at_ms:now,event:e};
-  const name=new Date(e.issued_at_ms).toISOString().slice(0,10)+'.jsonl';
-  writes.set(name,(writes.get(name)??a.files.get(name)??'')+canonical(row)+'\n');
+  const day=new Date(e.issued_at_ms).toISOString().slice(0,10),line=canonical(row)+'\n',bytes=Buffer.byteLength(line,'utf8');
+  if(bytes>max_file_bytes)throw Error('V48_ARCHIVE_RECORD_TOO_LARGE');
+  let tail=tails.get(day)??{day,part:0,name:shardName(day,0)};
+  if((sizes.get(tail.name)??0)+bytes>max_file_bytes)tail={day,part:tail.part+1,name:shardName(day,tail.part+1)};
+  tails.set(day,tail);const name=tail.name;
+  writes.set(name,(writes.get(name)??a.files.get(name)??'')+line);sizes.set(name,(sizes.get(name)??0)+bytes);
   a.identities.set(id,identity);a.latest.set(id,row);const set=a.seen.get(id)||new Set();set.add(digest);a.seen.set(id,set);appended++;
  }
  if(writes.size)mkdirSync(root,{recursive:true});
  for(const [name,text] of writes){const tmp=join(root,'.'+name+'.'+randomUUID()+'.tmp');try{writeFileSync(tmp,text,{flag:'wx'});renameSync(tmp,join(root,name));}finally{rmSync(tmp,{force:true});}}
  return {version:VERSION,kind,appended,unique_events:a.latest.size,revisions:a.revisions+appended,
+  max_new_or_extended_file_bytes:max_file_bytes,legacy_larger_files_preserved:true,
   immutable_decisions_preserved:true,prior_measurements_preserved:true,statistical_independence_proven:false};
 }
