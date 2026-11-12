@@ -1,6 +1,6 @@
 {
   "version": "V42_COMPLETE_ACTUAL_ACK_OUTCOMES_V1",
-  "asof_ms": 1794476213839,
+  "asof_ms": 1794476523835,
   "source": "PUBLIC_WORKER_RETAINED_ACTUAL_ACK_RECORDS_AND_OFFICIAL_NATIVE_CANDLES",
   "events": [
     {
@@ -10088,7 +10088,8 @@
           "observed_extrema_are_bounds_not_complete_tick_path": true
         },
         "30": {
-          "status": "PENDING_HORIZON"
+          "status": "MISSING_OFFICIAL_CLOSED_MINUTE",
+          "target_ms": 1794476489181
         },
         "60": {
           "status": "PENDING_HORIZON"
@@ -10127,8 +10128,8 @@
         "measured": 94,
         "directional_positive": 44,
         "flat": 0,
-        "pending": 1,
-        "missing": 0,
+        "pending": 0,
+        "missing": 1,
         "mean_signed_price_pct": 0.18518440771350103
       },
       "60": {
