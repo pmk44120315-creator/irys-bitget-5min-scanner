@@ -1,0 +1,66 @@
+name: V48 source preservation and baseline (no production changes)
+on:
+  push:
+    branches: [upgrade/irys-v48-evidence-20261113]
+    paths: ['.github/workflows/v48-source-baseline.yml']
+permissions:
+  contents: read
+jobs:
+  baseline:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Preserve exact baseline source and frozen data branches
+        run: |
+          set -euo pipefail
+          mkdir -p v48_baseline
+          git rev-parse HEAD > v48_baseline/source_commit.txt
+          git archive --format=zip --output=v48_baseline/source.zip HEAD
+          git fetch --quiet --depth=1 origin data/irys-v39-ack-feedback
+          git rev-parse FETCH_HEAD > v48_baseline/ack_commit.txt
+          git archive --format=zip --output=v48_baseline/ack_data.zip FETCH_HEAD data
+          git fetch --quiet --depth=1 origin data/irys-v43-stream-evidence
+          git rev-parse FETCH_HEAD > v48_baseline/stream_commit.txt
+          git archive --format=zip --output=v48_baseline/stream_data.zip FETCH_HEAD data
+      - name: Current stdlib regression without environment dependencies
+        id: python
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          python -S -m unittest discover -s tests -v 2>&1 | tee v48_baseline/python_baseline.log
+      - name: Current noncompiled measurement and stream regression
+        id: node
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          node --test tests/test_v36*.mjs tests/test_v37*.mjs tests/test_v38*.mjs tests/test_v39*.mjs tests/test_v42_ack_feedback.mjs tests/test_v43*.mjs tests/test_v47*.mjs 2>&1 | tee v48_baseline/node_baseline.log
+      - name: Preserve explicit outcomes and content hashes
+        if: always()
+        env:
+          PYTHON_OUTCOME: ${{ steps.python.outcome }}
+          NODE_OUTCOME: ${{ steps.node.outcome }}
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import hashlib,json,os
+          p=Path('v48_baseline');p.mkdir(exist_ok=True)
+          (p/'outcomes.json').write_text(json.dumps({'python':os.environ['PYTHON_OUTCOME'],'node':os.environ['NODE_OUTCOME'],'production_modified':False},indent=2))
+          m={f.name:{'bytes':f.stat().st_size,'sha256':hashlib.sha256(f.read_bytes()).hexdigest()} for f in p.iterdir() if f.is_file()}
+          (p/'manifest.json').write_text(json.dumps(m,indent=2))
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: v48-source-and-baseline
+          path: v48_baseline/
+          retention-days: 30
+          if-no-files-found: error
+      - name: Do not mark failed baseline tests as passed
+        if: steps.python.outcome != 'success' || steps.node.outcome != 'success'
+        run: exit 1
