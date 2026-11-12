@@ -1,0 +1,70 @@
+name: V48 apply reviewed source to isolated branch (NO DEPLOY)
+on:
+  push:
+    branches: [upgrade/irys-v48-evidence-20261113]
+    paths: ['.github/workflows/v48-apply-reviewed-source.yml']
+permissions:
+  contents: write
+concurrency:
+  group: v48-isolated-reviewed-source-writer
+  cancel-in-progress: false
+jobs:
+  apply:
+    if: github.ref == 'refs/heads/upgrade/irys-v48-evidence-20261113'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Validate complete delta and every original blob before editing
+        run: |
+          set -euo pipefail
+          mkdir -p v48_apply_proof
+          python - <<'PY'
+          import base64,lzma,json,hashlib,subprocess
+          from pathlib import Path,PurePosixPath
+          files=sorted(Path('verification/v48/delta').glob('part*.b64'))
+          assert len(files)==6
+          encoded=''.join(p.read_text().strip() for p in files)
+          raw=lzma.decompress(base64.b64decode(encoded,validate=True))
+          assert hashlib.sha256(raw).hexdigest()=='7bd352c8cc46dcfab0724879ff02797168addb45eb7ef12316b01ef4bebd0d74','SOURCE_DELTA_HASH_MISMATCH'
+          d=json.loads(raw);assert d['version']=='V48_VERIFIED_DELTA_V1' and len(d['files'])==23
+          paths=set();approved=[]
+          for f in d['files']:
+            p=f['path'];q=PurePosixPath(p)
+            assert not q.is_absolute() and '..' not in q.parts and p not in paths
+            paths.add(p)
+            assert p.startswith(('deployment/v36','deployment/v37','deployment/v48','verification/v48/','.github/workflows/'))
+            b=f['content'].encode();assert hashlib.sha256(b).hexdigest()==f['sha256']
+            if p.startswith('.github/'):continue
+            old=subprocess.run(['git','rev-parse','HEAD:'+p],capture_output=True,text=True)
+            actual=old.stdout.strip() if old.returncode==0 else None
+            assert actual==f['expected_old_blob'],(p,actual,f['expected_old_blob'])
+            approved.append(f)
+          for f in approved:
+            p=Path(f['path']);p.parent.mkdir(parents=True,exist_ok=True);p.write_text(f['content'])
+          Path('v48_apply_proof/manifest.json').write_text(json.dumps({'delta_sha256':hashlib.sha256(raw).hexdigest(),'files':[{k:f[k] for k in ['path','expected_old_blob','sha256']} for f in approved],'workflow_files_deferred_to_connector':True,'production_modified':False},indent=2))
+          Path('v48_apply_proof/paths.txt').write_text('\n'.join(f['path'] for f in approved)+'\n')
+          PY
+      - name: Test complete actual research modules before committing the branch
+        run: |
+          set -euo pipefail
+          node --test verification/v48/test*.mjs tests/test_v36*.mjs tests/test_v37*.mjs tests/test_v38*.mjs | tee v48_apply_proof/targeted_tests.log
+          python -m py_compile verification/v48/reconstruct_fixtures.py
+      - name: Commit only reviewed code without force, main writes or production secrets
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          while IFS= read -r p; do git add -- "$p"; done < v48_apply_proof/paths.txt
+          git commit -m 'fix(V48): causal closed-minute labels, full historical recovery and append-only evidence'
+          git push origin HEAD:upgrade/irys-v48-evidence-20261113
+          git rev-parse HEAD > v48_apply_proof/commit.txt
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: v48-applied-reviewed-source
+          path: v48_apply_proof/
+          retention-days: 30
+          if-no-files-found: error
