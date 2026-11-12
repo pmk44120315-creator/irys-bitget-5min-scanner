@@ -1,0 +1,152 @@
+name: V48 full production regression and evidence (NO DEPLOY)
+on:
+  push:
+    branches: [upgrade/irys-v48-evidence-20261113]
+    paths: ['.github/workflows/v48-full-regression.yml','verification/v48/run-ci.txt']
+permissions:
+  contents: read
+  actions: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    env:
+      OPENBLAS_NUM_THREADS: '1'
+      OMP_NUM_THREADS: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Preserve exact source before running any verification
+        run: |
+          mkdir -p v48_verified
+          git rev-parse HEAD > v48_verified/source_commit.txt
+          git archive --format=zip --output=v48_verified/source.zip HEAD
+      - run: python -m pip install 'numpy==2.3.5' 'scikit-learn==1.8.0' 'PyYAML==6.0.2'
+      - name: Fetch original compiled production fixtures through read-only Actions access
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh run download 42564939375 -n v45-resumed-live-deployment-proof -D /tmp/v45
+          gh run download 42642722251 -n v46-native-rsi-diagnosis -D /tmp/native
+          gh run download 42466573774 -n v421-transport-verified-proof -D /tmp/v421
+          gh run download 42459877506 -n v42-live-dispatch-upgrade-proof -D /tmp/v42
+          gh run download 42156639897 -n v351-delivery-first-production-proof -D /tmp/v351
+          gh run download 42083867409 -n v35-deployed-natural-proof -D /tmp/v35
+          gh run download 41814867318 -n v31-guarded-production-natural-proof -D /tmp/v31
+          gh run download 41693577194 -n v30-selective-production-natural-proof -D /tmp/v30
+          gh run download 42791465821 -n v43-observation-42791465821-1 -D /tmp/v47-original
+      - name: Reconstruct exact unchanged production dependencies
+        run: |
+          set -euo pipefail
+          git fetch --quiet --depth=1 origin release/irys-v24-bitget-fallback-20261101
+          git show FETCH_HEAD:deployment/IRYS_V24_BITGET_FALLBACK_WORKER.mjs > /tmp/v24.mjs
+          python deployment/build_v27_worker.py /tmp/v24.mjs deployment/IRYS_V27_RESPONSE_WORKER.mjs
+          mkdir -p /tmp/v28 /tmp/v28-source
+          git fetch --quiet --depth=1 origin 91f47ac2bb3a72e90e4fc65c2e8925adbafc9a55
+          git archive FETCH_HEAD deployment | tar -x -C /tmp/v28-source
+          python /tmp/v28-source/deployment/build_v28_worker.py deployment/IRYS_V27_RESPONSE_WORKER.mjs /tmp/v28/IRYS_V28_BUILDUP_WORKER.mjs
+          echo 'e3fa2f1da6151ceb419fe5f21bf5fae8afd3db5a2d8068425f0986e64692c19d  /tmp/v28/IRYS_V28_BUILDUP_WORKER.mjs' | sha256sum -c -
+          python deployment/build_v28_worker.py deployment/IRYS_V27_RESPONSE_WORKER.mjs deployment/IRYS_V28_BUILDUP_WORKER.mjs
+          python deployment/build_v29_worker.py deployment/IRYS_V28_BUILDUP_WORKER.mjs deployment/IRYS_V29_DIRECTION_REVIEW_WORKER.mjs
+          cp /tmp/v30/IRYS_V30_SELECTIVE_DIRECTION_WORKER.mjs deployment/
+          cp /tmp/v31/IRYS_V31_TIMELY_WORKER.mjs deployment/
+          python deployment/build_v34_worker.py deployment/IRYS_V31_TIMELY_WORKER.mjs deployment/IRYS_V34_CRASH_WARNING_WORKER.mjs
+          cp /tmp/v35/IRYS_V35_LIFECYCLE_WORKER.mjs deployment/
+          cp /tmp/v351/IRYS_V351_DELIVERY_FIRST_WORKER.mjs deployment/
+          cp /tmp/v42/IRYS_V42_DISPATCH_WORKER.mjs deployment/
+          cp /tmp/v421/IRYS_V421_DISPATCH_WORKER.mjs deployment/
+          cp /tmp/v45/IRYS_V45_RSI_WORKER.mjs deployment/
+          cp /tmp/v45/release_v45_guarded.mjs deployment/
+          python deployment/build_v46_worker.py deployment/IRYS_V45_RSI_WORKER.mjs deployment/IRYS_V46_CONTEXT_WORKER.mjs
+          python deployment/build_v46_release_guard.py deployment/release_v45_guarded.mjs deployment/release_v46_guarded.mjs
+          echo '9979d4c357cbb520c4cc8f2c68b55adf93264b53d992c9c3562c82b2e1ca8bc4  deployment/IRYS_V46_CONTEXT_WORKER.mjs' | sha256sum -c -
+          echo 'e4c51066074898e8bd0eae5afec886fdb87f0ca72d501c2967a8cd72f0a2c6a9  deployment/release_v46_guarded.mjs' | sha256sum -c -
+          python - <<'PY'
+          from pathlib import Path
+          import json,zipfile
+          out=Path('verification/v46/fixtures');out.mkdir(parents=True,exist_ok=True)
+          for f in Path('/tmp/native').glob('original_*.json'):
+            d=json.loads(f.read_text());e=d['evaluation']
+            if e['source_packet_at_ms']==e['batch_packet_at_ms'] and e['published_before_ack']:
+              row={'ack':d['ack'],'batch':d['context_batch'],'publication_sha':e['publication_sha'],'published_at':e['commit_at']}
+              (out/(d['ack']['symbol']+'_original.json')).write_text(json.dumps(row,separators=(',',':')))
+          assert (out/'KRW-RSR_original.json').is_file() and (out/'KRW-MERL_original.json').is_file()
+          with zipfile.ZipFile('v48_verified/compiled_dependencies.zip','w',zipfile.ZIP_DEFLATED) as z:
+            for f in Path('deployment').glob('IRYS*.mjs'):z.write(f,str(f))
+            for f in [Path('deployment/release_v45_guarded.mjs'),Path('deployment/release_v46_guarded.mjs'),*out.glob('*.json')]:z.write(f,str(f))
+            z.write('/tmp/v24.mjs','fixtures/v24.mjs')
+            z.write('/tmp/v28/IRYS_V28_BUILDUP_WORKER.mjs','fixtures/v28_release.mjs')
+          PY
+      - name: Complete stdlib production regression
+        id: stdlib
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          python -S -m unittest discover -s tests -v 2>&1 | tee v48_verified/python.log
+      - name: Workflow and research regression
+        id: python_extra
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          python -m unittest discover -s verification/workflows -v 2>&1 | tee v48_verified/workflows.log
+          python -m unittest discover -s research/tests -v 2>&1 | tee v48_verified/research.log
+          python -m unittest discover -s ai_twin/tests -v 2>&1 | tee v48_verified/ai_twin.log
+      - name: All production modules, compiled workers and release rollback contracts
+        id: node
+        continue-on-error: true
+        env:
+          V27_BASE_WORKER: /tmp/v24.mjs
+          V28_BASE_WORKER: deployment/IRYS_V27_RESPONSE_WORKER.mjs
+          V28_RELEASE_BASE_WORKER: /tmp/v28/IRYS_V28_BUILDUP_WORKER.mjs
+          V29_BASE_WORKER: deployment/IRYS_V28_BUILDUP_WORKER.mjs
+          V30_BASE_WORKER: deployment/IRYS_V29_DIRECTION_REVIEW_WORKER.mjs
+          V34_BASE_WORKER: deployment/IRYS_V31_TIMELY_WORKER.mjs
+          V35_BASE_WORKER: deployment/IRYS_V34_CRASH_WARNING_WORKER.mjs
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          tests=(tests/*.mjs verification/v45/test*.mjs verification/v46/test*.mjs verification/v48/test*.mjs)
+          node --test "${tests[@]}" 2>&1 | tee v48_verified/node.log
+      - name: Replay original V47 incident without synthetic success
+        id: replay
+        continue-on-error: true
+        run: node verification/v47/replay_original.mjs /tmp/v47-original v48_verified/v47_original_replay.json
+      - name: Official public historical-window smoke test when present
+        id: smoke
+        continue-on-error: true
+        run: |
+          if test -f verification/v48/official_history_smoke.mjs; then
+            node verification/v48/official_history_smoke.mjs v48_verified/official_smoke.json
+          fi
+      - name: Preserve explicit results and all evidence even on failure
+        if: always()
+        env:
+          STDLIB: ${{ steps.stdlib.outcome }}
+          PYTHON_EXTRA: ${{ steps.python_extra.outcome }}
+          NODE: ${{ steps.node.outcome }}
+          REPLAY: ${{ steps.replay.outcome }}
+          SMOKE: ${{ steps.smoke.outcome }}
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import os,json,hashlib
+          p=Path('v48_verified');p.mkdir(exist_ok=True)
+          (p/'outcomes.json').write_text(json.dumps({k:os.environ[k] for k in ['STDLIB','PYTHON_EXTRA','NODE','REPLAY','SMOKE']},indent=2))
+          m={str(f.relative_to(p)):{'bytes':f.stat().st_size,'sha256':hashlib.sha256(f.read_bytes()).hexdigest()} for f in p.rglob('*') if f.is_file()}
+          (p/'manifest.json').write_text(json.dumps(m,indent=2))
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: v48-full-regression-proof
+          path: v48_verified/
+          retention-days: 30
+          if-no-files-found: error
+      - name: Enforce all required checks rather than hiding failures
+        if: steps.stdlib.outcome != 'success' || steps.python_extra.outcome != 'success' || steps.node.outcome != 'success' || steps.replay.outcome != 'success' || steps.smoke.outcome != 'success'
+        run: exit 1
