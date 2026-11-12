@@ -1,0 +1,86 @@
+name: V48 post-deployment readback (READ ONLY)
+on:
+  push:
+    branches: [upgrade/irys-v48-evidence-20261113]
+    paths: ['.github/workflows/v48-postdeploy-readback.yml']
+permissions:
+  contents: read
+  actions: read
+jobs:
+  readback:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Observe actual first production executions without dispatching anything
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p v48_deployed
+          gh run watch 43305349274 --exit-status --interval 15
+          gh run watch 43305349272 --exit-status --interval 15
+          gh api repos/${{ github.repository }}/actions/runs/43305349274 > v48_deployed/v36_run.json
+          gh api repos/${{ github.repository }}/actions/runs/43305349272 > v48_deployed/v37_run.json
+      - name: Read fresh committed outputs and validate source, state and immutable archives
+        run: |
+          set -euo pipefail
+          git fetch --quiet origin main
+          git reset --hard origin/main
+          mkdir -p v48_deployed
+          git rev-parse HEAD > v48_deployed/readback_commit.txt
+          git fetch --quiet origin 1e37cf243ac1aeec9337033d69ee52beef0ca95b
+          git diff --exit-code 1e37cf243ac1aeec9337033d69ee52beef0ca95b HEAD -- deployment/v36_paths.mjs deployment/v36_runner.mjs deployment/v36_shadow.mjs deployment/v37_compare.mjs deployment/v37_early.mjs deployment/v37_runner.mjs deployment/v48_backfill.mjs deployment/v48_evidence_archive.mjs deployment/v48_measurement.mjs deployment/v48_persistence.mjs deployment/v48_readiness_report.mjs deployment/v48_downstream_clock.mjs deployment/direction_response_research.mjs research/v39_direction_outcome_audit.mjs research/v40_frozen_features.py .github/workflows/v36-public-shadow.yml .github/workflows/v37-shadow.yml
+          node --input-type=module <<'JS'
+          import assert from 'node:assert/strict';import{readFileSync,writeFileSync}from'node:fs';import{createHash}from'node:crypto';
+          import{v48ReadArchive}from'./deployment/v48_evidence_archive.mjs';
+          const proof={checked_at:new Date().toISOString(),source_matches_tested_release:true,orders_sent:false,telegram_sent:false,cloudflare_modified:false,publications:{}};
+          for(const [kind,s,l]of[['v36','v36_shadow_state.json','v36_shadow_latest.json'],['v37','v37_early_state.json','v37_early_latest.json']]){
+            const raw=readFileSync('data/'+s),state=JSON.parse(raw),out=JSON.parse(readFileSync('data/'+l));
+            assert.equal(createHash('sha256').update(raw).digest('hex'),out.state_sha256);
+            assert.equal(state.publication.revision,out.publication.revision);
+            assert.equal(out.evidence_quality.measurement_version,'V48_CLOSED_MINUTE_AT_OR_AFTER_TARGET_V1');
+            assert.equal(out.orders_sent,false);assert.equal(out.telegram_sent,false);
+            const archive=v48ReadArchive('data/'+kind+'_archive');assert(archive.unique_events>=state.events.length);
+            proof.publications[kind]={state_sha256:out.state_sha256,publication:out.publication,hot_events:state.events.length,archive_events:archive.unique_events,archive_revisions:archive.revisions,stats:out.stats,evidence_quality:out.evidence_quality,history_errors:out.native_history_errors??out.source_errors};
+          }
+          const lease=JSON.parse(readFileSync('.github/v43_source_lease.json'));
+          for(const[p,sha]of Object.entries(lease)){const b=readFileSync(p);assert.equal(createHash('sha1').update(Buffer.concat([Buffer.from('blob '+b.length+'\0'),b])).digest('hex'),sha);}
+          proof.unchanged_v43_v47_lease_files=Object.keys(lease).length;
+          writeFileSync('v48_deployed/publication_readback.json',JSON.stringify(proof,null,2));
+          JS
+          git archive --format=zip --output=v48_deployed/production_source_and_data.zip HEAD deployment research/v39_direction_outcome_audit.mjs research/v40_frozen_features.py verification/v48 tests/test_v48_downstream_labels.py .github/workflows/v36-public-shadow.yml .github/workflows/v37-shadow.yml .github/v43_source_lease.json data/v36_shadow_state.json data/v36_shadow_latest.json data/v37_early_state.json data/v37_early_latest.json data/v36_archive data/v37_archive
+      - name: Read existing public Cloudflare health without secrets, scan or notification
+        run: |
+          python - <<'PY'
+          import json,time,urllib.request
+          from pathlib import Path
+          url='https://irys-surge-monitor.vhehwpfl.workers.dev/?v48readonly='+str(time.time_ns())
+          req=urllib.request.Request(url,headers={'Accept':'application/json','User-Agent':'IRYS-V48-readonly-release-verification'})
+          with urllib.request.urlopen(req,timeout=25) as r:
+            body=r.read();status=r.status
+          d=json.loads(body);Path('v48_deployed/cloudflare_health.json').write_bytes(body)
+          Path('v48_deployed/cloudflare_http.json').write_text(json.dumps({'status':status,'method':'GET','url':url,'secrets_used':False,'worker_modified':False,'checked_at_ms':int(time.time()*1000)},indent=2))
+          assert status==200
+          PY
+      - name: Preserve complete proof and failures without writing to production
+        if: always()
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import hashlib,json
+          p=Path('v48_deployed');p.mkdir(exist_ok=True)
+          m={str(f.relative_to(p)):{'bytes':f.stat().st_size,'sha256':hashlib.sha256(f.read_bytes()).hexdigest()} for f in p.rglob('*') if f.is_file()}
+          (p/'manifest.json').write_text(json.dumps(m,indent=2))
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: v48-production-readback-proof
+          path: v48_deployed/
+          retention-days: 30
+          if-no-files-found: error
