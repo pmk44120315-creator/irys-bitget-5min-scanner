@@ -1,0 +1,99 @@
+name: V48 downstream compatibility and complete regression (NO DEPLOY)
+on:
+  push:
+    branches: [upgrade/irys-v48-evidence-20261113]
+    paths: ['.github/workflows/v48-downstream-verify.yml']
+permissions:
+  contents: write
+  actions: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    env:
+      OPENBLAS_NUM_THREADS: '1'
+      OMP_NUM_THREADS: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install 'numpy==2.3.5' 'scikit-learn==1.8.0' 'PyYAML==6.0.2'
+      - name: Restore already hash-verified compiled dependencies without skipping tests
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p v48_downstream
+          gh run download 43298150485 -n v48-full-regression-proof -D /tmp/v48-dependencies
+          python - <<'PY'
+          import json,hashlib,zipfile
+          from pathlib import Path
+          p=Path('/tmp/v48-dependencies');m=json.loads((p/'manifest.json').read_text());f=p/'compiled_dependencies.zip'
+          assert hashlib.sha256(f.read_bytes()).hexdigest()==m['compiled_dependencies.zip']['sha256']
+          with zipfile.ZipFile(f) as z:
+            assert z.testzip() is None
+            for n in z.namelist():assert not n.startswith('/') and '..' not in Path(n).parts
+            z.extractall('.')
+          PY
+      - name: Apply reviewed compatibility delta and verify exact tested source
+        run: |
+          set -euo pipefail
+          git apply --check verification/v48/downstream_compat.patch
+          git apply verification/v48/downstream_compat.patch
+          cat <<'SUMS' | sha256sum -c -
+          cc4d5bf6f5d38b76e634466ac427266c4097ed4621ea23c314f7742b7f7c9913  deployment/direction_response_research.mjs
+          9196c4b508092c15a79d4b61fa6c7a101ee88e404c1f22d5ea24a8b4feb70335  research/v39_direction_outcome_audit.mjs
+          6ec3a8936ffe28f24c91ebe6350eeb6b7e99f4345864902c1aa8ebca0d560409  research/v40_frozen_features.py
+          e1815e11b9fb498b76443a8e1edb8417ceffc042d548a0b625491557e25f9e2d  deployment/v48_downstream_clock.mjs
+          c2fb02462e0a68613f3094fc93618c5b5f3656d0bda5ea86d56dd20686ca9286  verification/v48/test_v48_downstream.mjs
+          e37b4217b2f318a7686f2380b34b3d861168e5f6e935f3dd646c2d00404750ef  tests/test_v48_downstream_labels.py
+          SUMS
+      - name: Complete Node regression including real compiled worker contracts
+        env:
+          V27_BASE_WORKER: fixtures/v24.mjs
+          V28_BASE_WORKER: deployment/IRYS_V27_RESPONSE_WORKER.mjs
+          V28_RELEASE_BASE_WORKER: fixtures/v28_release.mjs
+          V29_BASE_WORKER: deployment/IRYS_V28_BUILDUP_WORKER.mjs
+          V30_BASE_WORKER: deployment/IRYS_V29_DIRECTION_REVIEW_WORKER.mjs
+          V34_BASE_WORKER: deployment/IRYS_V31_TIMELY_WORKER.mjs
+          V35_BASE_WORKER: deployment/IRYS_V34_CRASH_WARNING_WORKER.mjs
+        run: |
+          set -euo pipefail
+          node --test tests/*.mjs verification/v45/test*.mjs verification/v46/test*.mjs verification/v48/test*.mjs 2>&1 | tee v48_downstream/node.log
+      - name: Complete Python, workflow and research regression
+        run: |
+          set -euo pipefail
+          python -S -m unittest discover -s tests -v 2>&1 | tee v48_downstream/python.log
+          python -m unittest discover -s verification/workflows -v 2>&1 | tee v48_downstream/workflows.log
+          python -m unittest discover -s research/tests -v 2>&1 | tee v48_downstream/research.log
+          python -m unittest discover -s ai_twin/tests -v 2>&1 | tee v48_downstream/ai_twin.log
+      - name: Commit tested delta to isolated branch only
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add deployment/direction_response_research.mjs research/v39_direction_outcome_audit.mjs research/v40_frozen_features.py
+          git commit -m 'fix(V48): preserve downstream research compatibility without mixing label clocks'
+          git push origin HEAD:upgrade/irys-v48-evidence-20261113
+          git rev-parse HEAD > v48_downstream/verified_commit.txt
+          git archive --format=zip --output=v48_downstream/verified_source.zip HEAD
+      - name: Preserve source proof on success or failure
+        if: always()
+        run: |
+          mkdir -p v48_downstream
+          python - <<'PY'
+          import json,hashlib
+          from pathlib import Path
+          p=Path('v48_downstream');m={str(f.relative_to(p)):{'bytes':f.stat().st_size,'sha256':hashlib.sha256(f.read_bytes()).hexdigest()} for f in p.rglob('*') if f.is_file()}
+          (p/'manifest.json').write_text(json.dumps(m,indent=2))
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: v48-downstream-complete-regression
+          path: v48_downstream/
+          retention-days: 30
+          if-no-files-found: error

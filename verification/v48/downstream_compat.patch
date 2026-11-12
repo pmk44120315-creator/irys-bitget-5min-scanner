@@ -1,0 +1,101 @@
+diff --git a/deployment/direction_response_research.mjs b/deployment/direction_response_research.mjs
+index acc8d0d..d263bb3 100644
+--- a/deployment/direction_response_research.mjs
++++ b/deployment/direction_response_research.mjs
+@@ -1,3 +1,4 @@
++import {researchClose,cohortConvention} from './v48_downstream_clock.mjs';
+ /**
+  * Competing observations, frozen before outcomes are available.
+  * This module has no network, Telegram, order, training or promotion capability.
+@@ -49,6 +50,7 @@ function directionResponseHypotheses(observation,now){
+  */
+ function compareDirectionHypotheses(events,{now,horizon=5}={}){
+  if(!Array.isArray(events)||!Number.isSafeInteger(now)||![5,15,30,60].includes(horizon))throw new TypeError('INVALID_COMPARISON_INPUT');
++ const horizon_reference=cohortConvention(events);
+  const totals=()=>({positive:0,negative:0,flat:0,sum_signed_change_pct:0,mean_signed_change_pct:null});
+  const strategies=Object.fromEntries(STRATEGIES.map(k=>[k,{supported_decisions:0,matched:0,coverage:0,decision_coverage:0,
+   alternative:totals(),baseline:totals()}]));
+@@ -76,9 +78,8 @@ function compareDirectionHypotheses(events,{now,horizon=5}={}){
+   if(now<target){excluded.pending_horizon++;continue;}
+   const label=e.direction_outcomes?.[horizon];
+   if(label?.status!=='MEASURED_DIRECTION'){excluded.missing_label++;continue;}
+-  // V36's existing convention is the last closed minute at/before the horizon.
+-  // Keep the convention explicit; it is not exact execution at the target second.
+-  const expectedClose=Math.floor(target/60000)*60000;
++  // Preserve archived semantics while accepting the explicit corrected V48 clock.
++  const expectedClose=researchClose(e,label,target);
+   if(!finite(e.entry_price)||e.entry_price<=0||label.entry_quote_reference!==e.entry_price||
+    !finite(label.target_close)||label.target_close<=0||label.horizon_minutes!==horizon||label.target_ms!==target||
+    label.close_at_ms!==expectedClose||label.close_at_ms>now||label.close_at_ms<=e.issued_at_ms||label.actual_execution_verified!==false){
+@@ -95,7 +96,7 @@ function compareDirectionHypotheses(events,{now,horizon=5}={}){
+   if(s.matched){s.alternative.mean_signed_change_pct=s.alternative.sum_signed_change_pct/s.matched;s.baseline.mean_signed_change_pct=s.baseline.sum_signed_change_pct/s.matched;}
+  }
+  return {version:VERSION,horizon_minutes:horizon,asof_ms:now,valid_decisions,measured_records,excluded,strategies,
+-  horizon_reference:'LAST_CLOSED_MINUTE_AT_OR_BEFORE_TARGET',common_price_reference_not_executable:true,
++  horizon_reference,common_price_reference_not_executable:true,
+   costs_included:false,actual_telegram_ack_verified:false,independent_samples_verified:false,
+   prediction_accuracy_proven:false,auto_promote:false};
+ }
+diff --git a/research/v39_direction_outcome_audit.mjs b/research/v39_direction_outcome_audit.mjs
+index a1f45b8..dffacd9 100644
+--- a/research/v39_direction_outcome_audit.mjs
++++ b/research/v39_direction_outcome_audit.mjs
+@@ -1,3 +1,4 @@
++import {researchClose,cohortConvention} from '../deployment/v48_downstream_clock.mjs';
+ /** V39. Pure, read-only causal audit of already frozen public V36 direction cases.
+  * Does not generate live entries, orders, Telegram messages, or deployment permission.
+  * A quote->later candle comparison is not an executable trade or net profitability.
+@@ -61,7 +62,7 @@ function observation(e,h,asof){
+  if(asof<target)return {status:'PENDING'};
+  const label=e.direction_outcomes?.[String(h)];
+  if(!label||label.status!=='MEASURED_DIRECTION')return {status:'NO_MEASURED_CLOSE'};
+- const closeAt=Math.floor(target/MINUTE)*MINUTE;
++ const closeAt=researchClose(e,label,target);
+  if(label.target_ms!==target||label.close_at_ms!==closeAt||label.close_at_ms>asof||
+  label.close_at_ms<=e.issued_at_ms||label.horizon_minutes!==h||label.actual_execution_verified!==false||
+  label.entry_quote_reference!==e.entry_price||!finite(label.target_close)||label.target_close<=0)return {status:'INVALID_CLOSE'};
+@@ -102,6 +103,7 @@ function summarize(events,h,asof,policy,extra=()=>true){
+ }
+ function audit(events,asof){
+  if(!Array.isArray(events)||!Number.isSafeInteger(asof))throw new TypeError('INVALID_AUDIT_INPUT');
++ const horizon_reference=cohortConvention(events);
+  const ids=new Set(),conflicts=new Set(),seen=new Map();
+  for(const e of events){if(typeof e?.id!=='string'||!e.id)continue;
+   const sig=[e.venue,e.symbol,e.direction,e.issued_at_ms,e.entry_price,e.source_observed_at_ms].join('|');
+@@ -143,7 +145,7 @@ function audit(events,asof){
+  }
+  const count=method=>sorted.filter(e=>directions(e.venue,policies[method](e))).length;
+  return {
+-  version:'IRYS_V39_FROZEN_DIRECTION_CAUSAL_AUDIT_V1',asof_ms:asof,strict_input_before_outcome:true,
++  version:'IRYS_V39_FROZEN_DIRECTION_CAUSAL_AUDIT_V1',horizon_reference,asof_ms:asof,strict_input_before_outcome:true,
+   research_only:true,telegram_sent:false,orders_sent:false,live_model_changed:false,auto_promote:false,
+   actual_fills_verified:false,fee_schedule_verified:false,statistical_significance_proven:false,
+   invalid,records_total:events.length,records_eligible:sorted.length,first_issued_at_ms:min,last_issued_at_ms:max,
+diff --git a/research/v40_frozen_features.py b/research/v40_frozen_features.py
+index 076aacd..36aee3b 100644
+--- a/research/v40_frozen_features.py
++++ b/research/v40_frozen_features.py
+@@ -88,7 +88,13 @@ def labels(e,h,asof):
+     lab=e.get('direction_outcomes',{}).get(str(h),{})
+     t=e.get('issued_at_ms');bid=e.get('original_bid');ask=e.get('original_ask');entry=e.get('entry_price')
+     if not isinstance(t,int) or not all(finite(v) for v in (bid,ask,entry)) or bid<=0 or ask<bid:return None
+-    target=t+h*MIN;close_at=target//MIN*MIN;close=lab.get('target_close')
++    target=t+h*MIN;close=lab.get('target_close')
++    version='V48_CLOSED_MINUTE_AT_OR_AFTER_TARGET_V1'
++    ev=e.get('direction_measurement_version');lv=lab.get('measurement_version')
++    if ev==version and lv==version:close_at=((target+MIN-1)//MIN)*MIN;semantics=version
++    elif ev is None and lv is None:close_at=target//MIN*MIN;semantics='LEGACY_BEFORE_TARGET'
++    else:return None
++    if close_at>asof:return None
+     if asof<target or lab.get('status')!='MEASURED_DIRECTION' or lab.get('actual_execution_verified') is not False:return None
+     if lab.get('target_ms')!=target or lab.get('close_at_ms')!=close_at or lab.get('horizon_minutes')!=h:return None
+     if lab.get('entry_quote_reference')!=entry or entry!=(bid if e.get('direction')=='SHORT' else ask):return None
+@@ -97,7 +103,7 @@ def labels(e,h,asof):
+     return {'direction':1 if ret>1e-10 else -1 if ret< -1e-10 else 0,
+       'mid_to_closed_trade_bar_pct':ret,'long_quote_proxy_pct':100*(close/ask-1),
+       'short_quote_proxy_pct':100*(bid-close)/bid,'label_available_ms':target+MIN,
+-      'target_ms':target,'close_at_ms':close_at,'actual_execution_verified':False}
++      'target_ms':target,'close_at_ms':close_at,'measurement_version':semantics,'actual_execution_verified':False}
+ 
+ def time_split(rows,embargo_minutes=60):
+     unique=sorted({r['issued_at_ms'] for r in rows})
