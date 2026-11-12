@@ -13,6 +13,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: main
+          fetch-depth: 1
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
@@ -29,11 +30,11 @@ jobs:
       - name: Read fresh committed outputs and validate source, state and immutable archives
         run: |
           set -euo pipefail
-          git fetch --quiet origin main
+          git fetch --quiet --depth=1 origin main
           git reset --hard origin/main
           mkdir -p v48_deployed
           git rev-parse HEAD > v48_deployed/readback_commit.txt
-          git fetch --quiet origin 1e37cf243ac1aeec9337033d69ee52beef0ca95b
+          git fetch --quiet --depth=1 origin 1e37cf243ac1aeec9337033d69ee52beef0ca95b
           git diff --exit-code 1e37cf243ac1aeec9337033d69ee52beef0ca95b HEAD -- deployment/v36_paths.mjs deployment/v36_runner.mjs deployment/v36_shadow.mjs deployment/v37_compare.mjs deployment/v37_early.mjs deployment/v37_runner.mjs deployment/v48_backfill.mjs deployment/v48_evidence_archive.mjs deployment/v48_measurement.mjs deployment/v48_persistence.mjs deployment/v48_readiness_report.mjs deployment/v48_downstream_clock.mjs deployment/direction_response_research.mjs research/v39_direction_outcome_audit.mjs research/v40_frozen_features.py .github/workflows/v36-public-shadow.yml .github/workflows/v37-shadow.yml
           node --input-type=module <<'JS'
           import assert from 'node:assert/strict';import{readFileSync,writeFileSync}from'node:fs';import{createHash}from'node:crypto';
