@@ -1,6 +1,6 @@
 {
   "version": "V43_ACTUAL_ACK_STREAM_QUOTES_V1",
-  "asof_ms": 1794495636265,
+  "asof_ms": 1794495780844,
   "target_tolerance_ms": 5000,
   "events": [
     {
@@ -7047,9 +7047,26 @@
           "liquidity_size_and_fills_verified": false
         },
         "30": {
-          "status": "PENDING_HORIZON",
+          "status": "MEASURED_WS_QUOTE",
           "target_ms": 1794495695884,
-          "actual_execution_verified": false
+          "target_delay_ms": 1168,
+          "provider_at_ms": 1794495697052,
+          "provider_sequence": "256841327069",
+          "received_at_ms": 1794495697141,
+          "source_segment": "bitget:43242472459-1:e0d80998-cc4f-4d05-a319-f390179328cf",
+          "entry_reference": 0.06427,
+          "exit_quote": {
+            "bid": 0.06547,
+            "ask": 0.06554,
+            "at_ms": 1794495697052,
+            "at_us": 1794495697052000
+          },
+          "signed_quote_return_pct": -1.9760385872102184,
+          "signed_mid_change_pct": -1.850268211148265,
+          "after_assumed_0_20pct_cost": -2.1760385872102184,
+          "fee_schedule_verified": false,
+          "actual_execution_verified": false,
+          "liquidity_size_and_fills_verified": false
         },
         "60": {
           "status": "PENDING_HORIZON",
@@ -7058,9 +7075,9 @@
         }
       },
       "observed_path": {
-        "quote_observations": 2658,
+        "quote_observations": 2701,
         "first_quote_ms": 1794493956988,
-        "last_quote_ms": 1794495636105,
+        "last_quote_ms": 1794495777255,
         "coverage_start_delay_ms": 61104,
         "max_observed_quote_gap_ms": 255143,
         "segments": [
@@ -7068,7 +7085,8 @@
           "bitget:43238987663-1:5a2b1522-c3c3-4b2d-8051-f5d9aa8c6eb7",
           "bitget:43239854809-1:1cb363a3-9ff4-4c0e-9811-508380d76ba7",
           "bitget:43240728083-1:49981080-5057-4731-bee2-55b9d95de067",
-          "bitget:43242057946-1:e093f6ef-57f8-423d-b983-9e11d5b740ee"
+          "bitget:43242057946-1:e093f6ef-57f8-423d-b983-9e11d5b740ee",
+          "bitget:43242472459-1:e0d80998-cc4f-4d05-a319-f390179328cf"
         ],
         "max_favorable_pct": -1.2291893573984953,
         "max_adverse_pct": -2.396141278979306,
@@ -7156,9 +7174,9 @@
         }
       },
       "observed_path": {
-        "quote_observations": 7630,
+        "quote_observations": 7848,
         "first_quote_ms": 1794494218664,
-        "last_quote_ms": 1794495636164,
+        "last_quote_ms": 1794495780701,
         "coverage_start_delay_ms": 25331,
         "max_observed_quote_gap_ms": 250645,
         "segments": [
@@ -7166,10 +7184,11 @@
           "bitget:43238987663-1:5a2b1522-c3c3-4b2d-8051-f5d9aa8c6eb7",
           "bitget:43239854809-1:1cb363a3-9ff4-4c0e-9811-508380d76ba7",
           "bitget:43240728083-1:49981080-5057-4731-bee2-55b9d95de067",
-          "bitget:43242057946-1:e093f6ef-57f8-423d-b983-9e11d5b740ee"
+          "bitget:43242057946-1:e093f6ef-57f8-423d-b983-9e11d5b740ee",
+          "bitget:43242472459-1:e0d80998-cc4f-4d05-a319-f390179328cf"
         ],
         "max_favorable_pct": 0.2985268349665837,
-        "max_adverse_pct": -2.1156466999805335,
+        "max_adverse_pct": -2.225971834642093,
         "first_observed_touch": {
           "kind": "FAVORABLE_EQUAL_REFERENCE_DISTANCE",
           "at_ms": 1794494453706,
@@ -7200,10 +7219,10 @@
         "pending": 0
       },
       "30": {
-        "measured": 25,
+        "measured": 26,
         "quote_positive": 11,
         "missing": 72,
-        "pending": 2
+        "pending": 1
       },
       "60": {
         "measured": 26,
