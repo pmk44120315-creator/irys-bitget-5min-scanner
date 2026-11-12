@@ -88,7 +88,13 @@ def labels(e,h,asof):
     lab=e.get('direction_outcomes',{}).get(str(h),{})
     t=e.get('issued_at_ms');bid=e.get('original_bid');ask=e.get('original_ask');entry=e.get('entry_price')
     if not isinstance(t,int) or not all(finite(v) for v in (bid,ask,entry)) or bid<=0 or ask<bid:return None
-    target=t+h*MIN;close_at=target//MIN*MIN;close=lab.get('target_close')
+    target=t+h*MIN;close=lab.get('target_close')
+    version='V48_CLOSED_MINUTE_AT_OR_AFTER_TARGET_V1'
+    ev=e.get('direction_measurement_version');lv=lab.get('measurement_version')
+    if ev==version and lv==version:close_at=((target+MIN-1)//MIN)*MIN;semantics=version
+    elif ev is None and lv is None:close_at=target//MIN*MIN;semantics='LEGACY_BEFORE_TARGET'
+    else:return None
+    if close_at>asof:return None
     if asof<target or lab.get('status')!='MEASURED_DIRECTION' or lab.get('actual_execution_verified') is not False:return None
     if lab.get('target_ms')!=target or lab.get('close_at_ms')!=close_at or lab.get('horizon_minutes')!=h:return None
     if lab.get('entry_quote_reference')!=entry or entry!=(bid if e.get('direction')=='SHORT' else ask):return None
@@ -97,7 +103,7 @@ def labels(e,h,asof):
     return {'direction':1 if ret>1e-10 else -1 if ret< -1e-10 else 0,
       'mid_to_closed_trade_bar_pct':ret,'long_quote_proxy_pct':100*(close/ask-1),
       'short_quote_proxy_pct':100*(bid-close)/bid,'label_available_ms':target+MIN,
-      'target_ms':target,'close_at_ms':close_at,'actual_execution_verified':False}
+      'target_ms':target,'close_at_ms':close_at,'measurement_version':semantics,'actual_execution_verified':False}
 
 def time_split(rows,embargo_minutes=60):
     unique=sorted({r['issued_at_ms'] for r in rows})

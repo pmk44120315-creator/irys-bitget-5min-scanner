@@ -1,3 +1,4 @@
+import {researchClose,cohortConvention} from '../deployment/v48_downstream_clock.mjs';
 /** V39. Pure, read-only causal audit of already frozen public V36 direction cases.
  * Does not generate live entries, orders, Telegram messages, or deployment permission.
  * A quote->later candle comparison is not an executable trade or net profitability.
@@ -61,7 +62,7 @@ function observation(e,h,asof){
  if(asof<target)return {status:'PENDING'};
  const label=e.direction_outcomes?.[String(h)];
  if(!label||label.status!=='MEASURED_DIRECTION')return {status:'NO_MEASURED_CLOSE'};
- const closeAt=Math.floor(target/MINUTE)*MINUTE;
+ const closeAt=researchClose(e,label,target);
  if(label.target_ms!==target||label.close_at_ms!==closeAt||label.close_at_ms>asof||
  label.close_at_ms<=e.issued_at_ms||label.horizon_minutes!==h||label.actual_execution_verified!==false||
  label.entry_quote_reference!==e.entry_price||!finite(label.target_close)||label.target_close<=0)return {status:'INVALID_CLOSE'};
@@ -102,6 +103,7 @@ function summarize(events,h,asof,policy,extra=()=>true){
 }
 function audit(events,asof){
  if(!Array.isArray(events)||!Number.isSafeInteger(asof))throw new TypeError('INVALID_AUDIT_INPUT');
+ const horizon_reference=cohortConvention(events);
  const ids=new Set(),conflicts=new Set(),seen=new Map();
  for(const e of events){if(typeof e?.id!=='string'||!e.id)continue;
   const sig=[e.venue,e.symbol,e.direction,e.issued_at_ms,e.entry_price,e.source_observed_at_ms].join('|');
@@ -143,7 +145,7 @@ function audit(events,asof){
  }
  const count=method=>sorted.filter(e=>directions(e.venue,policies[method](e))).length;
  return {
-  version:'IRYS_V39_FROZEN_DIRECTION_CAUSAL_AUDIT_V1',asof_ms:asof,strict_input_before_outcome:true,
+  version:'IRYS_V39_FROZEN_DIRECTION_CAUSAL_AUDIT_V1',horizon_reference,asof_ms:asof,strict_input_before_outcome:true,
   research_only:true,telegram_sent:false,orders_sent:false,live_model_changed:false,auto_promote:false,
   actual_fills_verified:false,fee_schedule_verified:false,statistical_significance_proven:false,
   invalid,records_total:events.length,records_eligible:sorted.length,first_issued_at_ms:min,last_issued_at_ms:max,
