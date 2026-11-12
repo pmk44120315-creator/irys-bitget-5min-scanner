@@ -1,6 +1,6 @@
 {
   "version": "V42_COMPLETE_ACTUAL_ACK_OUTCOMES_V1",
-  "asof_ms": 1794475016027,
+  "asof_ms": 1794475313055,
   "source": "PUBLIC_WORKER_RETAINED_ACTUAL_ACK_RECORDS_AND_OFFICIAL_NATIVE_CANDLES",
   "events": [
     {
@@ -10044,7 +10044,26 @@
       "reference_quote_age_ms": 2222,
       "outcomes": {
         "5": {
-          "status": "PENDING_HORIZON"
+          "status": "MEASURED_MINUTE_CLOSE_PROXY",
+          "target_ms": 1794474989181,
+          "closed_at_ms": 1794475020000,
+          "target_offset_ms": 30819,
+          "horizon_reference": "FIRST_CLOSED_MINUTE_AT_OR_AFTER_TARGET",
+          "direction": "BUY",
+          "reference_entry_bid_or_ask": 4.992,
+          "target_close": 4.831,
+          "signed_price_pct": -3.2251602564102533,
+          "positive_direction": false,
+          "scenario_after_0_20pct_cost": -3.4251602564102535,
+          "actual_execution_verified": false,
+          "path_minutes_observed": 5,
+          "path_minutes_expected": 5,
+          "max_favorable_pct": 2.744391025641013,
+          "max_adverse_pct": -11.85897435897435,
+          "first_reference_break_close_ms": 1794474900000,
+          "path_scope": "FULL_POST_ACK_MINUTES_ONLY",
+          "intraminute_order_known": false,
+          "observed_extrema_are_bounds_not_complete_tick_path": true
         },
         "15": {
           "status": "PENDING_HORIZON"
@@ -10064,18 +10083,18 @@
     "conflicts": 0,
     "provider_errors": 0,
     "new_events": 0,
-    "labels_added": 0
+    "labels_added": 1
   },
   "summary": {
     "actual_ack_records": 95,
     "horizons": {
       "5": {
-        "measured": 94,
+        "measured": 95,
         "directional_positive": 33,
         "flat": 0,
-        "pending": 1,
+        "pending": 0,
         "missing": 0,
-        "mean_signed_price_pct": -0.2739558293302987
+        "mean_signed_price_pct": -0.30502113908903505
       },
       "15": {
         "measured": 94,
