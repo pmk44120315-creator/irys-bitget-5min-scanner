@@ -1,4 +1,4 @@
-name: V48 post-deployment readback (READ ONLY)
+name: V48.1 post-deployment readback (READ ONLY)
 on:
   push:
     branches: [upgrade/irys-v48-evidence-20261113]
@@ -17,16 +17,16 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Observe actual first production executions without dispatching anything
+      - name: Observe actual final production executions without dispatching anything
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           mkdir -p v48_deployed
-          gh run watch 43305349274 --exit-status --interval 15
-          gh run watch 43305349272 --exit-status --interval 15
-          gh api repos/${{ github.repository }}/actions/runs/43305349274 > v48_deployed/v36_run.json
-          gh api repos/${{ github.repository }}/actions/runs/43305349272 > v48_deployed/v37_run.json
+          gh run watch 43308830557 --exit-status --interval 15
+          gh run watch 43308830521 --exit-status --interval 15
+          gh api repos/${{ github.repository }}/actions/runs/43308830557 > v48_deployed/v36_run.json
+          gh api repos/${{ github.repository }}/actions/runs/43308830521 > v48_deployed/v37_run.json
       - name: Read fresh committed outputs and validate source, state and immutable archives
         run: |
           set -euo pipefail
@@ -34,20 +34,22 @@ jobs:
           git reset --hard origin/main
           mkdir -p v48_deployed
           git rev-parse HEAD > v48_deployed/readback_commit.txt
-          git fetch --quiet --depth=1 origin 1e37cf243ac1aeec9337033d69ee52beef0ca95b
-          git diff --exit-code 1e37cf243ac1aeec9337033d69ee52beef0ca95b HEAD -- deployment/v36_paths.mjs deployment/v36_runner.mjs deployment/v36_shadow.mjs deployment/v37_compare.mjs deployment/v37_early.mjs deployment/v37_runner.mjs deployment/v48_backfill.mjs deployment/v48_evidence_archive.mjs deployment/v48_measurement.mjs deployment/v48_persistence.mjs deployment/v48_readiness_report.mjs deployment/v48_downstream_clock.mjs deployment/direction_response_research.mjs research/v39_direction_outcome_audit.mjs research/v40_frozen_features.py .github/workflows/v36-public-shadow.yml .github/workflows/v37-shadow.yml
+          git fetch --quiet --depth=1 origin dc73e2a7c78ccaaca6b73c0c54c111a362bfe869
+          git diff --exit-code dc73e2a7c78ccaaca6b73c0c54c111a362bfe869 HEAD -- deployment/v36_paths.mjs deployment/v36_runner.mjs deployment/v36_shadow.mjs deployment/v37_compare.mjs deployment/v37_early.mjs deployment/v37_runner.mjs deployment/v48_backfill.mjs deployment/v48_evidence_archive.mjs deployment/v48_measurement.mjs deployment/v48_persistence.mjs deployment/v48_readiness_report.mjs deployment/v48_downstream_clock.mjs deployment/direction_response_research.mjs research/v39_direction_outcome_audit.mjs research/v40_frozen_features.py .github/workflows/v36-public-shadow.yml .github/workflows/v37-shadow.yml
           node --input-type=module <<'JS'
-          import assert from 'node:assert/strict';import{readFileSync,writeFileSync}from'node:fs';import{createHash}from'node:crypto';
+          import assert from 'node:assert/strict';import{readFileSync,writeFileSync,readdirSync,statSync}from'node:fs';import{createHash}from'node:crypto';
           import{v48ReadArchive}from'./deployment/v48_evidence_archive.mjs';
-          const proof={checked_at:new Date().toISOString(),source_matches_tested_release:true,orders_sent:false,telegram_sent:false,cloudflare_modified:false,publications:{}};
+          const proof={version:'V48.1_PRODUCTION_READBACK',checked_at:new Date().toISOString(),source_matches_tested_release:true,tested_source:'dc73e2a7c78ccaaca6b73c0c54c111a362bfe869',orders_sent:false,telegram_sent:false,cloudflare_modified:false,publications:{}};
           for(const [kind,s,l]of[['v36','v36_shadow_state.json','v36_shadow_latest.json'],['v37','v37_early_state.json','v37_early_latest.json']]){
             const raw=readFileSync('data/'+s),state=JSON.parse(raw),out=JSON.parse(readFileSync('data/'+l));
             assert.equal(createHash('sha256').update(raw).digest('hex'),out.state_sha256);
             assert.equal(state.publication.revision,out.publication.revision);
             assert.equal(out.evidence_quality.measurement_version,'V48_CLOSED_MINUTE_AT_OR_AFTER_TARGET_V1');
             assert.equal(out.orders_sent,false);assert.equal(out.telegram_sent,false);
-            const archive=v48ReadArchive('data/'+kind+'_archive');assert(archive.unique_events>=state.events.length);
-            proof.publications[kind]={state_sha256:out.state_sha256,publication:out.publication,hot_events:state.events.length,archive_events:archive.unique_events,archive_revisions:archive.revisions,stats:out.stats,evidence_quality:out.evidence_quality,history_errors:out.native_history_errors??out.source_errors};
+            const root='data/'+kind+'_archive',archive=v48ReadArchive(root);assert(archive.unique_events>=state.events.length);
+            const shards=readdirSync(root).filter(n=>/\.\d{6}\.jsonl$/.test(n)).map(name=>({name,bytes:statSync(root+'/'+name).size}));
+            for(const s of shards)assert(s.bytes<=16*1024*1024,'NEW_ARCHIVE_SHARD_CAPACITY');
+            proof.publications[kind]={state_sha256:out.state_sha256,publication:out.publication,hot_events:state.events.length,archive_events:archive.unique_events,archive_revisions:archive.revisions,numbered_shards:shards,stats:out.stats,evidence_quality:out.evidence_quality,history_errors:out.native_history_errors??out.source_errors};
           }
           const lease=JSON.parse(readFileSync('.github/v43_source_lease.json'));
           for(const[p,sha]of Object.entries(lease)){const b=readFileSync(p);assert.equal(createHash('sha1').update(Buffer.concat([Buffer.from('blob '+b.length+'\0'),b])).digest('hex'),sha);}
@@ -81,7 +83,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: v48-production-readback-proof
+          name: v481-production-readback-proof
           path: v48_deployed/
           retention-days: 30
           if-no-files-found: error
