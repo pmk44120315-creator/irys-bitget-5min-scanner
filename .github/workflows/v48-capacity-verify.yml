@@ -1,0 +1,95 @@
+name: V48.1 archive capacity complete regression (NO DEPLOY)
+on:
+  push:
+    branches: [upgrade/irys-v48-evidence-20261113]
+    paths: ['.github/workflows/v48-capacity-verify.yml']
+permissions:
+  contents: read
+  actions: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    env:
+      OPENBLAS_NUM_THREADS: '1'
+      OMP_NUM_THREADS: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install 'numpy==2.3.5' 'scikit-learn==1.8.0' 'PyYAML==6.0.2'
+      - name: Read original dependencies and real production archives with hash checks
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p v481_verified
+          gh run download 43298150485 -n v48-full-regression-proof -D /tmp/v48-dependencies
+          gh run download 43307226231 -n v48-production-readback-proof -D /tmp/v48-production
+          python - <<'PY'
+          import json,hashlib,zipfile
+          from pathlib import Path
+          for root,name,dest in [('/tmp/v48-dependencies','compiled_dependencies.zip','.'),('/tmp/v48-production','production_source_and_data.zip','/tmp/v48-actual-snapshot')]:
+            p=Path(root);m=json.loads((p/'manifest.json').read_text());f=p/name
+            assert hashlib.sha256(f.read_bytes()).hexdigest()==m[name]['sha256']
+            with zipfile.ZipFile(f) as z:
+              assert z.testzip() is None
+              for n in z.namelist():assert not n.startswith('/') and '..' not in Path(n).parts
+              z.extractall(dest)
+          PY
+      - name: Full Node regression including unchanged compiled live workers
+        env:
+          V27_BASE_WORKER: fixtures/v24.mjs
+          V28_BASE_WORKER: deployment/IRYS_V27_RESPONSE_WORKER.mjs
+          V28_RELEASE_BASE_WORKER: fixtures/v28_release.mjs
+          V29_BASE_WORKER: deployment/IRYS_V28_BUILDUP_WORKER.mjs
+          V30_BASE_WORKER: deployment/IRYS_V29_DIRECTION_REVIEW_WORKER.mjs
+          V34_BASE_WORKER: deployment/IRYS_V31_TIMELY_WORKER.mjs
+          V35_BASE_WORKER: deployment/IRYS_V34_CRASH_WARNING_WORKER.mjs
+        run: |
+          set -euo pipefail
+          node --test tests/*.mjs verification/v45/test*.mjs verification/v46/test*.mjs verification/v48/test*.mjs 2>&1 | tee v481_verified/node.log
+      - name: Full Python workflow and research regression
+        run: |
+          set -euo pipefail
+          python -S -m unittest discover -s tests -v 2>&1 | tee v481_verified/python.log
+          python -m unittest discover -s verification/workflows -v 2>&1 | tee v481_verified/workflows.log
+          python -m unittest discover -s research/tests -v 2>&1 | tee v481_verified/research.log
+          python -m unittest discover -s ai_twin/tests -v 2>&1 | tee v481_verified/ai_twin.log
+      - name: Read actual published archive using capacity-safe reader without changing original bytes
+        run: |
+          node --input-type=module <<'JS'
+          import assert from'node:assert/strict';import{readFileSync,writeFileSync,readdirSync}from'node:fs';import{createHash}from'node:crypto';
+          import{v48ReadArchive}from'./deployment/v48_evidence_archive.mjs';
+          const results={production_modified:false,records_fabricated:false,kinds:{}};
+          for(const kind of ['v36','v37']){
+            const root='/tmp/v48-actual-snapshot/data/'+kind+'_archive';
+            const before=Object.fromEntries(readdirSync(root).map(n=>[n,createHash('sha256').update(readFileSync(root+'/'+n)).digest('hex')]));
+            const a=v48ReadArchive(root);assert(a.unique_events>=3000);
+            const after=Object.fromEntries(readdirSync(root).map(n=>[n,createHash('sha256').update(readFileSync(root+'/'+n)).digest('hex')]));assert.deepEqual(before,after);
+            results.kinds[kind]={unique_events:a.unique_events,revisions:a.revisions,files:before};
+          }
+          writeFileSync('v481_verified/actual_archive_compatibility.json',JSON.stringify(results,null,2));
+          JS
+      - name: Preserve exactly tested source and explicit evidence
+        if: always()
+        run: |
+          mkdir -p v481_verified
+          git rev-parse HEAD > v481_verified/source_commit.txt
+          git archive --format=zip --output=v481_verified/verified_source.zip HEAD deployment/v48_evidence_archive.mjs verification/v48/test_v48_archive_capacity.mjs
+          python - <<'PY'
+          from pathlib import Path
+          import hashlib,json
+          p=Path('v481_verified');m={str(f.relative_to(p)):{'bytes':f.stat().st_size,'sha256':hashlib.sha256(f.read_bytes()).hexdigest()} for f in p.rglob('*') if f.is_file()}
+          (p/'manifest.json').write_text(json.dumps(m,indent=2))
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: v481-capacity-complete-regression
+          path: v481_verified/
+          retention-days: 30
+          if-no-files-found: error
