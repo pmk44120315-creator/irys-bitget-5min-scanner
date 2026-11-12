@@ -1,6 +1,6 @@
 {
   "version": "V43_ACTUAL_ACK_STREAM_QUOTES_V1",
-  "asof_ms": 1794511680583,
+  "asof_ms": 1794511979574,
   "target_tolerance_ms": 5000,
   "events": [
     {
@@ -7739,13 +7739,14 @@
         }
       },
       "observed_path": {
-        "quote_observations": 2444,
+        "quote_observations": 2465,
         "first_quote_ms": 1794511351009,
-        "last_quote_ms": 1794511680493,
+        "last_quote_ms": 1794511979239,
         "coverage_start_delay_ms": 55622,
-        "max_observed_quote_gap_ms": 1316,
+        "max_observed_quote_gap_ms": 2244,
         "segments": [
-          "bitget:43289365064-1:7349ca99-8059-490f-ba78-43140d64ef81"
+          "bitget:43289365064-1:7349ca99-8059-490f-ba78-43140d64ef81",
+          "bitget:43290223620-1:056ee6ca-0555-439c-9559-11e3502e3bcc"
         ],
         "max_favorable_pct": -0.15594197781503955,
         "max_adverse_pct": -1.7918615941389309,
@@ -7758,7 +7759,8 @@
           "coverage_start_delay_ms": 55622,
           "segment": "bitget:43289365064-1:7349ca99-8059-490f-ba78-43140d64ef81"
         },
-        "complete_tick_path_verified": false
+        "complete_tick_path_verified": false,
+        "observation_count_is_lower_bound": true
       }
     }
   ],
