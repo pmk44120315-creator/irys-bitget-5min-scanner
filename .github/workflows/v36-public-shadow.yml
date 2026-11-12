@@ -1,5 +1,8 @@
 name: IRYS V36 prospective counter-hypothesis and first-touch path shadow (NO ALERTS)
 on:
+  push:
+    branches: [main]
+    paths: ['deployment/v36*.mjs','deployment/v37*.mjs','deployment/v48*.mjs','.github/workflows/v36-public-shadow.yml']
   workflow_run:
     workflows: ['IRYS V30 official paired directional evidence (NO MESSAGES)']
     types: [completed]
@@ -10,7 +13,7 @@ concurrency:
   cancel-in-progress: false
 jobs:
   shadow:
-    if: github.event.workflow_run.head_branch == 'main' && github.event.workflow_run.conclusion == 'success'
+    if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || (github.event.workflow_run.head_branch == 'main' && github.event.workflow_run.conclusion == 'success')
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -18,21 +21,29 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: main
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
       - name: Reload latest committed public evidence before score or label
         run: |
           git fetch --quiet origin main
           git reset --hard origin/main
           echo "V36_PUBLIC_SOURCE_COMMIT=$(git rev-parse HEAD)"
+          echo "V48_SOURCE_COMMIT=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
       - name: Validate shadow logic without test orders or Telegram
         run: node --test tests/test_v36_shadow.mjs
       - name: Score current independent pressure and settle immutable future paths
         run: |
+          set -euo pipefail
           mkdir -p v36_operating
           node deployment/v36_runner.mjs | tee v36_operating/run.log
           node --input-type=module <<'JS'
-          import assert from 'node:assert/strict';import {readFileSync} from 'node:fs';
+          import {createHash} from 'node:crypto';import assert from 'node:assert/strict';import {readFileSync} from 'node:fs';
           const out=JSON.parse(readFileSync('data/v36_shadow_latest.json','utf8'));
           const state=JSON.parse(readFileSync('data/v36_shadow_state.json','utf8'));
+          assert.equal(out.state_sha256,createHash('sha256').update(readFileSync('data/v36_shadow_state.json')).digest('hex'),'STATE_PUBLICATION_HASH_MISMATCH');
+          assert.equal(state.publication.revision,out.publication.revision);
+          assert.equal(out.evidence_quality.measurement_version,'V48_CLOSED_MINUTE_AT_OR_AFTER_TARGET_V1');
           assert.equal(out.version,'V36_CONTRA_PROSPECTIVE_SHADOW_V1');
           assert.equal(out.shadow_only,true);assert.equal(out.telegram_sent,false);assert.equal(out.orders_sent,false);assert.equal(out.auto_promotion,false);
           assert(Array.isArray(state.events)&&state.events.length<=3000);
@@ -51,10 +62,15 @@ jobs:
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add data/v36_shadow_latest.json data/v36_shadow_state.json
+          test ! -d data/v36_archive/ || git add data/v36_archive/
           if git diff --staged --quiet; then exit 0; fi
           git commit -m 'data(v36): immutable prospective counter-hypothesis and closed-minute first touch'
           for attempt in 1 2 3 4 5 6 7 8 9 10; do
             git fetch --quiet origin main
+            if ! git diff --quiet "$V48_SOURCE_COMMIT" origin/main -- deployment .github/workflows/v36-public-shadow.yml; then
+              echo '::error::source changed during evaluation; refusing mixed-source publication'
+              exit 1
+            fi
             if ! git rebase origin/main; then
               git rebase --abort
               echo '::error::v36 state conflict; no overwrite or force push'

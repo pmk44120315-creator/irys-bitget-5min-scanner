@@ -1,3 +1,4 @@
+import {v48LabelClose,v48ValidEvent} from './v48_measurement.mjs';
 /** V36 frozen targets and stops. OHLC is NOT execution or exact intraminute order. */
 const V36_PATH_VERSION='V36_FROZEN_BARRIERS_V1',MIN=60000;
 const good=x=>typeof x==='number'&&Number.isFinite(x)&&x>0;
@@ -30,25 +31,16 @@ function v36FreezeQuoteOnly(item,now){
  first_complete_start_ms:Math.ceil(now/MIN)*MIN,label_source:'FROZEN_QUOTE_ONLY',barriers_locked:false,
  risk_evaluable:false,execution_verified:false};
 }
-function v36LabelClose(e,bars,now,horizon=15){
- const ret=(status,x={})=>({status,horizon_minutes:horizon,actual_execution_verified:false,...x});
- if(!e||!Array.isArray(bars)||!Number.isSafeInteger(now)||![5,15,30,60].includes(horizon))return ret('INVALID_INPUT');
- const target=e.issued_at_ms+horizon*MIN,closeAt=Math.floor(target/MIN)*MIN,start=closeAt-MIN;
- if(now<closeAt)return ret('PENDING');if(start<e.first_complete_start_ms)return ret('UNMEASURED_TARGET');
- const all=bars.filter(x=>x?.start_ms===start),valid=all.filter(x=>[x.open,x.high,x.low,x.close].every(good)&&x.low<=Math.min(x.open,x.close)&&x.high>=Math.max(x.open,x.close));
- if(valid.length!==1)return ret(valid.length>1?'CONFLICTING_CANDLES':'UNMEASURED_TARGET');
- const end=valid[0].close,sign=e.direction==='SHORT'?-1:1,change=sign*100*(end/e.entry_price-1);
- return ret('MEASURED_DIRECTION',{close_at_ms:closeAt,target_ms:target,measurement_offset_ms:target-closeAt,
- entry_quote_reference:e.entry_price,target_close:end,signed_direction_pct:change,direction_positive:change>0,
- not_net_profit:true,not_fill_price:true});
-}
+function v36LabelClose(e,bars,now,horizon=15){return v48LabelClose(e,bars,now,horizon);}
 function v36Label(e,bars,now,horizon=15){
  const result=(status,extra={})=>({status,horizon_minutes:horizon,version:V36_PATH_VERSION,actual_execution_verified:false,requires_intraminute_order:false,...extra});
- if(!e||e.version!==V36_PATH_VERSION||!Number.isSafeInteger(now)||![5,15,30,60].includes(horizon)||!Array.isArray(bars))return result('INVALID_INPUT');
+ if(!e||e.version!==V36_PATH_VERSION||!v48ValidEvent(e,now)||![5,15,30,60].includes(horizon)||!Array.isArray(bars)||
+ (e.risk_price!==undefined&&!good(e.risk_price))||!good(e.target_price)||!good(e.stop_price)||
+ (e.direction==='SHORT'?!(e.target_price<e.entry_price&&e.stop_price>e.entry_price):!(e.target_price>e.entry_price&&e.stop_price<e.entry_price)))return result('INVALID_INPUT');
  const start=e.first_complete_start_ms,limit=e.issued_at_ms+horizon*MIN,lastFull=Math.floor(Math.min(now,limit)/MIN)*MIN;
  if(!Number.isSafeInteger(start)||lastFull<start)return result(now<limit?'PENDING':'UNMEASURED_GAP');
  const map=new Map();let conflict=false;
- for(const b of bars){const t=b?.start_ms;if(!Number.isSafeInteger(t)||t%MIN||t<start||t+MIN>now)continue;
+ for(const b of bars){const t=b?.start_ms;if(!Number.isSafeInteger(t)||t%MIN||t<start||t+MIN>lastFull)continue;
   const v=[b.open,b.high,b.low,b.close];if(!v.every(good)||b.low>Math.min(b.open,b.close)||b.high<Math.max(b.open,b.close))continue;
   const row={start_ms:t,open:b.open,high:b.high,low:b.low,close:b.close};
   if(map.has(t)&&JSON.stringify(map.get(t))!==JSON.stringify(row))conflict=true;map.set(t,row);
