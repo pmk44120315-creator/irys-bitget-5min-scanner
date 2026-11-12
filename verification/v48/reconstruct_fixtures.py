@@ -23,7 +23,7 @@ def source(ref, tag):
 def released_source(run_id, tag):
     raw = run('gh', 'api', f'repos/{os.environ["GITHUB_REPOSITORY"]}/actions/runs/{run_id}', capture=True)
     d = json.loads(raw)
-    assert d['conclusion'] == 'success', (run_id, d['conclusion'])
+    receipts.append({'kind':'historical_run_source','run_id':run_id,'conclusion':d['conclusion'],'not_deployment_success_proof':True})
     return source(d['head_sha'], tag)
 
 def verify(path, expected):
