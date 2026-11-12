@@ -88,6 +88,6 @@ try:
         for f in dep.glob('IRYS*.mjs'):z.write(f,str(f.relative_to(ROOT)))
         for f in [dep/'release_v45_guarded.mjs',dep/'release_v46_guarded.mjs',*fixtures.glob('*.json')]:z.write(f,str(f.relative_to(ROOT)))
         z.write(v24,'fixtures/v24.mjs');z.write(p28original,'fixtures/v28_release.mjs')
-    download(42791465821,'v43-observation-42791465821-1','/tmp/v47-original')
+    receipts.append({'kind':'unavailable_historical_raw_replay','run_id':42791465821,'artifact':'v43-observation-42791465821-1','reason':'RAW_ARTIFACT_NO_LONGER_AVAILABLE','original_raw_replay_performed':False})
 finally:
     (OUT/'fixture_receipts.json').write_text(json.dumps(receipts,indent=2))

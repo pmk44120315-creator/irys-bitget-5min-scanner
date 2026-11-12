@@ -1,3 +1,4 @@
+import {V48_MEASUREMENT_VERSION,v48ValidIdentity,v48MigrateEvent,v48MergeNativePages,v48Measured} from './v48_measurement.mjs';
 /** V37 prospective precursor / entry-phase research. No Telegram, orders or trade permissions. */
 import {v36LabelClose} from './v36_paths.mjs';
 const V37_EARLY_VERSION='V37_PREMOVE_OPPORTUNITY_SHADOW_V1';
@@ -60,8 +61,12 @@ function v37SelectEarly(rows,now,max=12){
 }
 function v37BuildEvents(old,selected,now){
  const state=copyV37State(old,now);
- const ids=new Set(state.events.map(x=>x.id)),added=[];
- for(const x of selected||[]){if(x.status!=='OBSERVED'||x.phase!=='EARLY_FLOW_LEAD'||x.trade_permit!==false||x.observed_at_ms>now)continue;
+ const ids=new Set(state.events.map(x=>x.id)),added=[],latest=new Map();
+ for(const e of state.events){if(!Number.isSafeInteger(e?.issued_at_ms))continue;const k=e.venue+':'+e.symbol+':'+e.direction;latest.set(k,Math.max(latest.get(k)??-Infinity,e.issued_at_ms));}
+ for(const x of selected||[]){if(x.status!=='OBSERVED'||x.phase!=='EARLY_FLOW_LEAD'||x.trade_permit!==false||!v48ValidIdentity(x)||
+ !Number.isSafeInteger(now)||!Number.isSafeInteger(x.observed_at_ms)||x.observed_at_ms<0||x.observed_at_ms>now||now-x.observed_at_ms>120000||num(x.current_price)===null||x.current_price<=0)continue;
+  const episodeKey=x.venue+':'+x.symbol+':'+x.direction;
+  if(latest.has(episodeKey)&&now-latest.get(episodeKey)<EPISODE)continue;
   const id=['EVAL',x.venue,x.symbol,x.direction,Math.floor(now/EPISODE)].join(':');
   if(ids.has(id))continue;ids.add(id);
   const e={id,version:V37_EARLY_VERSION,venue:x.venue,symbol:x.symbol,direction:x.direction,
@@ -71,23 +76,30 @@ function v37BuildEvents(old,selected,now){
    first_recorded_price:x.first_recorded_price,pre_observation_move_pct:x.pre_observation_move_pct,
    early_score:x.early_score,flow_source:x.flow_source,flow_acceleration:x.flow_acceleration,
    phase_at_issue:x.phase,source_label:'PUBLIC_PRIOR_OBSERVATIONS_ONLY',trade_permit:false,probability:null,
-   future_accuracy_proven:false,actual_execution_verified:false,outcomes:{}};
-  state.events.push(e);added.push(e);
+   future_accuracy_proven:false,actual_execution_verified:false,direction_measurement_version:V48_MEASUREMENT_VERSION,
+   causal_features:{asof_ms:x.observed_at_ms,last_move_pct:num(x.last_move_pct),prior_median_abs_move_pct:num(x.prior_median_abs_move_pct),
+    relative_to_market_pct:num(x.relative_to_market_pct),extension_ratio:num(x.extension_ratio),recent_turnover_delta:num(x.recent_turnover_delta),turnover_baseline:num(x.turnover_baseline)},outcomes:{}};
+  state.events.push(e);added.push(e);latest.set(episodeKey,now);
  }
- state.events=state.events.slice(-MAX_EVENTS);return {state,added};
+ const evicted=state.events.slice(0,Math.max(0,state.events.length-MAX_EVENTS));state.events=state.events.slice(-MAX_EVENTS);return {state,added,evicted};
 }
 function v37LabelEvents(old,pages,now){
- const state=copyV37State(old,now);
- const by=new Map((pages||[]).filter(x=>x?.source==='OFFICIAL_NATIVE_1M'&&Number.isSafeInteger(x.fetched_at_ms)&&x.fetched_at_ms<=now&&Array.isArray(x.bars))
- .map(x=>[x.venue+':'+x.symbol,x]));
- for(const e of state.events){const p=by.get(e.venue+':'+e.symbol);if(!p)continue;
-  for(const h of [5,15,30,60]){const k=String(h);if(e.outcomes?.[k]?.status==='MEASURED_DIRECTION')continue;
+ const state=copyV37State(old,now);state.direction_measurement_version=V48_MEASUREMENT_VERSION;
+ const by=v48MergeNativePages(pages,now);
+ for(const e of state.events){
+  v48MigrateEvent(e,'v37');
+  const p=by.get(e.venue+':'+e.symbol);if(!p)continue;
+  for(const h of [5,15,30,60]){const k=String(h);
+   if(e.outcomes[k]?.status==='MEASURED_DIRECTION'){
+    if(!v48Measured(e,h))throw Error('V48_PERSISTED_OUTCOME_INVALID');
+    continue;
+   }
    const label=v36LabelClose(e,p.bars,Math.min(now,p.fetched_at_ms),h);
-   if(label.status==='MEASURED_DIRECTION')e.outcomes[k]={status:label.status,at_ms:label.close_at_ms,close_price:label.target_close,
-      signed_pct:label.signed_direction_pct,direction_positive:label.direction_positive,
-      actual_execution_verified:false,source:'OFFICIAL_NATIVE_1M',cost_included:false};
-   else if(!['PENDING'].includes(label.status))e.outcomes[k]={status:label.status,actual_execution_verified:false};
+   if(label.status==='MEASURED_DIRECTION')e.outcomes[k]={...label,at_ms:label.close_at_ms,close_price:label.target_close,
+      signed_pct:label.signed_direction_pct,source:'OFFICIAL_NATIVE_1M',cost_included:false};
+   else if(label.status!=='PENDING')e.outcomes[k]=label;
   }
  }return state;
 }
+
 export {V37_EARLY_VERSION,v37AssessSnapshot,v37SelectEarly,v37BuildEvents,v37LabelEvents};
