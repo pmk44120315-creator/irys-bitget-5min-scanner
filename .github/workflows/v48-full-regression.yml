@@ -60,31 +60,48 @@ jobs:
           shopt -s nullglob
           tests=(tests/*.mjs verification/v45/test*.mjs verification/v46/test*.mjs verification/v48/test*.mjs)
           node --test "${tests[@]}" 2>&1 | tee v48_verified/node.log
-      - name: Replay original V47 incident without synthetic success
-        id: replay
+      - name: Verify unchanged V43 and V47 source without fabricating expired raw replay
+        id: protected
         continue-on-error: true
-        run: node verification/v47/replay_original.mjs /tmp/v47-original v48_verified/v47_original_replay.json
-      - name: Official public historical-window smoke test when present
+        run: |
+          python - <<'PYCODE'
+          import json,hashlib
+          from pathlib import Path
+          lease=json.loads(Path('.github/v43_source_lease.json').read_text())
+          for p,sha in lease.items():
+            b=Path(p).read_bytes();actual=hashlib.sha1(b'blob '+str(len(b)).encode()+b'\0'+b).hexdigest()
+            assert actual==sha,(p,actual,sha)
+          Path('v48_verified/protected_stream_source.json').write_text(json.dumps({'source_lease_verified':True,'files':len(lease),'original_v47_raw_replay_performed':False,'raw_replay_limitation':'Historical one-day raw observation artifact expired; original bytes unavailable. Existing stream source is unchanged; current unit regressions are run separately.'},indent=2))
+          PYCODE
+      - name: Official public historical-window smoke test
         id: smoke
         continue-on-error: true
         run: |
-          if test -f verification/v48/official_history_smoke.mjs; then
-            node verification/v48/official_history_smoke.mjs v48_verified/official_smoke.json
-          fi
+          node verification/v48/official_history_smoke.mjs v48_verified/official_smoke.json
+      - name: Correct every available frozen V37 candidate using actual official history
+        id: backfill
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          git fetch --quiet --depth=1 origin data/irys-v39-ack-feedback
+          git rev-parse FETCH_HEAD > v48_verified/ack_source_commit.txt
+          git show FETCH_HEAD:data/v42_actual_ack_evaluation.json > /tmp/v48_actual_ack.json
+          node verification/v48/backfill_frozen.mjs v48_verified/backfill data/v37_early_state.json /tmp/v48_actual_ack.json
       - name: Preserve explicit results and all evidence even on failure
         if: always()
         env:
           STDLIB: ${{ steps.stdlib.outcome }}
           PYTHON_EXTRA: ${{ steps.python_extra.outcome }}
           NODE: ${{ steps.node.outcome }}
-          REPLAY: ${{ steps.replay.outcome }}
+          PROTECTED: ${{ steps.protected.outcome }}
+          BACKFILL: ${{ steps.backfill.outcome }}
           SMOKE: ${{ steps.smoke.outcome }}
         run: |
           python - <<'PY'
           from pathlib import Path
           import os,json,hashlib
           p=Path('v48_verified');p.mkdir(exist_ok=True)
-          (p/'outcomes.json').write_text(json.dumps({k:os.environ[k] for k in ['STDLIB','PYTHON_EXTRA','NODE','REPLAY','SMOKE']},indent=2))
+          (p/'outcomes.json').write_text(json.dumps({k:os.environ[k] for k in ['STDLIB','PYTHON_EXTRA','NODE','PROTECTED','SMOKE','BACKFILL']},indent=2))
           m={str(f.relative_to(p)):{'bytes':f.stat().st_size,'sha256':hashlib.sha256(f.read_bytes()).hexdigest()} for f in p.rglob('*') if f.is_file()}
           (p/'manifest.json').write_text(json.dumps(m,indent=2))
           PY
@@ -96,5 +113,5 @@ jobs:
           retention-days: 30
           if-no-files-found: error
       - name: Enforce all required checks rather than hiding failures
-        if: steps.stdlib.outcome != 'success' || steps.python_extra.outcome != 'success' || steps.node.outcome != 'success' || steps.replay.outcome != 'success' || steps.smoke.outcome != 'success'
+        if: steps.stdlib.outcome != 'success' || steps.python_extra.outcome != 'success' || steps.node.outcome != 'success' || steps.protected.outcome != 'success' || steps.backfill.outcome != 'success' || steps.smoke.outcome != 'success'
         run: exit 1
