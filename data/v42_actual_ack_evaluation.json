@@ -1,6 +1,6 @@
 {
   "version": "V42_COMPLETE_ACTUAL_ACK_OUTCOMES_V1",
-  "asof_ms": 1794564446368,
+  "asof_ms": 1794564749893,
   "source": "PUBLIC_WORKER_RETAINED_ACTUAL_ACK_RECORDS_AND_OFFICIAL_NATIVE_CANDLES",
   "events": [
     {
@@ -11782,7 +11782,26 @@
           "observed_extrema_are_bounds_not_complete_tick_path": true
         },
         "30": {
-          "status": "PENDING_HORIZON"
+          "status": "MEASURED_MINUTE_CLOSE_PROXY",
+          "target_ms": 1794564708022,
+          "closed_at_ms": 1794564720000,
+          "target_offset_ms": 11978,
+          "horizon_reference": "FIRST_CLOSED_MINUTE_AT_OR_AFTER_TARGET",
+          "direction": "LONG",
+          "reference_entry_bid_or_ask": 0.1422,
+          "target_close": 0.1477,
+          "signed_price_pct": 3.8677918424753877,
+          "positive_direction": true,
+          "scenario_after_0_20pct_cost": 3.6677918424753875,
+          "actual_execution_verified": false,
+          "path_minutes_observed": 30,
+          "path_minutes_expected": 30,
+          "max_favorable_pct": 11.322081575246145,
+          "max_adverse_pct": -2.6019690576652432,
+          "first_reference_break_close_ms": 1794562980000,
+          "path_scope": "FULL_POST_ACK_MINUTES_ONLY",
+          "intraminute_order_known": false,
+          "observed_extrema_are_bounds_not_complete_tick_path": true
         },
         "60": {
           "status": "PENDING_HORIZON"
@@ -11829,7 +11848,26 @@
           "observed_extrema_are_bounds_not_complete_tick_path": true
         },
         "15": {
-          "status": "PENDING_HORIZON"
+          "status": "MEASURED_MINUTE_CLOSE_PROXY",
+          "target_ms": 1794564714498,
+          "closed_at_ms": 1794564720000,
+          "target_offset_ms": 5502,
+          "horizon_reference": "FIRST_CLOSED_MINUTE_AT_OR_AFTER_TARGET",
+          "direction": "SHORT",
+          "reference_entry_bid_or_ask": 0.1166,
+          "target_close": 0.11436,
+          "signed_price_pct": 1.9210977701543674,
+          "positive_direction": true,
+          "scenario_after_0_20pct_cost": 1.7210977701543675,
+          "actual_execution_verified": false,
+          "path_minutes_observed": 15,
+          "path_minutes_expected": 15,
+          "max_favorable_pct": 2.8730703259005064,
+          "max_adverse_pct": -0.36878216123499286,
+          "first_reference_break_close_ms": null,
+          "path_scope": "FULL_POST_ACK_MINUTES_ONLY",
+          "intraminute_order_known": false,
+          "observed_extrema_are_bounds_not_complete_tick_path": true
         },
         "30": {
           "status": "PENDING_HORIZON"
@@ -11846,7 +11884,7 @@
     "conflicts": 0,
     "provider_errors": 0,
     "new_events": 0,
-    "labels_added": 0
+    "labels_added": 2
   },
   "summary": {
     "actual_ack_records": 112,
@@ -11860,20 +11898,20 @@
         "mean_signed_price_pct": -0.3104456197659666
       },
       "15": {
-        "measured": 111,
-        "directional_positive": 50,
+        "measured": 112,
+        "directional_positive": 51,
         "flat": 0,
-        "pending": 1,
+        "pending": 0,
         "missing": 0,
-        "mean_signed_price_pct": -0.036725355458170315
+        "mean_signed_price_pct": -0.019244791836629797
       },
       "30": {
-        "measured": 109,
-        "directional_positive": 50,
+        "measured": 110,
+        "directional_positive": 51,
         "flat": 0,
-        "pending": 2,
+        "pending": 1,
         "missing": 1,
-        "mean_signed_price_pct": 0.0016404607150793185
+        "mean_signed_price_pct": 0.03678729145835485
       },
       "60": {
         "measured": 110,
