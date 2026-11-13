@@ -1,6 +1,6 @@
 {
   "version": "V43_ACTUAL_ACK_STREAM_QUOTES_V1",
-  "asof_ms": 1794576513239,
+  "asof_ms": 1794576812059,
   "target_tolerance_ms": 5000,
   "events": [
     {
@@ -9136,9 +9136,9 @@
         }
       },
       "observed_path": {
-        "quote_observations": 6030,
+        "quote_observations": 8696,
         "first_quote_ms": 1794575253704,
-        "last_quote_ms": 1794576513070,
+        "last_quote_ms": 1794576811995,
         "coverage_start_delay_ms": 40278,
         "max_observed_quote_gap_ms": 245793,
         "segments": [
@@ -9146,9 +9146,10 @@
           "bitget:43430861109-1:6bb25428-a9a8-480e-a573-ca06c0c0db43",
           "bitget:43431594366-1:9fab55ac-ebd7-4288-a4d9-4b0e68222401",
           "bitget:43432333914-1:a411e048-0bac-447c-bd45-eaca10296a24",
-          "bitget:43433007829-1:10446f72-3100-493b-bd63-98f8c05d3bde"
+          "bitget:43433007829-1:10446f72-3100-493b-bd63-98f8c05d3bde",
+          "bitget:43433727292-1:6ecad1dd-82de-44a5-8d91-fc05ffb3aa48"
         ],
-        "max_favorable_pct": 3.5017221584385583,
+        "max_favorable_pct": 5.912743972445456,
         "max_adverse_pct": 0.2870264064293915,
         "first_observed_touch": {
           "kind": "FAVORABLE_EQUAL_REFERENCE_DISTANCE",
@@ -9179,9 +9180,26 @@
       "id": "bitget:INJUSDT:1794576411637",
       "quote_outcomes": {
         "5": {
-          "status": "PENDING_HORIZON",
+          "status": "MEASURED_WS_QUOTE",
           "target_ms": 1794576711637,
-          "actual_execution_verified": false
+          "target_delay_ms": 103,
+          "provider_at_ms": 1794576711740,
+          "provider_sequence": "512715236889",
+          "received_at_ms": 1794576711818,
+          "source_segment": "bitget:43433727292-1:6ecad1dd-82de-44a5-8d91-fc05ffb3aa48",
+          "entry_reference": 7.903,
+          "exit_quote": {
+            "bid": 8.028,
+            "ask": 8.03,
+            "at_ms": 1794576711740,
+            "at_us": 1794576711740000
+          },
+          "signed_quote_return_pct": 1.5816778438567658,
+          "signed_mid_change_pct": 1.6071880536573158,
+          "after_assumed_0_20pct_cost": 1.3816778438567658,
+          "fee_schedule_verified": false,
+          "actual_execution_verified": false,
+          "liquidity_size_and_fills_verified": false
         },
         "15": {
           "status": "PENDING_HORIZON",
@@ -9200,16 +9218,17 @@
         }
       },
       "observed_path": {
-        "quote_observations": 386,
-        "first_quote_ms": 1794576454931,
-        "last_quote_ms": 1794576513156,
-        "coverage_start_delay_ms": 43294,
-        "max_observed_quote_gap_ms": 1615,
+        "quote_observations": 2623,
+        "first_quote_ms": 1794576453566,
+        "last_quote_ms": 1794576811970,
+        "coverage_start_delay_ms": 41929,
+        "max_observed_quote_gap_ms": 2211,
         "segments": [
-          "bitget:43433007829-1:10446f72-3100-493b-bd63-98f8c05d3bde"
+          "bitget:43433007829-1:10446f72-3100-493b-bd63-98f8c05d3bde",
+          "bitget:43433727292-1:6ecad1dd-82de-44a5-8d91-fc05ffb3aa48"
         ],
-        "max_favorable_pct": 0.2783753005187961,
-        "max_adverse_pct": -0.1265342275085346,
+        "max_favorable_pct": 3.669492597747692,
+        "max_adverse_pct": -0.36694925977476256,
         "first_observed_touch": {
           "kind": "FAVORABLE_EQUAL_REFERENCE_DISTANCE",
           "at_ms": 1794576493764,
@@ -9219,7 +9238,8 @@
           "coverage_start_delay_ms": 43294,
           "segment": "bitget:43433007829-1:10446f72-3100-493b-bd63-98f8c05d3bde"
         },
-        "complete_tick_path_verified": false
+        "complete_tick_path_verified": false,
+        "observation_count_is_lower_bound": true
       }
     }
   ],
@@ -9227,10 +9247,10 @@
     "actual_ack_records": 114,
     "horizons": {
       "5": {
-        "measured": 42,
-        "quote_positive": 19,
+        "measured": 43,
+        "quote_positive": 20,
         "missing": 71,
-        "pending": 1
+        "pending": 0
       },
       "15": {
         "measured": 41,
