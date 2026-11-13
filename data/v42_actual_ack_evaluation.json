@@ -1,6 +1,6 @@
 {
   "version": "V42_COMPLETE_ACTUAL_ACK_OUTCOMES_V1",
-  "asof_ms": 1794533826355,
+  "asof_ms": 1794534128291,
   "source": "PUBLIC_WORKER_RETAINED_ACTUAL_ACK_RECORDS_AND_OFFICIAL_NATIVE_CANDLES",
   "events": [
     {
@@ -11162,7 +11162,26 @@
           "observed_extrema_are_bounds_not_complete_tick_path": true
         },
         "60": {
-          "status": "PENDING_HORIZON"
+          "status": "MEASURED_MINUTE_CLOSE_PROXY",
+          "target_ms": 1794534104566,
+          "closed_at_ms": 1794534120000,
+          "target_offset_ms": 15434,
+          "horizon_reference": "FIRST_CLOSED_MINUTE_AT_OR_AFTER_TARGET",
+          "direction": "SHORT",
+          "reference_entry_bid_or_ask": 0.002236,
+          "target_close": 0.002219,
+          "signed_price_pct": 0.7602862254025067,
+          "positive_direction": true,
+          "scenario_after_0_20pct_cost": 0.5602862254025067,
+          "actual_execution_verified": false,
+          "path_minutes_observed": 60,
+          "path_minutes_expected": 60,
+          "max_favorable_pct": 6.663685152057253,
+          "max_adverse_pct": -4.561717352415018,
+          "first_reference_break_close_ms": 1794531300000,
+          "path_scope": "FULL_POST_ACK_MINUTES_ONLY",
+          "intraminute_order_known": false,
+          "observed_extrema_are_bounds_not_complete_tick_path": true
         }
       },
       "invalidation_reference": 0.002254
@@ -11173,7 +11192,7 @@
     "conflicts": 0,
     "provider_errors": 0,
     "new_events": 0,
-    "labels_added": 0
+    "labels_added": 1
   },
   "summary": {
     "actual_ack_records": 105,
@@ -11203,12 +11222,12 @@
         "mean_signed_price_pct": -0.04462836638583759
       },
       "60": {
-        "measured": 104,
-        "directional_positive": 48,
+        "measured": 105,
+        "directional_positive": 49,
         "flat": 0,
-        "pending": 1,
+        "pending": 0,
         "missing": 0,
-        "mean_signed_price_pct": 0.816904748488902
+        "mean_signed_price_pct": 0.8163655244595078
       }
     },
     "all_time_capture_complete": false,
