@@ -1,6 +1,6 @@
 {
   "version": "V42_COMPLETE_ACTUAL_ACK_OUTCOMES_V1",
-  "asof_ms": 1794560544957,
+  "asof_ms": 1794560843867,
   "source": "PUBLIC_WORKER_RETAINED_ACTUAL_ACK_RECORDS_AND_OFFICIAL_NATIVE_CANDLES",
   "events": [
     {
@@ -11675,7 +11675,26 @@
           "observed_extrema_are_bounds_not_complete_tick_path": true
         },
         "30": {
-          "status": "PENDING_HORIZON"
+          "status": "MEASURED_MINUTE_CLOSE_PROXY",
+          "target_ms": 1794560808590,
+          "closed_at_ms": 1794560820000,
+          "target_offset_ms": 11410,
+          "horizon_reference": "FIRST_CLOSED_MINUTE_AT_OR_AFTER_TARGET",
+          "direction": "LONG",
+          "reference_entry_bid_or_ask": 0.0047287,
+          "target_close": 0.0051555,
+          "signed_price_pct": 9.025736460337953,
+          "positive_direction": true,
+          "scenario_after_0_20pct_cost": 8.825736460337954,
+          "actual_execution_verified": false,
+          "path_minutes_observed": 30,
+          "path_minutes_expected": 30,
+          "max_favorable_pct": 10.539894685643002,
+          "max_adverse_pct": -0.5900141687990357,
+          "first_reference_break_close_ms": null,
+          "path_scope": "FULL_POST_ACK_MINUTES_ONLY",
+          "intraminute_order_known": false,
+          "observed_extrema_are_bounds_not_complete_tick_path": true
         },
         "60": {
           "status": "PENDING_HORIZON"
@@ -11689,7 +11708,7 @@
     "conflicts": 0,
     "provider_errors": 0,
     "new_events": 0,
-    "labels_added": 0
+    "labels_added": 1
   },
   "summary": {
     "actual_ack_records": 110,
@@ -11711,12 +11730,12 @@
         "mean_signed_price_pct": -0.10802201480775173
       },
       "30": {
-        "measured": 108,
-        "directional_positive": 49,
+        "measured": 109,
+        "directional_positive": 50,
         "flat": 0,
-        "pending": 1,
+        "pending": 0,
         "missing": 1,
-        "mean_signed_price_pct": -0.08191598372587322
+        "mean_signed_price_pct": 0.0016404607150793185
       },
       "60": {
         "measured": 109,
