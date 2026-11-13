@@ -1,6 +1,6 @@
 {
   "version": "V42_COMPLETE_ACTUAL_ACK_OUTCOMES_V1",
-  "asof_ms": 1794563544603,
+  "asof_ms": 1794563851347,
   "source": "PUBLIC_WORKER_RETAINED_ACTUAL_ACK_RECORDS_AND_OFFICIAL_NATIVE_CANDLES",
   "events": [
     {
@@ -11760,7 +11760,26 @@
           "observed_extrema_are_bounds_not_complete_tick_path": true
         },
         "15": {
-          "status": "PENDING_HORIZON"
+          "status": "MEASURED_MINUTE_CLOSE_PROXY",
+          "target_ms": 1794563808022,
+          "closed_at_ms": 1794563820000,
+          "target_offset_ms": 11978,
+          "horizon_reference": "FIRST_CLOSED_MINUTE_AT_OR_AFTER_TARGET",
+          "direction": "LONG",
+          "reference_entry_bid_or_ask": 0.1422,
+          "target_close": 0.1533,
+          "signed_price_pct": 7.805907172995785,
+          "positive_direction": true,
+          "scenario_after_0_20pct_cost": 7.605907172995785,
+          "actual_execution_verified": false,
+          "path_minutes_observed": 15,
+          "path_minutes_expected": 15,
+          "max_favorable_pct": 11.322081575246145,
+          "max_adverse_pct": -2.6019690576652432,
+          "first_reference_break_close_ms": 1794562980000,
+          "path_scope": "FULL_POST_ACK_MINUTES_ONLY",
+          "intraminute_order_known": false,
+          "observed_extrema_are_bounds_not_complete_tick_path": true
         },
         "30": {
           "status": "PENDING_HORIZON"
@@ -11770,39 +11789,70 @@
         }
       },
       "invalidation_reference": 0.1414
+    },
+    {
+      "id": "bitget:INITUSDT:1794563814498",
+      "venue": "bitget",
+      "symbol": "INITUSDT",
+      "direction": "SHORT",
+      "issued_at_ms": 1794563814498,
+      "entry_quote": {
+        "bid": 0.1166,
+        "ask": 0.1167,
+        "at_ms": 1794563811683
+      },
+      "api_ack_recorded": true,
+      "actual_execution_verified": false,
+      "dispatch_revalidated": true,
+      "reference_quote_age_ms": 2815,
+      "outcomes": {
+        "5": {
+          "status": "PENDING_HORIZON"
+        },
+        "15": {
+          "status": "PENDING_HORIZON"
+        },
+        "30": {
+          "status": "PENDING_HORIZON"
+        },
+        "60": {
+          "status": "PENDING_HORIZON"
+        }
+      },
+      "invalidation_reference": 0.11687
     }
   ],
   "diagnostics": {
     "invalid": 0,
     "conflicts": 0,
     "provider_errors": 0,
-    "new_events": 0,
-    "labels_added": 0
+    "new_events": 1,
+    "labels_added": 1
   },
   "summary": {
-    "actual_ack_records": 111,
+    "actual_ack_records": 112,
     "horizons": {
       "5": {
         "measured": 111,
         "directional_positive": 39,
         "flat": 0,
-        "pending": 0,
+        "pending": 1,
         "missing": 0,
         "mean_signed_price_pct": -0.3243684760131434
       },
       "15": {
-        "measured": 110,
-        "directional_positive": 49,
+        "measured": 111,
+        "directional_positive": 50,
         "flat": 0,
         "pending": 1,
         "missing": 0,
-        "mean_signed_price_pct": -0.10802201480775173
+        "mean_signed_price_pct": -0.036725355458170315
       },
       "30": {
         "measured": 109,
         "directional_positive": 50,
         "flat": 0,
-        "pending": 1,
+        "pending": 2,
         "missing": 1,
         "mean_signed_price_pct": 0.0016404607150793185
       },
@@ -11810,14 +11860,14 @@
         "measured": 110,
         "directional_positive": 50,
         "flat": 0,
-        "pending": 1,
+        "pending": 2,
         "missing": 0,
         "mean_signed_price_pct": 0.9286469535638009
       }
     },
     "all_time_capture_complete": false,
     "actual_execution_verified": false,
-    "new_dispatch_revalidated": 42,
+    "new_dispatch_revalidated": 43,
     "legacy_quote_basis": 69
   },
   "telegram_sent": false,
