@@ -1,6 +1,6 @@
 {
   "version": "V42_COMPLETE_ACTUAL_ACK_OUTCOMES_V1",
-  "asof_ms": 1794566247885,
+  "asof_ms": 1794566542394,
   "source": "PUBLIC_WORKER_RETAINED_ACTUAL_ACK_RECORDS_AND_OFFICIAL_NATIVE_CANDLES",
   "events": [
     {
@@ -11804,7 +11804,26 @@
           "observed_extrema_are_bounds_not_complete_tick_path": true
         },
         "60": {
-          "status": "PENDING_HORIZON"
+          "status": "MEASURED_MINUTE_CLOSE_PROXY",
+          "target_ms": 1794566508022,
+          "closed_at_ms": 1794566520000,
+          "target_offset_ms": 11978,
+          "horizon_reference": "FIRST_CLOSED_MINUTE_AT_OR_AFTER_TARGET",
+          "direction": "LONG",
+          "reference_entry_bid_or_ask": 0.1422,
+          "target_close": 0.1501,
+          "signed_price_pct": 5.555555555555558,
+          "positive_direction": true,
+          "scenario_after_0_20pct_cost": 5.355555555555558,
+          "actual_execution_verified": false,
+          "path_minutes_observed": 60,
+          "path_minutes_expected": 60,
+          "max_favorable_pct": 11.322081575246145,
+          "max_adverse_pct": -2.6019690576652432,
+          "first_reference_break_close_ms": 1794562980000,
+          "path_scope": "FULL_POST_ACK_MINUTES_ONLY",
+          "intraminute_order_known": false,
+          "observed_extrema_are_bounds_not_complete_tick_path": true
         }
       },
       "invalidation_reference": 0.1414
@@ -11903,7 +11922,7 @@
     "conflicts": 0,
     "provider_errors": 0,
     "new_events": 0,
-    "labels_added": 0
+    "labels_added": 1
   },
   "summary": {
     "actual_ack_records": 112,
@@ -11933,12 +11952,12 @@
         "mean_signed_price_pct": 0.05700815912141756
       },
       "60": {
-        "measured": 110,
-        "directional_positive": 50,
+        "measured": 111,
+        "directional_positive": 51,
         "flat": 0,
-        "pending": 2,
+        "pending": 1,
         "missing": 0,
-        "mean_signed_price_pct": 0.9286469535638009
+        "mean_signed_price_pct": 0.970330814843006
       }
     },
     "all_time_capture_complete": false,
