@@ -1,10 +1,10 @@
 {
   "version": "V46_ACTUAL_DELIVERY_QUALITY_V1",
-  "asof_ms": 1794586432052,
+  "asof_ms": 1794586716514,
   "input_asof_ms": {
-    "history": 1794586317983,
-    "minute": 1794586366569,
-    "quotes": 1794586122775
+    "history": 1794586619988,
+    "minute": 1794586666935,
+    "quotes": 1794586425392
   },
   "diagnostics": {
     "invalid_ack": 0,
@@ -47,8 +47,8 @@
             "positive": 54,
             "negative": 62,
             "flat": 0,
-            "pending": 1,
-            "missing": 0,
+            "pending": 0,
+            "missing": 1,
             "mean_pct": 0.07176629343938229,
             "median_pct": -0.09700713774926095
           },
@@ -57,8 +57,8 @@
             "positive": 17,
             "negative": 27,
             "flat": 0,
-            "pending": 1,
-            "missing": 72,
+            "pending": 0,
+            "missing": 73,
             "mean_pct": -0.10271782143392073,
             "median_pct": -0.20671894876199737,
             "mean_after_assumed_0_20pct_cost": -0.30271782143392073,
@@ -455,8 +455,8 @@
             "positive": 10,
             "negative": 12,
             "flat": 0,
-            "pending": 1,
-            "missing": 0,
+            "pending": 0,
+            "missing": 1,
             "mean_pct": 0.6065076489659043,
             "median_pct": -0.08711096936799279
           },
@@ -465,8 +465,8 @@
             "positive": 11,
             "negative": 11,
             "flat": 0,
-            "pending": 1,
-            "missing": 0,
+            "pending": 0,
+            "missing": 1,
             "mean_pct": 0.4371208670399374,
             "median_pct": -0.049161293156371896,
             "mean_after_assumed_0_20pct_cost": 0.2371208670399374,
@@ -7135,8 +7135,8 @@
           "target_ms": 1794586624365,
           "closed_price_direction_pct": null,
           "executable_quote_return_pct": null,
-          "closed_price_status": "PENDING",
-          "executable_quote_status": "PENDING",
+          "closed_price_status": "MISSING",
+          "executable_quote_status": "MISSING",
           "actual_execution_verified": false
         },
         "30": {
@@ -7157,8 +7157,8 @@
         }
       },
       "observed_path": {
-        "max_adverse_pct": -0.5285920230658456,
-        "max_favorable_pct": 0.5646323882748657,
+        "max_adverse_pct": -0.7328207592503597,
+        "max_favorable_pct": 0.6246996636232494,
         "coverage_start_delay_ms": 69173,
         "max_observed_quote_gap_ms": 3224,
         "complete_tick_path_verified": false
