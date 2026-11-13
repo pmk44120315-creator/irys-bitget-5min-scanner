@@ -1,6 +1,6 @@
 {
   "version": "V42_COMPLETE_ACTUAL_ACK_OUTCOMES_V1",
-  "asof_ms": 1794576451264,
+  "asof_ms": 1794576765875,
   "source": "PUBLIC_WORKER_RETAINED_ACTUAL_ACK_RECORDS_AND_OFFICIAL_NATIVE_CANDLES",
   "events": [
     {
@@ -12021,7 +12021,26 @@
       "reference_quote_age_ms": 2348,
       "outcomes": {
         "5": {
-          "status": "PENDING_HORIZON"
+          "status": "MEASURED_MINUTE_CLOSE_PROXY",
+          "target_ms": 1794576711637,
+          "closed_at_ms": 1794576720000,
+          "target_offset_ms": 8363,
+          "horizon_reference": "FIRST_CLOSED_MINUTE_AT_OR_AFTER_TARGET",
+          "direction": "LONG",
+          "reference_entry_bid_or_ask": 7.903,
+          "target_close": 8.066,
+          "signed_price_pct": 2.062507908389244,
+          "positive_direction": true,
+          "scenario_after_0_20pct_cost": 1.862507908389244,
+          "actual_execution_verified": false,
+          "path_minutes_observed": 5,
+          "path_minutes_expected": 5,
+          "max_favorable_pct": 2.0878147538909264,
+          "max_adverse_pct": -0.36694925977476256,
+          "first_reference_break_close_ms": null,
+          "path_scope": "FULL_POST_ACK_MINUTES_ONLY",
+          "intraminute_order_known": false,
+          "observed_extrema_are_bounds_not_complete_tick_path": true
         },
         "15": {
           "status": "PENDING_HORIZON"
@@ -12040,19 +12059,19 @@
     "invalid": 0,
     "conflicts": 0,
     "provider_errors": 0,
-    "new_events": 1,
-    "labels_added": 0
+    "new_events": 0,
+    "labels_added": 1
   },
   "summary": {
     "actual_ack_records": 114,
     "horizons": {
       "5": {
-        "measured": 113,
-        "directional_positive": 41,
+        "measured": 114,
+        "directional_positive": 42,
         "flat": 0,
-        "pending": 1,
+        "pending": 0,
         "missing": 0,
-        "mean_signed_price_pct": -0.30312621134703854
+        "mean_signed_price_pct": -0.28237503485812376
       },
       "15": {
         "measured": 113,
