@@ -1,6 +1,6 @@
 {
   "version": "V43_ACTUAL_ACK_STREAM_QUOTES_V1",
-  "asof_ms": 1794670115060,
+  "asof_ms": 1794670420589,
   "target_tolerance_ms": 5000,
   "events": [
     {
@@ -11093,9 +11093,9 @@
         }
       },
       "observed_path": {
-        "quote_observations": 12010,
+        "quote_observations": 12245,
         "first_quote_ms": 1794667971201,
-        "last_quote_ms": 1794670114958,
+        "last_quote_ms": 1794670420500,
         "coverage_start_delay_ms": 51083,
         "max_observed_quote_gap_ms": 254905,
         "segments": [
@@ -11106,9 +11106,10 @@
           "bitget:43608414417-1:bd179749-3c41-4c89-962a-2415ee8e2ddf",
           "bitget:43608884435-1:d859caf0-ce45-4505-bd23-8b48e672c522",
           "bitget:43609339523-1:c1592230-f35c-452a-882c-87a82197b514",
-          "bitget:43609791009-1:8c1b3fa3-1225-4332-acde-6e8951f3eb1a"
+          "bitget:43609791009-1:8c1b3fa3-1225-4332-acde-6e8951f3eb1a",
+          "bitget:43610237880-1:ae25f4a9-df3f-4763-ae87-7e7f2e7d9b70"
         ],
-        "max_favorable_pct": 12.59576385759351,
+        "max_favorable_pct": 12.905588102749,
         "max_adverse_pct": -7.283686345200535,
         "first_observed_touch": {
           "kind": "FAVORABLE_EQUAL_REFERENCE_DISTANCE",
@@ -11139,9 +11140,26 @@
       "id": "bitget:KAVAUSDT:1794670016303",
       "quote_outcomes": {
         "5": {
-          "status": "PENDING_HORIZON",
+          "status": "MEASURED_WS_QUOTE",
           "target_ms": 1794670316303,
-          "actual_execution_verified": false
+          "target_delay_ms": 226,
+          "provider_at_ms": 1794670316529,
+          "provider_sequence": "258263236467",
+          "received_at_ms": 1794670316590,
+          "source_segment": "bitget:43610237880-1:ae25f4a9-df3f-4763-ae87-7e7f2e7d9b70",
+          "entry_reference": 0.03064,
+          "exit_quote": {
+            "bid": 0.03068,
+            "ask": 0.03076,
+            "at_ms": 1794670316529,
+            "at_us": 1794670316529000
+          },
+          "signed_quote_return_pct": -0.39164490861618334,
+          "signed_mid_change_pct": -0.17935757378118034,
+          "after_assumed_0_20pct_cost": -0.5916449086161834,
+          "fee_schedule_verified": false,
+          "actual_execution_verified": false,
+          "liquidity_size_and_fills_verified": false
         },
         "15": {
           "status": "PENDING_HORIZON",
@@ -11160,18 +11178,28 @@
         }
       },
       "observed_path": {
-        "quote_observations": 263,
-        "first_quote_ms": 1794670086200,
-        "last_quote_ms": 1794670114959,
-        "coverage_start_delay_ms": 69897,
-        "max_observed_quote_gap_ms": 318,
+        "quote_observations": 3036,
+        "first_quote_ms": 1794670061962,
+        "last_quote_ms": 1794670420518,
+        "coverage_start_delay_ms": 45659,
+        "max_observed_quote_gap_ms": 743,
         "segments": [
-          "bitget:43609791009-1:8c1b3fa3-1225-4332-acde-6e8951f3eb1a"
+          "bitget:43609791009-1:8c1b3fa3-1225-4332-acde-6e8951f3eb1a",
+          "bitget:43610237880-1:ae25f4a9-df3f-4763-ae87-7e7f2e7d9b70"
         ],
-        "max_favorable_pct": 0.424281984334209,
-        "max_adverse_pct": -1.6971279373368133,
-        "first_observed_touch": null,
-        "complete_tick_path_verified": false
+        "max_favorable_pct": 0.8159268929503923,
+        "max_adverse_pct": -6.919060052219311,
+        "first_observed_touch": {
+          "kind": "REFERENCE_BREAK",
+          "at_ms": 1794670393909,
+          "exit_quote": 0.03139,
+          "observed_only": true,
+          "full_path_order_verified": false,
+          "coverage_start_delay_ms": 45659,
+          "segment": "bitget:43610237880-1:ae25f4a9-df3f-4763-ae87-7e7f2e7d9b70"
+        },
+        "complete_tick_path_verified": false,
+        "observation_count_is_lower_bound": true
       }
     }
   ],
@@ -11179,10 +11207,10 @@
     "actual_ack_records": 128,
     "horizons": {
       "5": {
-        "measured": 56,
+        "measured": 57,
         "quote_positive": 26,
         "missing": 71,
-        "pending": 1
+        "pending": 0
       },
       "15": {
         "measured": 55,
