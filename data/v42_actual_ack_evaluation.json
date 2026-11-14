@@ -1,6 +1,6 @@
 {
   "version": "V42_COMPLETE_ACTUAL_ACK_OUTCOMES_V1",
-  "asof_ms": 1794666463625,
+  "asof_ms": 1794666757887,
   "source": "PUBLIC_WORKER_RETAINED_ACTUAL_ACK_RECORDS_AND_OFFICIAL_NATIVE_CANDLES",
   "events": [
     {
@@ -13409,7 +13409,26 @@
           "observed_extrema_are_bounds_not_complete_tick_path": true
         },
         "60": {
-          "status": "PENDING_HORIZON"
+          "status": "MEASURED_MINUTE_CLOSE_PROXY",
+          "target_ms": 1794666717459,
+          "closed_at_ms": 1794666720000,
+          "target_offset_ms": 2541,
+          "horizon_reference": "FIRST_CLOSED_MINUTE_AT_OR_AFTER_TARGET",
+          "direction": "BUY",
+          "reference_entry_bid_or_ask": 45.96,
+          "target_close": 45.07,
+          "signed_price_pct": -1.9364664926022623,
+          "positive_direction": false,
+          "scenario_after_0_20pct_cost": -2.1364664926022625,
+          "actual_execution_verified": false,
+          "path_minutes_observed": 54,
+          "path_minutes_expected": 60,
+          "max_favorable_pct": 1.1749347258485532,
+          "max_adverse_pct": -2.088772845953002,
+          "first_reference_break_close_ms": 1794663480000,
+          "path_scope": "FULL_POST_ACK_MINUTES_ONLY",
+          "intraminute_order_known": false,
+          "observed_extrema_are_bounds_not_complete_tick_path": true
         }
       },
       "invalidation_reference": 45.81
@@ -13420,7 +13439,7 @@
     "conflicts": 0,
     "provider_errors": 0,
     "new_events": 0,
-    "labels_added": 0
+    "labels_added": 1
   },
   "summary": {
     "actual_ack_records": 126,
@@ -13450,12 +13469,12 @@
         "mean_signed_price_pct": 0.09340513073454282
       },
       "60": {
-        "measured": 125,
+        "measured": 126,
         "directional_positive": 59,
         "flat": 0,
-        "pending": 1,
+        "pending": 0,
         "missing": 0,
-        "mean_signed_price_pct": 0.851808408127467
+        "mean_signed_price_pct": 0.8296792422486596
       }
     },
     "all_time_capture_complete": false,
