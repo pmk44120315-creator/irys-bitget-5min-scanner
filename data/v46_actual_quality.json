@@ -1,10 +1,10 @@
 {
   "version": "V46_ACTUAL_DELIVERY_QUALITY_V1",
-  "asof_ms": 1794680307290,
+  "asof_ms": 1794680608252,
   "input_asof_ms": {
-    "history": 1794680212604,
-    "minute": 1794680256726,
-    "quotes": 1794680018791
+    "history": 1794680508643,
+    "minute": 1794680555287,
+    "quotes": 1794680314097
   },
   "diagnostics": {
     "invalid_ack": 0,
@@ -53,15 +53,15 @@
             "median_pct": -0.07243737229359892
           },
           "executable_quote": {
-            "measured": 57,
-            "positive": 24,
+            "measured": 58,
+            "positive": 25,
             "negative": 33,
             "flat": 0,
             "pending": 0,
-            "missing": 73,
-            "mean_pct": -0.2293216668533944,
-            "median_pct": -0.09206690194873501,
-            "mean_after_assumed_0_20pct_cost": -0.4293216668533944,
+            "missing": 72,
+            "mean_pct": -0.1854416241684826,
+            "median_pct": -0.07872678747796347,
+            "mean_after_assumed_0_20pct_cost": -0.3854416241684826,
             "fee_schedule_verified": false
           }
         },
@@ -77,15 +77,15 @@
             "median_pct": -0.06732552729660779
           },
           "executable_quote": {
-            "measured": 55,
-            "positive": 22,
+            "measured": 56,
+            "positive": 23,
             "negative": 33,
             "flat": 0,
             "pending": 1,
-            "missing": 74,
-            "mean_pct": -0.44879516179118095,
-            "median_pct": -0.5424954792043413,
-            "mean_after_assumed_0_20pct_cost": -0.6487951617911809,
+            "missing": 73,
+            "mean_pct": -0.4342962987032978,
+            "median_pct": -0.4571213455501286,
+            "mean_after_assumed_0_20pct_cost": -0.6342962987032978,
             "fee_schedule_verified": false
           }
         },
@@ -485,15 +485,15 @@
             "median_pct": -0.45460683260567514
           },
           "executable_quote": {
-            "measured": 26,
-            "positive": 10,
+            "measured": 27,
+            "positive": 11,
             "negative": 16,
             "flat": 0,
             "pending": 0,
-            "missing": 1,
-            "mean_pct": -0.6175805242080121,
-            "median_pct": -0.35618990765112246,
-            "mean_after_assumed_0_20pct_cost": -0.8175805242080121,
+            "missing": 0,
+            "mean_pct": -0.5812574984547422,
+            "median_pct": -0.34063260340632906,
+            "mean_after_assumed_0_20pct_cost": -0.7812574984547422,
             "fee_schedule_verified": false
           }
         },
@@ -563,15 +563,15 @@
             "median_pct": -0.059246720270844655
           },
           "executable_quote": {
-            "measured": 17,
-            "positive": 5,
+            "measured": 18,
+            "positive": 6,
             "negative": 12,
             "flat": 0,
             "pending": 0,
-            "missing": 2,
-            "mean_pct": -1.3400348202422432,
-            "median_pct": -0.5100306018361089,
-            "mean_after_assumed_0_20pct_cost": -1.5400348202422431,
+            "missing": 1,
+            "mean_pct": -1.1369372852914803,
+            "median_pct": -0.301048751892422,
+            "mean_after_assumed_0_20pct_cost": -1.3369372852914803,
             "fee_schedule_verified": false
           }
         },
@@ -7802,9 +7802,9 @@
         "30": {
           "target_ms": 1794680215346,
           "closed_price_direction_pct": 0.29525323642969337,
-          "executable_quote_return_pct": null,
+          "executable_quote_return_pct": 0.3631411711302768,
           "closed_price_status": "MEASURED_CLOSE_PROXY",
-          "executable_quote_status": "MISSING",
+          "executable_quote_status": "MEASURED_PUBLIC_BID_ASK",
           "actual_execution_verified": false
         },
         "60": {
@@ -7849,9 +7849,9 @@
         "15": {
           "target_ms": 1794680216256,
           "closed_price_direction_pct": 2.5899983710702124,
-          "executable_quote_return_pct": null,
+          "executable_quote_return_pct": 2.31572080887149,
           "closed_price_status": "MEASURED_CLOSE_PROXY",
-          "executable_quote_status": "MISSING",
+          "executable_quote_status": "MEASURED_PUBLIC_BID_ASK",
           "actual_execution_verified": false
         },
         "30": {
@@ -7875,7 +7875,7 @@
         "max_adverse_pct": -0.8480104370515323,
         "max_favorable_pct": 5.870841487279842,
         "coverage_start_delay_ms": 21751,
-        "max_observed_quote_gap_ms": 233224,
+        "max_observed_quote_gap_ms": 235229,
         "complete_tick_path_verified": false
       }
     }
