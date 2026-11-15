@@ -1,6 +1,6 @@
 {
   "version": "V43_ACTUAL_ACK_STREAM_QUOTES_V1",
-  "asof_ms": 1794718420870,
+  "asof_ms": 1794718723145,
   "target_tolerance_ms": 5000,
   "events": [
     {
@@ -12207,17 +12207,34 @@
           "liquidity_size_and_fills_verified": false
         },
         "60": {
-          "status": "PENDING_HORIZON",
+          "status": "MEASURED_WS_QUOTE",
           "target_ms": 1794718615847,
-          "actual_execution_verified": false
+          "target_delay_ms": 1427,
+          "provider_at_ms": 1794718617274,
+          "provider_sequence": "676347990572",
+          "received_at_ms": 1794718617355,
+          "source_segment": "bitget:43678608960-1:827bd235-90ec-49a9-bb23-71cd9f117c37",
+          "entry_reference": 0.002305,
+          "exit_quote": {
+            "bid": 0.002298,
+            "ask": 0.002302,
+            "at_ms": 1794718617274,
+            "at_us": 1794718617274000
+          },
+          "signed_quote_return_pct": -0.30368763557484524,
+          "signed_mid_change_pct": -0.13026487190622715,
+          "after_assumed_0_20pct_cost": -0.5036876355748452,
+          "fee_schedule_verified": false,
+          "actual_execution_verified": false,
+          "liquidity_size_and_fills_verified": false
         }
       },
       "observed_path": {
-        "quote_observations": 1974,
+        "quote_observations": 1977,
         "first_quote_ms": 1794715089912,
-        "last_quote_ms": 1794718419415,
+        "last_quote_ms": 1794718619276,
         "coverage_start_delay_ms": 74065,
-        "max_observed_quote_gap_ms": 260273,
+        "max_observed_quote_gap_ms": 265623,
         "segments": [
           "bitget:43674251181-1:99b333b7-6549-4187-bf12-989e5b8a9146",
           "bitget:43674594585-1:98c51c57-567d-4f73-b95d-29d2e4a5645b",
@@ -12230,7 +12247,8 @@
           "bitget:43677184206-1:688515f7-f188-49b3-a2cb-911b7708f880",
           "bitget:43677552336-1:d0730c67-519d-4cd3-a98e-53da111e5e19",
           "bitget:43677900814-1:d0e62388-9c3c-41ca-ae39-9c114058c866",
-          "bitget:43678250743-1:0ec17304-0a6f-4da7-a7c2-e425e4873c18"
+          "bitget:43678250743-1:0ec17304-0a6f-4da7-a7c2-e425e4873c18",
+          "bitget:43678608960-1:827bd235-90ec-49a9-bb23-71cd9f117c37"
         ],
         "max_favorable_pct": 0.3470715835140803,
         "max_adverse_pct": -1.518438177874204,
@@ -12270,10 +12288,10 @@
         "pending": 0
       },
       "60": {
-        "measured": 62,
+        "measured": 63,
         "quote_positive": 26,
         "missing": 72,
-        "pending": 1
+        "pending": 0
       }
     }
   },
