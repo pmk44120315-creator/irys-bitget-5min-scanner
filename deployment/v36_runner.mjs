@@ -1,4 +1,5 @@
-import {v48RecoveryPlan} from './v48_backfill.mjs';
+import {v49ReadCaptures,v49IngestCaptures} from './v49_ingest.mjs';
+import {v49RecoveryPlan,v49RecordHistoryDiagnostics,v49RecoverySummary} from './v49_recovery.mjs';
 import {v48LoadState,v48PublishResearch} from './v48_persistence.mjs';
 import {v48Audit} from './v48_readiness_report.mjs';
 import {v48PendingMarkets,v48RecordHistoryAttempts} from './v48_measurement.mjs';
@@ -47,23 +48,35 @@ async function v36NativeHistory(markets,read,now){
  return {pages,errors};
 }
 function pendingMarkets(state,now,maxSymbols=40){return v48PendingMarkets(state?.events,now,maxSymbols,'v36');}
-async function v36Process({old={},packet,baselineDigest,now,benchmark=null,readHistory,maxSymbols=40}={}){
- const enrolled=v36Observe(old,{packet,now,baselineDigest,benchmark});let state=enrolled.state;
+async function v36Process({old={},packet,baselineDigest,now,benchmark=null,readHistory,maxSymbols=40,captures=[]}={}){
+ const imported=v49IngestCaptures(old,captures,now,baselineDigest);
+ const enrolled=v36Observe(imported.state,{packet,now,baselineDigest,benchmark});let state=enrolled.state;
+ const freshEvents=[...imported.events,...enrolled.events];
  state=v36Advance(state,[],now);
- const markets=v48RecoveryPlan(old,state,now,Math.max(0,Math.min(60,maxSymbols)),'v36');
+ const markets=v49RecoveryPlan(old,state,now,Math.max(0,Math.min(60,maxSymbols)));
  const hist=await v36NativeHistory(markets,readHistory,now);
  state=v36Advance(v48RecordHistoryAttempts(state,markets,now),hist.pages,now);
+ state=v49RecordHistoryDiagnostics(state,hist.pages,hist.errors,now);
  const summary=v36Summary(state);
  const comparisons=Object.fromEntries([5,15,30,60].map(h=>[String(h),compareDirectionHypotheses(state.events,{now,horizon:h})]));
  const public_output={version:V36_VERSION,source:'OFFICIAL_PUBLIC_SHADOW',source_packet_asof_ms:enrolled.source_asof_ms,at_ms:now,
-  status:enrolled.status,new_events:enrolled.events.length,tracked_episodes:summary.events,direction_response_comparisons:comparisons,source_markets_attempted:markets.length,
+  status:imported.events.length?'CAPTURED_OBSERVATIONS_IMPORTED':enrolled.status,new_events:freshEvents.length,tracked_episodes:summary.events,direction_response_comparisons:comparisons,source_markets_attempted:markets.length,
   successful_native_histories:hist.pages.length,source_errors:hist.errors,summary,prospective_only:true,
   actual_ack_performance_verified:false,shadow_only:true,orders_sent:false,telegram_sent:false,future_accuracy_proven:false,
   auto_promotion:false,release_gate:v36Gate({}),
-  latest_hypotheses:enrolled.events.slice(-8).map(x=>({id:x.id,venue:x.venue,symbol:x.symbol,direction:x.direction,
+  latest_hypotheses:freshEvents.slice(-8).map(x=>({id:x.id,venue:x.venue,symbol:x.symbol,direction:x.direction,
   asof_ms:x.issued_at_ms,state:x.observed_hypothesis.state,support:x.observed_hypothesis.support,counter:x.observed_hypothesis.counter,probability:null}))};
+ public_output.admission=enrolled.admission;
+ public_output.capture_ingestion=imported.report;
+ public_output.operating_health={version:'V49_RESEARCH_PIPELINE_HEALTH_V1',
+  enrollment:imported.report.latest_capture_health&&imported.report.latest_capture_health!=='ADMITTED'?imported.report.latest_capture_health:
+   imported.events.length?'CAPTURE_IMPORTED':enrolled.events.length?'DIRECT_ADMISSION':
+   imported.report.consumed>0&&imported.report.capture_health.ADMITTED?'NO_NEW_EPISODE':enrolled.admission.health,
+  source_packet_age_ms:Number.isSafeInteger(packet?.at_ms)?now-packet.at_ms:null,
+  collection_transport_is_not_measurement_completeness:true,not_live_alert_health:true};
+ public_output.recovery=v49RecoverySummary(state,now);
  public_output.evidence_quality=v48Audit(state.events,now,'v36');
- return {state,public_output,evicted:enrolled.evicted||[]};
+ return {state,public_output,evicted:[...imported.evicted,...(enrolled.evicted||[])]};
 }
 function readJSON(p,fallback={}){try{return JSON.parse(readFileSync(p,'utf8'))}catch{return fallback}}
 function officialReader(){const next=new Map();return async url=>{
@@ -81,10 +94,11 @@ async function main(){
   if(Number.isFinite(btc?.return_5m_pct))benchmark={market_move_pct:btc.return_5m_pct,source_at_ms:crash.at_ms};
  }
  const expected=process.env.V36_BASELINE_DIGEST||'baea9920208c677a338827a451cd8e0e5bf8a45d0600f84812b33aa743b4d9b9';
- const result=await v36Process({old,packet,baselineDigest:expected,now,benchmark,readHistory:officialReader(),maxSymbols:40});
+ const captures=v49ReadCaptures('data/v49_captures',old);
+ const result=await v36Process({old,packet,baselineDigest:expected,now,benchmark,readHistory:officialReader(),maxSymbols:40,captures});
  v48PublishResearch({kind:'v36',old,state:result.state,output:result.public_output,now:Date.now(),evicted:result.evicted});
  console.log('V36_PUBLIC_SHADOW',JSON.stringify({at_ms:now,status:result.public_output.status,new_events:result.public_output.new_events,
-  tracked:result.public_output.tracked_episodes,history_pages:result.public_output.successful_native_histories,
+  tracked:result.public_output.tracked_episodes,enrollment:result.public_output.operating_health.enrollment,capture_import:result.public_output.capture_ingestion,history_pages:result.public_output.successful_native_histories,
   source_errors:result.public_output.source_errors.length,directions:result.public_output.summary.directions,
   telegram_sent:false,orders_sent:false,future_accuracy_proven:false}));
 }

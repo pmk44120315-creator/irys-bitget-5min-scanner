@@ -11,14 +11,23 @@ function validPacket(p,now,digest){
  Number.isSafeInteger(p.started_at_ms)&&p.started_at_ms<=p.at_ms;
 }
 function v36Observe(old={}, {packet,now,baselineDigest,benchmark=null}={}){
- const state={version:V36_VERSION,events:Array.isArray(old.events)?structuredClone(old.events):[],last_asof_ms:old.last_asof_ms||0};
- if(!validPacket(packet,now,baselineDigest))return {status:'SOURCE_NOT_ELIGIBLE',events:[],state,source_asof_ms:packet?.at_ms??null};
- if(packet.at_ms<=state.last_asof_ms)return {status:'SOURCE_ALREADY_OBSERVED',events:[],state,source_asof_ms:packet.at_ms};
+ const state={...structuredClone(old),version:V36_VERSION,events:Array.isArray(old.events)?structuredClone(old.events):[],last_asof_ms:old.last_asof_ms||0};
+ const admission={version:'V49_ADMISSION_ACCOUNTING_V1',packet_items:Array.isArray(packet?.items)?packet.items.length:0,
+  evaluated:0,accepted:0,duplicate_episodes:0,rejected:0,rejection_reasons:{},health:'SOURCE_NOT_ELIGIBLE'};
+ const result=(status,events=[],extra={})=>({status,events,state,source_asof_ms:packet?.at_ms??null,admission,...extra});
+ if(!validPacket(packet,now,baselineDigest))return result('SOURCE_NOT_ELIGIBLE');
+ if(packet.at_ms<=state.last_asof_ms){admission.health='SOURCE_ALREADY_OBSERVED';return result('SOURCE_ALREADY_OBSERVED');}
  const ids=new Set(state.events.map(e=>e.id)),added=[];
  for(const item of packet.items){
-  const frozen=v36Freeze(item,now)||v36FreezeQuoteOnly(item,now);if(!frozen)continue;
+  admission.evaluated++;
+  const frozen=v36Freeze(item,now)||v36FreezeQuoteOnly(item,now);
+  if(!frozen){
+   const q=item?.final?.quote;
+   const reason=!Number.isSafeInteger(q?.at_ms)?'QUOTE_CLOCK_MISSING':q.at_ms>now?'QUOTE_FROM_FUTURE':now-q.at_ms>45000?'QUOTE_EXPIRED':'FROZEN_INPUT_REJECTED';
+   admission.rejected++;admission.rejection_reasons[reason]=(admission.rejection_reasons[reason]||0)+1;continue;
+  }
   const evidence=v36Evidence(item,now,benchmark||{});
-  const id=key(frozen);if(ids.has(id))continue;ids.add(id);
+  const id=key(frozen);if(ids.has(id)){admission.duplicate_episodes++;continue;}ids.add(id);
   const rec={...frozen,id,observed_hypothesis:evidence,direction_response:directionResponseHypotheses({...evidence,venue:frozen.venue,symbol:frozen.symbol,direction:frozen.direction},now),baseline_model_digest:packet.model_digest,
    time_basis:'ACTUAL_EVALUATOR_DECISION_CLOCK',source_observed_at_ms:packet.at_ms,
    source_to_decision_latency_ms:now-packet.at_ms,source_quote_at_ms:item.final.quote.at_ms,
@@ -27,8 +36,12 @@ function v36Observe(old={}, {packet,now,baselineDigest,benchmark=null}={}){
    outcomes:{},direction_outcomes:{},created_from_public_packet_at_ms:packet.at_ms};
   added.push(rec);state.events.push(rec);
  }
+ admission.accepted=added.length;
+ admission.health=added.length?'ADMITTED':admission.evaluated===0?'NO_SOURCE_CANDIDATES':
+  admission.rejection_reasons.QUOTE_EXPIRED===admission.evaluated?'BLOCKED_QUOTE_FRESHNESS':
+  admission.rejected?'CANDIDATES_REJECTED':'NO_NEW_EPISODE';
  const evicted=state.events.slice(0,Math.max(0,state.events.length-MAX_EVENTS));state.events=state.events.slice(-MAX_EVENTS);state.last_asof_ms=Math.max(state.last_asof_ms,packet.at_ms);
- return {status:'OBSERVED',events:added,state,source_asof_ms:packet.at_ms,evicted};
+ return result('OBSERVED',added,{evicted});
 }
 function v36Advance(old={},pages=[],now){
  const state={...structuredClone(old),version:V36_VERSION,events:structuredClone(old.events||[]),last_asof_ms:old.last_asof_ms||0,direction_measurement_version:V48_MEASUREMENT_VERSION};

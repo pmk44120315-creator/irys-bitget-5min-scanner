@@ -1,0 +1,88 @@
+name: V49 isolated delay and missing-label repair verification (NO LIVE CHANGES)
+on:
+  push:
+    branches: [repair/v49-delay-missing-20261117]
+    paths: ['.github/workflows/v49-repair-verification.yml','deployment/**','tests/**','research/v49_verify.mjs']
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Preserve exact source and public measurement inputs
+        run: |
+          set -euo pipefail
+          mkdir -p v49_evidence/data
+          git rev-parse HEAD > v49_evidence/source_commit.txt
+          git archive --format=zip --output=v49_evidence/source.zip HEAD deployment tests research .github
+          git ls-files '*AGENTS.md' | while IFS= read -r f; do mkdir -p "v49_evidence/instructions/$(dirname "$f")"; cp "$f" "v49_evidence/instructions/$f"; done
+          for f in v36_shadow_state.json v36_shadow_latest.json v30_direction_latest.json v34_crash_latest.json; do
+            git show "HEAD:data/$f" > "v49_evidence/data/$f"
+          done
+          python - <<'PY'
+          import pathlib,subprocess,zipfile
+          files=subprocess.check_output(['git','ls-files','-z']).decode().split('\0')
+          with zipfile.ZipFile('v49_evidence/source.zip','a',compression=zipfile.ZIP_DEFLATED) as z:
+            for f in files:
+              if f and '/' not in f and pathlib.Path(f).suffix in {'.py','.json','.toml','.txt','.md','.yml'}: z.write(f,f)
+          pathlib.Path('v49_evidence/tracked_paths.txt').write_text('\n'.join(files))
+          PY
+      - name: Inspect bounded official historical missing targets without modifying state
+        run: |
+          node --input-type=module <<'JS'
+          import {readFileSync,writeFileSync} from 'node:fs';
+          import {parsedBars,officialReader} from './deployment/v36_runner.mjs';
+          const s=JSON.parse(readFileSync('data/v36_shadow_state.json','utf8'));
+          const selected=new Map();
+          for(const e of s.events){if(e.venue==='bithumb'&&e.direction_outcomes?.['5']?.status!=='MEASURED_DIRECTION'&&!selected.has(e.symbol))selected.set(e.symbol,e);if(selected.size===6)break;}
+          const read=officialReader(),results=[];
+          for(const e of selected.values()){
+            const now=Date.now(),end=Math.ceil((e.issued_at_ms+60*60000)/60000)*60000;
+            const url='https://api.bithumb.com/v1/candles/minutes/1?'+new URLSearchParams({market:e.symbol,to:new Date(end+9*3600000).toISOString().slice(0,19),count:'200'});
+            try{const raw=await read(url),parsed=parsedBars(raw,'bithumb',e.symbol,end);results.push({id:e.id,symbol:e.symbol,issued_at_ms:e.issued_at_ms,requested_end_ms:end,fetched_at_ms:now,url,raw,parsed,horizons:[5,15,30,60].map(h=>({h,target_start_ms:Math.ceil((e.issued_at_ms+h*60000)/60000)*60000-60000,target_found:parsed?.bars?.some(b=>b.start_ms===Math.ceil((e.issued_at_ms+h*60000)/60000)*60000-60000)}))});}
+            catch(err){results.push({id:e.id,symbol:e.symbol,url,error:String(err)});}
+          }
+          writeFileSync('v49_evidence/bithumb_bounded_probe.json',JSON.stringify({read_only:true,no_orders:true,no_telegram:true,sampled_markets:results.length,results},null,2));
+          console.log('V49_BOUNDED_PROBE',JSON.stringify(results.map(r=>({symbol:r.symbol,raw_count:r.raw?.length,parsed_count:r.parsed?.bars?.length,horizons:r.horizons,error:r.error}))));
+          JS
+      - name: Related full regression and original Python suite
+        run: |
+          set -euo pipefail
+          node --test tests/test_v30_core.mjs tests/test_v30_producer.mjs tests/test_v30_delivery.mjs tests/test_v31_quality.mjs tests/test_v31_outcomes.mjs tests/test_v35_lifecycle.mjs tests/test_v35_producer.mjs tests/test_v36_shadow.mjs tests/test_v37_*.mjs tests/test_v38_*.mjs tests/test_v45_*.mjs tests/test_v46_actual_quality.mjs tests/test_v47_*.mjs tests/test_v49_*.mjs 2>&1 | tee v49_evidence/related_node.log
+          python -m unittest discover -s tests -p 'test*.py' -v 2>&1 | tee v49_evidence/python_all.log
+      - name: Compare entire Node suite against exact unchanged baseline
+        run: |
+          set -euo pipefail
+          git fetch --quiet --depth=1 origin e9333fcdb678a32fb2ba62af81e34b575689448b
+          git worktree add --detach "$RUNNER_TEMP/v49-unchanged-baseline" FETCH_HEAD
+          node research/v49_verify.mjs regression "$RUNNER_TEMP/v49-unchanged-baseline" | tee v49_evidence/full_regression_summary.log
+      - name: Verify genuine fresh public capture and delayed research processing in isolation
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          node research/v49_verify.mjs live | tee v49_evidence/live_readonly.log
+      - name: Hash all evidence
+        if: always()
+        run: |
+          python - <<'PY'
+          import pathlib,hashlib,json
+          p=pathlib.Path('v49_evidence')
+          rows={str(x.relative_to(p)):{'bytes':x.stat().st_size,'sha256':hashlib.sha256(x.read_bytes()).hexdigest()} for x in p.rglob('*') if x.is_file() and x.name!='manifest.json'}
+          (p/'manifest.json').write_text(json.dumps(rows,indent=2))
+          print('V49_SOURCE_SNAPSHOT',json.dumps(rows))
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: v49-verified-repair-evidence
+          path: v49_evidence/
+          retention-days: 7
+          if-no-files-found: error
