@@ -2,7 +2,7 @@ name: V49 isolated delay and missing-label repair verification (NO LIVE CHANGES)
 on:
   push:
     branches: [repair/v49-delay-missing-20261117]
-    paths: ['.github/workflows/v49-repair-verification.yml','deployment/**','tests/**']
+    paths: ['.github/workflows/v49-repair-verification.yml','deployment/**','tests/**','research/v49_verify.mjs']
 permissions:
   contents: read
 jobs:
@@ -13,6 +13,9 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
       - name: Preserve exact source and public measurement inputs
         run: |
           set -euo pipefail
@@ -49,10 +52,21 @@ jobs:
           writeFileSync('v49_evidence/bithumb_bounded_probe.json',JSON.stringify({read_only:true,no_orders:true,no_telegram:true,sampled_markets:results.length,results},null,2));
           console.log('V49_BOUNDED_PROBE',JSON.stringify(results.map(r=>({symbol:r.symbol,raw_count:r.raw?.length,parsed_count:r.parsed?.bars?.length,horizons:r.horizons,error:r.error}))));
           JS
-      - name: Run existing research baseline tests
+      - name: Related full regression and original Python suite
         run: |
-          set -o pipefail
-          node --test tests/test_v36_shadow.mjs 2>&1 | tee v49_evidence/baseline_v36.log
+          set -euo pipefail
+          node --test tests/test_v30_core.mjs tests/test_v30_producer.mjs tests/test_v30_delivery.mjs tests/test_v31_quality.mjs tests/test_v31_outcomes.mjs tests/test_v35_lifecycle.mjs tests/test_v35_producer.mjs tests/test_v36_shadow.mjs tests/test_v37_*.mjs tests/test_v38_*.mjs tests/test_v45_*.mjs tests/test_v46_actual_quality.mjs tests/test_v47_*.mjs tests/test_v49_*.mjs 2>&1 | tee v49_evidence/related_node.log
+          python -m unittest discover -s tests -p 'test*.py' -v 2>&1 | tee v49_evidence/python_all.log
+      - name: Compare entire Node suite against exact unchanged baseline
+        run: |
+          set -euo pipefail
+          git fetch --quiet --depth=1 origin e9333fcdb678a32fb2ba62af81e34b575689448b
+          git worktree add --detach "$RUNNER_TEMP/v49-unchanged-baseline" FETCH_HEAD
+          node research/v49_verify.mjs regression "$RUNNER_TEMP/v49-unchanged-baseline" | tee v49_evidence/full_regression_summary.log
+      - name: Verify genuine fresh public capture and delayed research processing in isolation
+        run: |
+          set -euo pipefail
+          node research/v49_verify.mjs live | tee v49_evidence/live_readonly.log
       - name: Hash all evidence
         if: always()
         run: |
@@ -66,7 +80,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: v49-isolated-source-baseline
+          name: v49-verified-repair-evidence
           path: v49_evidence/
           retention-days: 7
           if-no-files-found: error

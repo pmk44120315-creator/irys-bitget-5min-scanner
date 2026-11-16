@@ -30,6 +30,11 @@ jobs:
         id: producer
         continue-on-error: true
         run: node deployment/v30_producer.mjs
+      - name: Freeze research decisions before current-evidence publication delay
+        id: research_capture
+        if: steps.producer.outcome == 'success'
+        continue-on-error: true
+        run: node deployment/v49_capture.mjs
       - name: Independently publish current public evidence before any history refresh
         run: |
           git config user.name 'github-actions[bot]'
@@ -37,6 +42,9 @@ jobs:
           test -f data/v30_direction_latest.json
           test -f data/v30_state.json
           git add data/v30_direction_latest.json data/v30_state.json
+          if test -d data/v49_captures && test -f data/v49_capture_latest.json; then
+            git add data/v49_captures data/v49_capture_latest.json
+          fi
           if git diff --staged --quiet; then exit 0; fi
           git commit -m 'data(v30): original public paired evidence and frozen hypothesis outcomes'
           for attempt in 1 2 3 4 5 6 7 8; do
@@ -98,3 +106,6 @@ jobs:
         run: |
           echo '::error::V42.1 post-publication quote transport failed; do not reuse old quotes'
           exit 1
+      - name: Report research capture failure without disabling successful live quote transport
+        if: steps.research_capture.outcome == 'failure'
+        run: echo '::warning::V49 research capture failed; V30 publication and live quote transport were not withheld. Check capture health and V36 admission.'

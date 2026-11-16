@@ -2,7 +2,7 @@ name: IRYS V36 prospective counter-hypothesis and first-touch path shadow (NO AL
 on:
   push:
     branches: [main]
-    paths: ['deployment/v36*.mjs','deployment/v37*.mjs','deployment/v48*.mjs','.github/workflows/v36-public-shadow.yml']
+    paths: ['deployment/v36*.mjs','deployment/v37*.mjs','deployment/v48*.mjs','deployment/v49*.mjs','.github/workflows/v36-public-shadow.yml']
   workflow_run:
     workflows: ['IRYS V30 official paired directional evidence (NO MESSAGES)']
     types: [completed]
@@ -31,7 +31,7 @@ jobs:
           echo "V36_PUBLIC_SOURCE_COMMIT=$(git rev-parse HEAD)"
           echo "V48_SOURCE_COMMIT=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
       - name: Validate shadow logic without test orders or Telegram
-        run: node --test tests/test_v36_shadow.mjs
+        run: node --test tests/test_v36_shadow.mjs tests/test_v49_*.mjs
       - name: Score current independent pressure and settle immutable future paths
         run: |
           set -euo pipefail
@@ -81,6 +81,17 @@ jobs:
           done
           echo '::error::v36 state not published; never claim fresh'
           exit 1
+      - name: Surface blocked enrollment only after preserving research results
+        run: |
+          node --input-type=module <<'JS'
+          import {readFileSync} from 'node:fs';
+          const out=JSON.parse(readFileSync('data/v36_shadow_latest.json','utf8'));
+          const health=out.operating_health?.enrollment;
+          if(['BLOCKED_QUOTE_FRESHNESS','SOURCE_NOT_ELIGIBLE','CANDIDATES_REJECTED'].includes(health)){
+            console.error('::error::V49 research enrollment blocked: '+health+'; history results preserved; live alerts not changed');
+            process.exitCode=1;
+          }
+          JS
       - name: Evidence for natural runs and missing labels
         if: always()
         run: |
