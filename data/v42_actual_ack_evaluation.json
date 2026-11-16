@@ -1,6 +1,6 @@
 {
   "version": "V42_COMPLETE_ACTUAL_ACK_OUTCOMES_V1",
-  "asof_ms": 1794845577510,
+  "asof_ms": 1794845900042,
   "source": "PUBLIC_WORKER_RETAINED_ACTUAL_ACK_RECORDS_AND_OFFICIAL_NATIVE_CANDLES",
   "events": [
     {
@@ -15121,7 +15121,26 @@
           "observed_extrema_are_bounds_not_complete_tick_path": true
         },
         "60": {
-          "status": "PENDING_HORIZON"
+          "status": "MEASURED_MINUTE_CLOSE_PROXY",
+          "target_ms": 1794845824776,
+          "closed_at_ms": 1794845880000,
+          "target_offset_ms": 55224,
+          "horizon_reference": "FIRST_CLOSED_MINUTE_AT_OR_AFTER_TARGET",
+          "direction": "LONG",
+          "reference_entry_bid_or_ask": 0.1108,
+          "target_close": 0.1049,
+          "signed_price_pct": -5.324909747292416,
+          "positive_direction": false,
+          "scenario_after_0_20pct_cost": -5.5249097472924165,
+          "actual_execution_verified": false,
+          "path_minutes_observed": 60,
+          "path_minutes_expected": 60,
+          "max_favorable_pct": 3.790613718411562,
+          "max_adverse_pct": -6.588447653429608,
+          "first_reference_break_close_ms": 1794843360000,
+          "path_scope": "FULL_POST_ACK_MINUTES_ONLY",
+          "intraminute_order_known": false,
+          "observed_extrema_are_bounds_not_complete_tick_path": true
         }
       },
       "invalidation_reference": 0.1085
@@ -15132,7 +15151,7 @@
     "conflicts": 0,
     "provider_errors": 0,
     "new_events": 0,
-    "labels_added": 0
+    "labels_added": 1
   },
   "summary": {
     "actual_ack_records": 142,
@@ -15162,12 +15181,12 @@
         "mean_signed_price_pct": 0.09279237069072455
       },
       "60": {
-        "measured": 141,
+        "measured": 142,
         "directional_positive": 66,
         "flat": 0,
-        "pending": 1,
+        "pending": 0,
         "missing": 0,
-        "mean_signed_price_pct": 0.7904251910404505
+        "mean_signed_price_pct": 0.7473594520381063
       }
     },
     "all_time_capture_complete": false,
