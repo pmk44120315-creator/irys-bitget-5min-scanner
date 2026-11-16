@@ -1,6 +1,6 @@
 {
   "version": "V42_COMPLETE_ACTUAL_ACK_OUTCOMES_V1",
-  "asof_ms": 1794843179200,
+  "asof_ms": 1794843481402,
   "source": "PUBLIC_WORKER_RETAINED_ACTUAL_ACK_RECORDS_AND_OFFICIAL_NATIVE_CANDLES",
   "events": [
     {
@@ -15077,7 +15077,26 @@
           "observed_extrema_are_bounds_not_complete_tick_path": true
         },
         "15": {
-          "status": "PENDING_HORIZON"
+          "status": "MEASURED_MINUTE_CLOSE_PROXY",
+          "target_ms": 1794843124776,
+          "closed_at_ms": 1794843180000,
+          "target_offset_ms": 55224,
+          "horizon_reference": "FIRST_CLOSED_MINUTE_AT_OR_AFTER_TARGET",
+          "direction": "LONG",
+          "reference_entry_bid_or_ask": 0.1108,
+          "target_close": 0.1091,
+          "signed_price_pct": -1.534296028880855,
+          "positive_direction": false,
+          "scenario_after_0_20pct_cost": -1.7342960288808549,
+          "actual_execution_verified": false,
+          "path_minutes_observed": 15,
+          "path_minutes_expected": 15,
+          "max_favorable_pct": 3.790613718411562,
+          "max_adverse_pct": -2.3465703971119023,
+          "first_reference_break_close_ms": null,
+          "path_scope": "FULL_POST_ACK_MINUTES_ONLY",
+          "intraminute_order_known": false,
+          "observed_extrema_are_bounds_not_complete_tick_path": true
         },
         "30": {
           "status": "PENDING_HORIZON"
@@ -15094,7 +15113,7 @@
     "conflicts": 0,
     "provider_errors": 0,
     "new_events": 0,
-    "labels_added": 0
+    "labels_added": 1
   },
   "summary": {
     "actual_ack_records": 142,
@@ -15108,12 +15127,12 @@
         "mean_signed_price_pct": -0.2543859523147323
       },
       "15": {
-        "measured": 141,
+        "measured": 142,
         "directional_positive": 66,
         "flat": 0,
-        "pending": 1,
+        "pending": 0,
         "missing": 0,
-        "mean_signed_price_pct": -0.06371302158186198
+        "mean_signed_price_pct": -0.07406923994312249
       },
       "30": {
         "measured": 140,
