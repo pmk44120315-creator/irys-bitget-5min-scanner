@@ -1,12 +1,14 @@
 /** Isolated validation: public GET data only; never commit state, deploy Workers, or message users. */
 import assert from 'node:assert/strict';
-import {readFileSync,writeFileSync,mkdirSync,readdirSync} from 'node:fs';import {join,resolve} from 'node:path';
+import {readFileSync,writeFileSync,mkdirSync,readdirSync,cpSync,existsSync} from 'node:fs';import {join,resolve} from 'node:path';
 import {spawnSync,execFileSync} from 'node:child_process';import {createHash} from 'node:crypto';
 import {v30Produce,v30ModelDigest,publicReader} from '../deployment/v30_producer.mjs';
 import {v36Process,officialReader} from '../deployment/v36_runner.mjs';
 import {v49CreateCapture,v49WriteCapture} from '../deployment/v49_capture.mjs';
 import {v49ReadCaptures} from '../deployment/v49_ingest.mjs';
 import {v49VerifyPriorState} from './v49_verification_input.mjs';
+import {v48PublishResearch,v48LoadState} from '../deployment/v48_persistence.mjs';
+import {v48ReadArchive} from '../deployment/v48_evidence_archive.mjs';
 const out='v49_evidence';mkdirSync(out,{recursive:true});
 const sha=x=>createHash('sha256').update(x).digest('hex');
 const save=(name,obj)=>writeFileSync(join(out,name),JSON.stringify(obj,null,2));
@@ -64,13 +66,23 @@ if(mode==='regression'){
  assert.equal(new Set(result.state.events.map(e=>e.id)).size,result.state.events.length);
  const ages=capture.events.map(e=>e.issued_at_ms-e.source_quote_at_ms);assert(ages.every(x=>x>=0&&x<=45000));
  save('history_responses.json',history);save('isolated_v36_latest.json',result.public_output);save('isolated_v36_state.json',result.state);
+ // Exercise the actual persistence boundary against a private copy of original archives.
+ const persistence=join(out,'persistence_check');mkdirSync(persistence,{recursive:true});
+ if(existsSync('data/v36_archive'))cpSync('data/v36_archive',join(persistence,'v36_archive'),{recursive:true});
+ const preservedArchive=existsSync('data/v36_archive')?Object.fromEntries(readdirSync('data/v36_archive').filter(n=>n.endsWith('.jsonl')).map(n=>[n,readFileSync(join('data/v36_archive',n),'utf8')])):{};
+ const published=v48PublishResearch({directory:persistence,kind:'v36',old,state:result.state,output:result.public_output,now:Date.now(),evicted:result.evicted});
+ const publishedBytes=readFileSync(join(persistence,'v36_shadow_state.json'));assert.equal(sha(publishedBytes),published.output.state_sha256);
+ const loaded=v48LoadState(join(persistence,'v36_shadow_state.json'));assert.equal(loaded.publication.revision,published.output.publication.revision);
+ for(const [name,bytes]of Object.entries(preservedArchive))assert(readFileSync(join(persistence,'v36_archive',name),'utf8').startsWith(bytes),'historical archive rewritten');
+ const archived=v48ReadArchive(join(persistence,'v36_archive'));assert(archived.unique_events>=old.events.length);
+ save('publication_verification.json',{state_hash_verified:true,revision_verified:true,prior_archive_bytes_preserved:true,archive_revisions:archived.revisions,archived_unique_events:archived.unique_events,production_state_unchanged:true});
  const report={source_commit:capture.source_commit,verification_input_commit:inputCommit,verification_input_contract:inputContract,baseline_model_digest:digest,decision_at_ms:capture.recorded_at_ms,
   source_packet_at_ms:capture.source_packet_at_ms,source_to_decision_ms:capture.recorded_at_ms-capture.source_packet_at_ms,
   captured_candidates:capture.events.length,imported_new_candidates:result.public_output.new_events,retained_originals_preserved:preserved,
   evicted_originals_archivable:result.evicted.length,max_quote_age_ms:Math.max(...ages),min_quote_age_ms:Math.min(...ages),
   history_pages:result.public_output.successful_native_histories,history_errors:result.public_output.source_errors,
   recovery:result.public_output.recovery,new_cohorts:Object.fromEntries(['bithumb:BUY','bitget:LONG','bitget:SHORT'].map(k=>[k,capture.events.filter(e=>e.venue+':'+e.direction===k).length])),
-  input_state_sha256:sha(before),input_state_unchanged:true,existing_measured_outcomes_unchanged:true,
+  input_state_sha256:sha(before),input_state_unchanged:true,existing_measured_outcomes_unchanged:true,publication_hash_and_archive_verified:true,
   official_public_data_used:true,isolated_only:true,orders_sent:false,telegram_sent:false,production_deployed:false,performance_improvement_proven:false};
  save('live_readonly_verification.json',report);console.log('V49_LIVE_READONLY_VERIFIED',JSON.stringify(report));
 }else throw Error('choose regression or live verification mode');
