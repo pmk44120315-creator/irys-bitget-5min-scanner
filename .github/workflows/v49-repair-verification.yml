@@ -1,0 +1,43 @@
+name: V49 isolated delay and missing-label repair verification (NO LIVE CHANGES)
+on:
+  push:
+    branches: [repair/v49-delay-missing-20261117]
+    paths: ['.github/workflows/v49-repair-verification.yml','deployment/**','tests/**']
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Preserve exact source and public measurement inputs
+        run: |
+          set -euo pipefail
+          mkdir -p v49_evidence/data
+          git rev-parse HEAD > v49_evidence/source_commit.txt
+          git archive --format=zip --output=v49_evidence/source.zip HEAD deployment tests research .github
+          git ls-files '*AGENTS.md' | while IFS= read -r f; do mkdir -p "v49_evidence/instructions/$(dirname "$f")"; cp "$f" "v49_evidence/instructions/$f"; done
+          for f in v36_shadow_state.json v36_shadow_latest.json v30_direction_latest.json v34_crash_latest.json; do
+            git show "HEAD:data/$f" > "v49_evidence/data/$f"
+          done
+          python - <<'PY'
+          import pathlib,hashlib,json
+          p=pathlib.Path('v49_evidence')
+          rows={str(x.relative_to(p)):{'bytes':x.stat().st_size,'sha256':hashlib.sha256(x.read_bytes()).hexdigest()} for x in p.rglob('*') if x.is_file()}
+          (p/'manifest.json').write_text(json.dumps(rows,indent=2))
+          print('V49_SOURCE_SNAPSHOT',json.dumps(rows))
+          PY
+      - name: Run existing research baseline tests
+        run: |
+          set -o pipefail
+          node --test tests/test_v36_shadow.mjs 2>&1 | tee v49_evidence/baseline_v36.log
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: v49-isolated-source-baseline
+          path: v49_evidence/
+          retention-days: 7
+          if-no-files-found: error
