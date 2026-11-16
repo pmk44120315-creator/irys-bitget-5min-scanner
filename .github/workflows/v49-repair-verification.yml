@@ -24,16 +24,45 @@ jobs:
             git show "HEAD:data/$f" > "v49_evidence/data/$f"
           done
           python - <<'PY'
-          import pathlib,hashlib,json
-          p=pathlib.Path('v49_evidence')
-          rows={str(x.relative_to(p)):{'bytes':x.stat().st_size,'sha256':hashlib.sha256(x.read_bytes()).hexdigest()} for x in p.rglob('*') if x.is_file()}
-          (p/'manifest.json').write_text(json.dumps(rows,indent=2))
-          print('V49_SOURCE_SNAPSHOT',json.dumps(rows))
+          import pathlib,subprocess,zipfile
+          files=subprocess.check_output(['git','ls-files','-z']).decode().split('\0')
+          with zipfile.ZipFile('v49_evidence/source.zip','a',compression=zipfile.ZIP_DEFLATED) as z:
+            for f in files:
+              if f and '/' not in f and pathlib.Path(f).suffix in {'.py','.json','.toml','.txt','.md','.yml'}: z.write(f,f)
+          pathlib.Path('v49_evidence/tracked_paths.txt').write_text('\n'.join(files))
           PY
+      - name: Inspect bounded official historical missing targets without modifying state
+        run: |
+          node --input-type=module <<'JS'
+          import {readFileSync,writeFileSync} from 'node:fs';
+          import {parsedBars,officialReader} from './deployment/v36_runner.mjs';
+          const s=JSON.parse(readFileSync('data/v36_shadow_state.json','utf8'));
+          const selected=new Map();
+          for(const e of s.events){if(e.venue==='bithumb'&&e.direction_outcomes?.['5']?.status!=='MEASURED_DIRECTION'&&!selected.has(e.symbol))selected.set(e.symbol,e);if(selected.size===6)break;}
+          const read=officialReader(),results=[];
+          for(const e of selected.values()){
+            const now=Date.now(),end=Math.ceil((e.issued_at_ms+60*60000)/60000)*60000;
+            const url='https://api.bithumb.com/v1/candles/minutes/1?'+new URLSearchParams({market:e.symbol,to:new Date(end+9*3600000).toISOString().slice(0,19),count:'200'});
+            try{const raw=await read(url),parsed=parsedBars(raw,'bithumb',e.symbol,end);results.push({id:e.id,symbol:e.symbol,issued_at_ms:e.issued_at_ms,requested_end_ms:end,fetched_at_ms:now,url,raw,parsed,horizons:[5,15,30,60].map(h=>({h,target_start_ms:Math.ceil((e.issued_at_ms+h*60000)/60000)*60000-60000,target_found:parsed?.bars?.some(b=>b.start_ms===Math.ceil((e.issued_at_ms+h*60000)/60000)*60000-60000)}))});}
+            catch(err){results.push({id:e.id,symbol:e.symbol,url,error:String(err)});}
+          }
+          writeFileSync('v49_evidence/bithumb_bounded_probe.json',JSON.stringify({read_only:true,no_orders:true,no_telegram:true,sampled_markets:results.length,results},null,2));
+          console.log('V49_BOUNDED_PROBE',JSON.stringify(results.map(r=>({symbol:r.symbol,raw_count:r.raw?.length,parsed_count:r.parsed?.bars?.length,horizons:r.horizons,error:r.error}))));
+          JS
       - name: Run existing research baseline tests
         run: |
           set -o pipefail
           node --test tests/test_v36_shadow.mjs 2>&1 | tee v49_evidence/baseline_v36.log
+      - name: Hash all evidence
+        if: always()
+        run: |
+          python - <<'PY'
+          import pathlib,hashlib,json
+          p=pathlib.Path('v49_evidence')
+          rows={str(x.relative_to(p)):{'bytes':x.stat().st_size,'sha256':hashlib.sha256(x.read_bytes()).hexdigest()} for x in p.rglob('*') if x.is_file() and x.name!='manifest.json'}
+          (p/'manifest.json').write_text(json.dumps(rows,indent=2))
+          print('V49_SOURCE_SNAPSHOT',json.dumps(rows))
+          PY
       - uses: actions/upload-artifact@v4
         if: always()
         with:
