@@ -6,6 +6,7 @@ import {v30Produce,v30ModelDigest,publicReader} from '../deployment/v30_producer
 import {v36Process,officialReader} from '../deployment/v36_runner.mjs';
 import {v49CreateCapture,v49WriteCapture} from '../deployment/v49_capture.mjs';
 import {v49ReadCaptures} from '../deployment/v49_ingest.mjs';
+import {v49VerifyPriorState} from './v49_verification_input.mjs';
 const out='v49_evidence';mkdirSync(out,{recursive:true});
 const sha=x=>createHash('sha256').update(x).digest('hex');
 const save=(name,obj)=>writeFileSync(join(out,name),JSON.stringify(obj,null,2));
@@ -29,7 +30,19 @@ if(mode==='regression'){
  console.log('V49_REGRESSION_COMPARISON',JSON.stringify({before_tests:before.tests,before_failed:before.fail,after_tests:after.tests,after_failed:after.fail,new_failures:unexpected.length,whole_suite_pass:after.exit_code===0}));
 }else if(mode==='live'){
  const digest=v30ModelDigest();assert.equal(digest,'baea9920208c677a338827a451cd8e0e5bf8a45d0600f84812b33aa743b4d9b9');
- const previous=read('data/v30_state.json');
+ // Choose an actually published comparison baseline at least three minutes old.
+ // This fixes the verification environment only; production discovery rules are unchanged.
+ const cutoff=new Date(Date.now()-180000).toISOString();
+ const url='https://api.github.com/repos/pmk44120315-creator/irys-bitget-5min-scanner/commits?'+new URLSearchParams({sha:'main',path:'data/v30_state.json',until:cutoff,per_page:'1'});
+ const headers={accept:'application/vnd.github+json','User-Agent':'IRYS-V49-ReadOnlyVerification'};
+ if(process.env.GITHUB_TOKEN)headers.authorization='Bearer '+process.env.GITHUB_TOKEN;
+ const response=await fetch(url,{headers,signal:AbortSignal.timeout(15000)});assert(response.ok,'V49_VERIFY_PUBLIC_COMMIT_LOOKUP_'+response.status);
+ const commits=await response.json(),inputCommit=commits?.[0]?.sha;assert(/^[a-f0-9]{40}$/.test(inputCommit||''),'V49_VERIFY_COMMIT_MISSING');
+ execFileSync('git',['fetch','--quiet','--depth=1','origin',inputCommit]);
+ const inputBytes=execFileSync('git',['show',inputCommit+':data/v30_state.json'],{maxBuffer:64*1024*1024});
+ const previous=JSON.parse(inputBytes),inputContract=v49VerifyPriorState(previous,Date.now());
+ writeFileSync(join(out,'live_input_v30_state.json'),inputBytes);
+ save('live_input_provenance.json',{source_commit:inputCommit,sha256:sha(inputBytes),lookup_cutoff:cutoff,read_at_ms:Date.now(),...inputContract});
  const fresh=await v30Produce({read:publicReader(),historyMode:'cached',previous,modelDigest:digest});
  save('isolated_v30_packet.json',fresh.report);
  const capture=v49CreateCapture({packet:fresh.report,now:Date.now(),baselineDigest:digest,sourceCommit:execFileSync('git',['rev-parse','HEAD'],{encoding:'utf8'}).trim()});
@@ -51,7 +64,7 @@ if(mode==='regression'){
  assert.equal(new Set(result.state.events.map(e=>e.id)).size,result.state.events.length);
  const ages=capture.events.map(e=>e.issued_at_ms-e.source_quote_at_ms);assert(ages.every(x=>x>=0&&x<=45000));
  save('history_responses.json',history);save('isolated_v36_latest.json',result.public_output);save('isolated_v36_state.json',result.state);
- const report={source_commit:capture.source_commit,baseline_model_digest:digest,decision_at_ms:capture.recorded_at_ms,
+ const report={source_commit:capture.source_commit,verification_input_commit:inputCommit,verification_input_contract:inputContract,baseline_model_digest:digest,decision_at_ms:capture.recorded_at_ms,
   source_packet_at_ms:capture.source_packet_at_ms,source_to_decision_ms:capture.recorded_at_ms-capture.source_packet_at_ms,
   captured_candidates:capture.events.length,imported_new_candidates:result.public_output.new_events,retained_originals_preserved:preserved,
   evicted_originals_archivable:result.evicted.length,max_quote_age_ms:Math.max(...ages),min_quote_age_ms:Math.min(...ages),

@@ -64,6 +64,8 @@ jobs:
           git worktree add --detach "$RUNNER_TEMP/v49-unchanged-baseline" FETCH_HEAD
           node research/v49_verify.mjs regression "$RUNNER_TEMP/v49-unchanged-baseline" | tee v49_evidence/full_regression_summary.log
       - name: Verify genuine fresh public capture and delayed research processing in isolation
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           node research/v49_verify.mjs live | tee v49_evidence/live_readonly.log
