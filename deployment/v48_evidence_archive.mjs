@@ -7,7 +7,7 @@ const MAX_FILE_BYTES=16*1024*1024;
 function shard(name){const m=/^(\d{4}-\d\d-\d\d)(?:\.(\d{6}))?\.jsonl$/.exec(name);return m?{day:m[1],part:m[2]===undefined?0:Number(m[2]),name}:null;}
 function shardOrder(a,b){const x=shard(a),y=shard(b);return x.day.localeCompare(y.day)||x.part-y.part;}
 function shardName(day,part){if(part>999999)throw Error('V48_ARCHIVE_SHARD_CAPACITY');return day+(part?'.'+String(part).padStart(6,'0'):'')+'.jsonl';}
-const MUTABLE=new Set(['outcomes','direction_outcomes','legacy_outcomes_v37','legacy_direction_outcomes_v36','direction_measurement_version','native_history_last_attempt_at_ms']);
+const MUTABLE=new Set(['outcomes','direction_outcomes','legacy_outcomes_v37','legacy_direction_outcomes_v36','direction_measurement_version','native_history_last_attempt_at_ms','history_recovery']);
 function canonical(x){
  if(typeof x==='number'&&!Number.isFinite(x))throw Error('V48_ARCHIVE_NONFINITE');
  if(x===null||typeof x!=='object')return JSON.stringify(x);
