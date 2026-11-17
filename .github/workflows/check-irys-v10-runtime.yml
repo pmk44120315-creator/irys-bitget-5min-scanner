@@ -1,0 +1,22 @@
+name: IRYS V10 actual Cloudflare source and runtime read-only inspection
+on:
+  push:
+    branches: [fix/irys-v10-bitget-longshort-proof-20261028]
+    paths:
+      - 'deployment/check-v10-live.mjs'
+      - '.github/workflows/check-irys-v10-runtime.yml'
+permissions:
+  contents: read
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    env:
+      IRYS_V7_CF_API_TOKEN: ${{ secrets.IRYS_V7_CF_API_TOKEN }}
+      IRYS_REALTIME_CF_ACCOUNT_ID: ${{ secrets.IRYS_REALTIME_CF_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Inspect exact deployed V10 source SHA, cron, bindings and last actual futures scan without mutations
+        run: node deployment/check-v10-live.mjs
