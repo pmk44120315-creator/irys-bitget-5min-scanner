@@ -1,6 +1,6 @@
 {
   "version": "V43_ACTUAL_ACK_STREAM_QUOTES_V1",
-  "asof_ms": 1795203719909,
+  "asof_ms": 1795204044249,
   "target_tolerance_ms": 5000,
   "events": [
     {
@@ -13489,13 +13489,89 @@
         "complete_tick_path_verified": false,
         "observation_count_is_lower_bound": true
       }
+    },
+    {
+      "venue": "bithumb",
+      "symbol": "KRW-BTC",
+      "direction": "BUY",
+      "issued_at_ms": 1795203649592,
+      "entry_quote": {
+        "bid": 81102000,
+        "ask": 81149000,
+        "at_ms": 1795203648395
+      },
+      "api_ack_recorded": true,
+      "actual_execution_verified": false,
+      "invalidation_reference": 80917000,
+      "id": "bithumb:KRW-BTC:1795203649592",
+      "quote_outcomes": {
+        "5": {
+          "status": "MEASURED_WS_QUOTE",
+          "target_ms": 1795203949592,
+          "target_delay_ms": 42,
+          "provider_at_ms": 1795203949634,
+          "provider_sequence": null,
+          "received_at_ms": 1795203949781,
+          "source_segment": "bithumb:44803570563-1:146e1136-2d29-49c1-8860-999902926c98",
+          "entry_reference": 81149000,
+          "exit_quote": {
+            "bid": 80992000,
+            "ask": 81080000,
+            "at_ms": 1795203949634,
+            "at_us": 1795203949634992
+          },
+          "signed_quote_return_pct": -0.19347126890041366,
+          "signed_mid_change_pct": -0.1103228947741508,
+          "after_assumed_0_20pct_cost": -0.3934712689004137,
+          "fee_schedule_verified": false,
+          "actual_execution_verified": false,
+          "liquidity_size_and_fills_verified": false
+        },
+        "15": {
+          "status": "PENDING_HORIZON",
+          "target_ms": 1795204549592,
+          "actual_execution_verified": false
+        },
+        "30": {
+          "status": "PENDING_HORIZON",
+          "target_ms": 1795205449592,
+          "actual_execution_verified": false
+        },
+        "60": {
+          "status": "PENDING_HORIZON",
+          "target_ms": 1795207249592,
+          "actual_execution_verified": false
+        }
+      },
+      "observed_path": {
+        "quote_observations": 3591,
+        "first_quote_ms": 1795203745248,
+        "last_quote_ms": 1795204044061,
+        "coverage_start_delay_ms": 95656,
+        "max_observed_quote_gap_ms": 343,
+        "segments": [
+          "bithumb:44803570563-1:146e1136-2d29-49c1-8860-999902926c98"
+        ],
+        "max_favorable_pct": 0.12446240865569003,
+        "max_adverse_pct": -0.46457750557615807,
+        "first_observed_touch": {
+          "kind": "REFERENCE_BREAK",
+          "at_ms": 1795203745248,
+          "exit_quote": 80816000,
+          "observed_only": true,
+          "full_path_order_verified": false,
+          "coverage_start_delay_ms": 95656,
+          "segment": "bithumb:44803570563-1:146e1136-2d29-49c1-8860-999902926c98"
+        },
+        "complete_tick_path_verified": false
+      }
     }
   ],
   "summary": {
-    "actual_ack_records": 144,
+    "actual_ack_records": 145,
     "horizons": {
       "5": {
-        "measured": 73,
+        "measured": 74,
         "quote_positive": 30,
         "missing": 71,
         "pending": 0
@@ -13504,19 +13580,19 @@
         "measured": 70,
         "quote_positive": 30,
         "missing": 74,
-        "pending": 0
+        "pending": 1
       },
       "30": {
         "measured": 71,
         "quote_positive": 27,
         "missing": 73,
-        "pending": 0
+        "pending": 1
       },
       "60": {
         "measured": 72,
         "quote_positive": 30,
         "missing": 72,
-        "pending": 0
+        "pending": 1
       }
     }
   },
