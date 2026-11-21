@@ -1,52 +1,52 @@
 {
   "version": "V43_PUBLIC_CONTINUOUS_SESSION_V1",
-  "session": "44869785996-1",
-  "started_at_ms": 1795238243850,
-  "ended_at_ms": 1795238603938,
+  "session": "44870209273-1",
+  "started_at_ms": 1795238524126,
+  "ended_at_ms": 1795238884170,
   "requested_duration_ms": 360000,
   "execution_kind": "BOUNDED_HOSTED_OBSERVATION_SESSION",
   "previous_session_end_ms": 1795237974914,
   "inter_session_gap_ms": null,
-  "publication_reference_age_ms": 268936,
+  "publication_reference_age_ms": 549212,
   "inter_session_gap_verified": false,
   "collector_revision": "V47_RECEIVE_EPOCH_COVERAGE",
   "all_day_continuity_verified": false,
   "connections": [
     {
       "venue": "bitget",
-      "connection_id": "bitget:44869785996-1:f5ac3090-e0a3-4dae-8417-4865b354b3dd",
-      "opened_at_ms": 1795238245408,
-      "closed_at_ms": 1795238603938,
-      "frames": 42542,
+      "connection_id": "bitget:44870209273-1:bce4e772-03b0-4da6-8165-6fd93ec7f6d5",
+      "opened_at_ms": 1795238525776,
+      "closed_at_ms": 1795238884170,
+      "frames": 32116,
       "reason": "SESSION_SHUTDOWN",
-      "first_book_received_ms": 1795238245771,
-      "last_book_received_ms": 1795238603871
+      "first_book_received_ms": 1795238526077,
+      "last_book_received_ms": 1795238884166
     },
     {
       "venue": "bithumb",
-      "connection_id": "bithumb:44869785996-1:ce016e23-a89c-4267-84bd-8cee251437b3",
-      "opened_at_ms": 1795238245558,
-      "closed_at_ms": 1795238603938,
-      "frames": 21367,
+      "connection_id": "bithumb:44870209273-1:5f9ac32a-dd8e-4bb1-94ab-3cd041dd672f",
+      "opened_at_ms": 1795238525651,
+      "closed_at_ms": 1795238884170,
+      "frames": 22181,
       "reason": "SESSION_SHUTDOWN",
-      "first_book_received_ms": 1795238245735,
-      "last_book_received_ms": 1795238603905
+      "first_book_received_ms": 1795238525863,
+      "last_book_received_ms": 1795238884126
     }
   ],
-  "frames": 63909,
-  "normalized_events": 74271,
-  "accepted_events": 74207,
+  "frames": 54297,
+  "normalized_events": 61097,
+  "accepted_events": 60994,
   "source_refreshes": 12,
   "source_errors": {},
   "frame_errors": {},
   "transition_discards": {
-    "bitget:UNSUBSCRIBE_IN_FLIGHT": 41,
-    "bithumb:UNSUBSCRIBE_IN_FLIGHT": 23
+    "bitget:UNSUBSCRIBE_IN_FLIGHT": 80,
+    "bithumb:UNSUBSCRIBE_IN_FLIGHT": 22
   },
   "watch_changes": 3,
-  "quotes_observed": 51663,
-  "features_frozen": 840,
-  "max_processing_delay_ms": 4,
+  "quotes_observed": 44697,
+  "features_frozen": 912,
+  "max_processing_delay_ms": 3,
   "private_endpoints_used": false,
   "orders_sent": false,
   "telegram_sent": false,
@@ -55,77 +55,222 @@
   "latest_ack_records": 146,
   "stop_reason": "OBSERVATION_SESSION_COMPLETE",
   "watchlist": {
-    "asof_ms": 1795238574915,
+    "asof_ms": 1795238855272,
     "bitget": [
-      "BTCUSDT"
+      "AKEUSDT",
+      "AVNTUSDT",
+      "BATUSDT",
+      "BBUSDT",
+      "BLURUSDT",
+      "BTCUSDT",
+      "COAIUSDT",
+      "DGAIUSDT",
+      "DOSUSDT",
+      "EVAAUSDT",
+      "HIVEUSDT",
+      "IDOLUSDT",
+      "INITUSDT",
+      "LITUSDT",
+      "LYNUSDT",
+      "MMTUSDT",
+      "NEIROCTOUSDT",
+      "PARTIUSDT",
+      "PONSUSDT",
+      "PROMUSDT",
+      "STONKUSDT",
+      "UBUSDT",
+      "VVVUSDT",
+      "XPINUSDT",
+      "YBUSDT"
     ],
     "bithumb": [
-      "KRW-BTC"
+      "KRW-A8",
+      "KRW-ADP",
+      "KRW-AEON",
+      "KRW-AGI",
+      "KRW-AI",
+      "KRW-BTC",
+      "KRW-DNA",
+      "KRW-HUMA",
+      "KRW-PARTI",
+      "KRW-PYBOBO",
+      "KRW-SNT",
+      "KRW-STABLE",
+      "KRW-USDT"
     ],
-    "reasons": {},
-    "source_packet_current": false,
+    "reasons": {
+      "bithumb:KRW-ADP": [
+        "CURRENT_DISCOVERY_OBSERVATION"
+      ],
+      "bithumb:KRW-DNA": [
+        "CURRENT_DISCOVERY_OBSERVATION"
+      ],
+      "bithumb:KRW-AGI": [
+        "CURRENT_DISCOVERY_OBSERVATION"
+      ],
+      "bithumb:KRW-SNT": [
+        "CURRENT_DISCOVERY_OBSERVATION"
+      ],
+      "bithumb:KRW-AI": [
+        "CURRENT_DISCOVERY_OBSERVATION"
+      ],
+      "bithumb:KRW-PYBOBO": [
+        "CURRENT_DISCOVERY_OBSERVATION"
+      ],
+      "bithumb:KRW-A8": [
+        "CURRENT_DISCOVERY_OBSERVATION"
+      ],
+      "bithumb:KRW-AEON": [
+        "CURRENT_DISCOVERY_OBSERVATION"
+      ],
+      "bithumb:KRW-STABLE": [
+        "CURRENT_DISCOVERY_OBSERVATION"
+      ],
+      "bithumb:KRW-PARTI": [
+        "CURRENT_DISCOVERY_OBSERVATION"
+      ],
+      "bithumb:KRW-HUMA": [
+        "CURRENT_DISCOVERY_OBSERVATION"
+      ],
+      "bithumb:KRW-USDT": [
+        "CURRENT_DISCOVERY_OBSERVATION"
+      ],
+      "bitget:XPINUSDT": [
+        "CURRENT_DISCOVERY_OBSERVATION"
+      ],
+      "bitget:EVAAUSDT": [
+        "CURRENT_DISCOVERY_OBSERVATION"
+      ],
+      "bitget:BLURUSDT": [
+        "CURRENT_DISCOVERY_OBSERVATION"
+      ],
+      "bitget:LYNUSDT": [
+        "CURRENT_DISCOVERY_OBSERVATION"
+      ],
+      "bitget:DGAIUSDT": [
+        "CURRENT_DISCOVERY_OBSERVATION"
+      ],
+      "bitget:PARTIUSDT": [
+        "CURRENT_DISCOVERY_OBSERVATION"
+      ],
+      "bitget:VVVUSDT": [
+        "CURRENT_DISCOVERY_OBSERVATION"
+      ],
+      "bitget:PROMUSDT": [
+        "CURRENT_DISCOVERY_OBSERVATION"
+      ],
+      "bitget:INITUSDT": [
+        "CURRENT_DISCOVERY_OBSERVATION"
+      ],
+      "bitget:LITUSDT": [
+        "CURRENT_DISCOVERY_OBSERVATION"
+      ],
+      "bitget:COAIUSDT": [
+        "CURRENT_DISCOVERY_OBSERVATION"
+      ],
+      "bitget:NEIROCTOUSDT": [
+        "CURRENT_DISCOVERY_OBSERVATION"
+      ],
+      "bitget:AKEUSDT": [
+        "CURRENT_DISCOVERY_OBSERVATION"
+      ],
+      "bitget:STONKUSDT": [
+        "CURRENT_DISCOVERY_OBSERVATION"
+      ],
+      "bitget:MMTUSDT": [
+        "CURRENT_DISCOVERY_OBSERVATION"
+      ],
+      "bitget:DOSUSDT": [
+        "CURRENT_DISCOVERY_OBSERVATION"
+      ],
+      "bitget:PONSUSDT": [
+        "CURRENT_DISCOVERY_OBSERVATION"
+      ],
+      "bitget:IDOLUSDT": [
+        "CURRENT_DISCOVERY_OBSERVATION"
+      ],
+      "bitget:BATUSDT": [
+        "CURRENT_DISCOVERY_OBSERVATION"
+      ],
+      "bitget:YBUSDT": [
+        "CURRENT_DISCOVERY_OBSERVATION"
+      ],
+      "bitget:AVNTUSDT": [
+        "CURRENT_DISCOVERY_OBSERVATION"
+      ],
+      "bitget:UBUSDT": [
+        "CURRENT_DISCOVERY_OBSERVATION"
+      ],
+      "bitget:HIVEUSDT": [
+        "CURRENT_DISCOVERY_OBSERVATION"
+      ],
+      "bitget:BBUSDT": [
+        "CURRENT_DISCOVERY_OBSERVATION"
+      ]
+    },
+    "source_packet_current": true,
     "arbitrary_candidate_cap": false
   },
   "sources": [
     {
-      "at_ms": 1795238244643,
+      "at_ms": 1795238524530,
       "packet_at_ms": 1795237936211,
       "packet_sha256": "3d517302b3be802d9d8c1a2bf9af391fb034e150e8d97f50c8a7556282b9b5ee"
     },
     {
-      "at_ms": 1795238275347,
-      "packet_at_ms": 1795237936211,
-      "packet_sha256": "3d517302b3be802d9d8c1a2bf9af391fb034e150e8d97f50c8a7556282b9b5ee"
-    },
-    {
-      "at_ms": 1795238305095,
-      "packet_at_ms": 1795237936211,
-      "packet_sha256": "3d517302b3be802d9d8c1a2bf9af391fb034e150e8d97f50c8a7556282b9b5ee"
-    },
-    {
-      "at_ms": 1795238334973,
-      "packet_at_ms": 1795237936211,
-      "packet_sha256": "3d517302b3be802d9d8c1a2bf9af391fb034e150e8d97f50c8a7556282b9b5ee"
-    },
-    {
-      "at_ms": 1795238364949,
-      "packet_at_ms": 1795237936211,
-      "packet_sha256": "3d517302b3be802d9d8c1a2bf9af391fb034e150e8d97f50c8a7556282b9b5ee"
-    },
-    {
-      "at_ms": 1795238394937,
-      "packet_at_ms": 1795237936211,
-      "packet_sha256": "3d517302b3be802d9d8c1a2bf9af391fb034e150e8d97f50c8a7556282b9b5ee"
-    },
-    {
-      "at_ms": 1795238424956,
-      "packet_at_ms": 1795237936211,
-      "packet_sha256": "3d517302b3be802d9d8c1a2bf9af391fb034e150e8d97f50c8a7556282b9b5ee"
-    },
-    {
-      "at_ms": 1795238454965,
-      "packet_at_ms": 1795237936211,
-      "packet_sha256": "3d517302b3be802d9d8c1a2bf9af391fb034e150e8d97f50c8a7556282b9b5ee"
-    },
-    {
-      "at_ms": 1795238484933,
-      "packet_at_ms": 1795237936211,
-      "packet_sha256": "3d517302b3be802d9d8c1a2bf9af391fb034e150e8d97f50c8a7556282b9b5ee"
-    },
-    {
-      "at_ms": 1795238514928,
-      "packet_at_ms": 1795237936211,
-      "packet_sha256": "3d517302b3be802d9d8c1a2bf9af391fb034e150e8d97f50c8a7556282b9b5ee"
-    },
-    {
-      "at_ms": 1795238545467,
+      "at_ms": 1795238554866,
       "packet_at_ms": 1795238236232,
       "packet_sha256": "ad55a791b3e1ed5291345b9bab962aac99a40431329cd5bb172e6d84a1b2c2cf"
     },
     {
-      "at_ms": 1795238574915,
-      "packet_at_ms": 1795237936211,
-      "packet_sha256": "3d517302b3be802d9d8c1a2bf9af391fb034e150e8d97f50c8a7556282b9b5ee"
+      "at_ms": 1795238584857,
+      "packet_at_ms": 1795238236232,
+      "packet_sha256": "ad55a791b3e1ed5291345b9bab962aac99a40431329cd5bb172e6d84a1b2c2cf"
+    },
+    {
+      "at_ms": 1795238615008,
+      "packet_at_ms": 1795238236232,
+      "packet_sha256": "ad55a791b3e1ed5291345b9bab962aac99a40431329cd5bb172e6d84a1b2c2cf"
+    },
+    {
+      "at_ms": 1795238644865,
+      "packet_at_ms": 1795238236232,
+      "packet_sha256": "ad55a791b3e1ed5291345b9bab962aac99a40431329cd5bb172e6d84a1b2c2cf"
+    },
+    {
+      "at_ms": 1795238674863,
+      "packet_at_ms": 1795238236232,
+      "packet_sha256": "ad55a791b3e1ed5291345b9bab962aac99a40431329cd5bb172e6d84a1b2c2cf"
+    },
+    {
+      "at_ms": 1795238704909,
+      "packet_at_ms": 1795238236232,
+      "packet_sha256": "ad55a791b3e1ed5291345b9bab962aac99a40431329cd5bb172e6d84a1b2c2cf"
+    },
+    {
+      "at_ms": 1795238734860,
+      "packet_at_ms": 1795238236232,
+      "packet_sha256": "ad55a791b3e1ed5291345b9bab962aac99a40431329cd5bb172e6d84a1b2c2cf"
+    },
+    {
+      "at_ms": 1795238764878,
+      "packet_at_ms": 1795238236232,
+      "packet_sha256": "ad55a791b3e1ed5291345b9bab962aac99a40431329cd5bb172e6d84a1b2c2cf"
+    },
+    {
+      "at_ms": 1795238794882,
+      "packet_at_ms": 1795238236232,
+      "packet_sha256": "ad55a791b3e1ed5291345b9bab962aac99a40431329cd5bb172e6d84a1b2c2cf"
+    },
+    {
+      "at_ms": 1795238824870,
+      "packet_at_ms": 1795238236232,
+      "packet_sha256": "ad55a791b3e1ed5291345b9bab962aac99a40431329cd5bb172e6d84a1b2c2cf"
+    },
+    {
+      "at_ms": 1795238855272,
+      "packet_at_ms": 1795238556720,
+      "packet_sha256": "fd9a5831ebea8cb692816b0acde0dd696b8b9ede44916c3a6a86f1631e0defee"
     }
   ],
   "outcome_summary": {
@@ -157,57 +302,515 @@
       }
     }
   },
-  "raw_sha256": "ae49ecec7145e47bb5e6854e7f3bc9dbbf8c1b95d3895d561f63e7ea397f8f80",
-  "features_sha256": "c5495974beaefdee64625dd861c408f4323f586bb76d7171a02ba2721d84aeec",
+  "raw_sha256": "67a7d1b7d60e2826e70d87a58f74e6ab4aa5eb935f060f456359e479adc618be",
+  "features_sha256": "d67521ebc1a8582e726633509dd1e3d91b3a1e5f025fd65d201e4929512665ce",
   "status": "OBSERVED",
   "latest_features": [
     {
-      "session": "44869785996-1",
+      "session": "44870209273-1",
+      "feature": {
+        "version": "V43_PUBLIC_STREAM_EVIDENCE_V1",
+        "venue": "bitget",
+        "symbol": "AKEUSDT",
+        "asof_ms": 1795238884164,
+        "window_ms": 60000,
+        "segment": "bitget:44870209273-1:bce4e772-03b0-4da6-8165-6fd93ec7f6d5",
+        "connected_since_ms": 1795238525776,
+        "unbroken_window": true,
+        "market_observed_since_ms": 1795238526100,
+        "market_observation_span_ms": 358064,
+        "reconnects": 0,
+        "book_count": 471,
+        "trade_count": 215,
+        "first_quote": {
+          "bid": 0.0059689,
+          "ask": 0.0059755,
+          "at_ms": 1795238824202,
+          "at_us": 1795238824202000,
+          "received_at_ms": 1795238824313,
+          "bid_size": 21229,
+          "ask_size": 11049
+        },
+        "last_quote": {
+          "bid": 0.005971,
+          "ask": 0.0059782,
+          "at_ms": 1795238884000,
+          "at_us": 1795238884000000,
+          "received_at_ms": 1795238884105,
+          "bid_size": 23143,
+          "ask_size": 30858
+        },
+        "quote_age_ms": 164,
+        "buy_quote_notional": 8511.766667299995,
+        "sell_quote_notional": 5196.416445600002,
+        "signed_quote_flow": 3315.350221699993,
+        "buy_share": 0.6209259532935515,
+        "observed_mid_change_pct": 0.04018619604164719,
+        "long_executable_change_pct": -0.0753075056480701,
+        "short_executable_change_pct": -0.1558076027408782,
+        "spread_pct": 0.12058281694860007,
+        "top_depth_imbalance": 0.1608156997295297,
+        "order_flow_imbalance_base": 1654756,
+        "observed_bid_replenishment": 524089,
+        "observed_ask_replenishment": 292303,
+        "initial_history_count": 0,
+        "duplicates": 0,
+        "conflicts": 0,
+        "out_of_order_books": 0,
+        "complete_exchange_tape_verified": false,
+        "book_cancellation_or_fill_attribution_verified": false,
+        "intent_verified": false,
+        "forecast_accuracy_proven": false,
+        "trade_permission": false
+      },
+      "assessment": {
+        "version": "V43_DIRECTION_AND_ENTRY_OBSERVATION_V1",
+        "venue": "bitget",
+        "symbol": "AKEUSDT",
+        "decided_at_ms": 1795238884164,
+        "direction": {
+          "observed_bias": "UP",
+          "pattern": "BUY_FLOW_PRICE_UP",
+          "venue_action_hypothesis": "LONG_HYPOTHESIS",
+          "probability": null,
+          "absorption_verified": false,
+          "future_direction_verified": false
+        },
+        "entry": {
+          "risk_flags": [
+            "MOVE_WITHIN_SPREAD"
+          ],
+          "spread_pct": 0.12058281694860007,
+          "observed_long_quote_change_pct": -0.0753075056480701,
+          "observed_short_quote_change_pct": -0.1558076027408782,
+          "visible_depth_imbalance": 0.1608156997295297,
+          "observed_bid_replenishment": 524089,
+          "observed_ask_replenishment": 292303,
+          "observed_order_flow_imbalance": 1654756,
+          "trade_permission": false
+        },
+        "raw_feature_asof_ms": 1795238884164,
+        "live_model_replaced": false,
+        "forecast_accuracy_proven": false,
+        "warning": "OBSERVED_DIRECTION_AND_ENTRY_RISK_ARE_NOT_FUTURE_TRADE_RECOMMENDATIONS"
+      },
+      "market_context_same_interval_verified": false
+    },
+    {
+      "session": "44870209273-1",
+      "feature": {
+        "version": "V43_PUBLIC_STREAM_EVIDENCE_V1",
+        "venue": "bitget",
+        "symbol": "AVNTUSDT",
+        "asof_ms": 1795238884164,
+        "window_ms": 60000,
+        "segment": "bitget:44870209273-1:bce4e772-03b0-4da6-8165-6fd93ec7f6d5",
+        "connected_since_ms": 1795238525776,
+        "unbroken_window": false,
+        "market_observed_since_ms": 1795238856545,
+        "market_observation_span_ms": 27619,
+        "reconnects": 0,
+        "book_count": 68,
+        "trade_count": 0,
+        "first_quote": {
+          "bid": 0.05773,
+          "ask": 0.05782,
+          "at_ms": 1795238856428,
+          "at_us": 1795238856428000,
+          "received_at_ms": 1795238856545,
+          "bid_size": 173,
+          "ask_size": 3704
+        },
+        "last_quote": {
+          "bid": 0.05779,
+          "ask": 0.0579,
+          "at_ms": 1795238883856,
+          "at_us": 1795238883856000,
+          "received_at_ms": 1795238883976,
+          "bid_size": 1072,
+          "ask_size": 892
+        },
+        "quote_age_ms": 308,
+        "buy_quote_notional": 0,
+        "sell_quote_notional": 0,
+        "signed_quote_flow": 0,
+        "buy_share": null,
+        "observed_mid_change_pct": 0.12115967113803805,
+        "long_executable_change_pct": -0.051885160844000744,
+        "short_executable_change_pct": -0.2944742768058262,
+        "spread_pct": 0.19034435023359553,
+        "top_depth_imbalance": 0.0819647544056993,
+        "order_flow_imbalance_base": 3227,
+        "observed_bid_replenishment": 1444,
+        "observed_ask_replenishment": 1729,
+        "initial_history_count": 0,
+        "duplicates": 0,
+        "conflicts": 0,
+        "out_of_order_books": 0,
+        "complete_exchange_tape_verified": false,
+        "book_cancellation_or_fill_attribution_verified": false,
+        "intent_verified": false,
+        "forecast_accuracy_proven": false,
+        "trade_permission": false
+      },
+      "assessment": {
+        "version": "V43_DIRECTION_AND_ENTRY_OBSERVATION_V1",
+        "venue": "bitget",
+        "symbol": "AVNTUSDT",
+        "decided_at_ms": 1795238884164,
+        "direction": {
+          "observed_bias": "UP",
+          "pattern": "PRICE_ONLY_NO_TAPE",
+          "venue_action_hypothesis": "LONG_HYPOTHESIS",
+          "probability": null,
+          "absorption_verified": false,
+          "future_direction_verified": false
+        },
+        "entry": {
+          "risk_flags": [
+            "NO_REALTIME_TAPE",
+            "MOVE_WITHIN_SPREAD",
+            "OBSERVATION_WINDOW_INCOMPLETE"
+          ],
+          "spread_pct": 0.19034435023359553,
+          "observed_long_quote_change_pct": -0.051885160844000744,
+          "observed_short_quote_change_pct": -0.2944742768058262,
+          "visible_depth_imbalance": 0.0819647544056993,
+          "observed_bid_replenishment": 1444,
+          "observed_ask_replenishment": 1729,
+          "observed_order_flow_imbalance": 3227,
+          "trade_permission": false
+        },
+        "raw_feature_asof_ms": 1795238884164,
+        "live_model_replaced": false,
+        "forecast_accuracy_proven": false,
+        "warning": "OBSERVED_DIRECTION_AND_ENTRY_RISK_ARE_NOT_FUTURE_TRADE_RECOMMENDATIONS"
+      },
+      "market_context_same_interval_verified": false
+    },
+    {
+      "session": "44870209273-1",
+      "feature": {
+        "version": "V43_PUBLIC_STREAM_EVIDENCE_V1",
+        "venue": "bitget",
+        "symbol": "BATUSDT",
+        "asof_ms": 1795238884164,
+        "window_ms": 60000,
+        "segment": "bitget:44870209273-1:bce4e772-03b0-4da6-8165-6fd93ec7f6d5",
+        "connected_since_ms": 1795238525776,
+        "unbroken_window": false,
+        "market_observed_since_ms": 1795238857162,
+        "market_observation_span_ms": 27002,
+        "reconnects": 0,
+        "book_count": 82,
+        "trade_count": 0,
+        "first_quote": {
+          "bid": 0.07778,
+          "ask": 0.07783,
+          "at_ms": 1795238857058,
+          "at_us": 1795238857058000,
+          "received_at_ms": 1795238857162,
+          "bid_size": 1885.8,
+          "ask_size": 780.9
+        },
+        "last_quote": {
+          "bid": 0.07787,
+          "ask": 0.07792,
+          "at_ms": 1795238884021,
+          "at_us": 1795238884021000,
+          "received_at_ms": 1795238884140,
+          "bid_size": 520.5,
+          "ask_size": 390
+        },
+        "quote_age_ms": 143,
+        "buy_quote_notional": 0,
+        "sell_quote_notional": 0,
+        "signed_quote_flow": 0,
+        "buy_share": null,
+        "observed_mid_change_pct": 0.11567379988430826,
+        "long_executable_change_pct": 0.0513940639855992,
+        "short_executable_change_pct": -0.1799948572897933,
+        "spread_pct": 0.06420958006936317,
+        "top_depth_imbalance": -0.4459322854376672,
+        "order_flow_imbalance_base": 1865.7999999999965,
+        "observed_bid_replenishment": 4223.799999999999,
+        "observed_ask_replenishment": 1799,
+        "initial_history_count": 0,
+        "duplicates": 0,
+        "conflicts": 0,
+        "out_of_order_books": 0,
+        "complete_exchange_tape_verified": false,
+        "book_cancellation_or_fill_attribution_verified": false,
+        "intent_verified": false,
+        "forecast_accuracy_proven": false,
+        "trade_permission": false
+      },
+      "assessment": {
+        "version": "V43_DIRECTION_AND_ENTRY_OBSERVATION_V1",
+        "venue": "bitget",
+        "symbol": "BATUSDT",
+        "decided_at_ms": 1795238884164,
+        "direction": {
+          "observed_bias": "UP",
+          "pattern": "PRICE_ONLY_NO_TAPE",
+          "venue_action_hypothesis": "LONG_HYPOTHESIS",
+          "probability": null,
+          "absorption_verified": false,
+          "future_direction_verified": false
+        },
+        "entry": {
+          "risk_flags": [
+            "NO_REALTIME_TAPE",
+            "OBSERVATION_WINDOW_INCOMPLETE",
+            "PRICE_UP_WITH_OPPOSING_VISIBLE_DEPTH"
+          ],
+          "spread_pct": 0.06420958006936317,
+          "observed_long_quote_change_pct": 0.0513940639855992,
+          "observed_short_quote_change_pct": -0.1799948572897933,
+          "visible_depth_imbalance": -0.4459322854376672,
+          "observed_bid_replenishment": 4223.799999999999,
+          "observed_ask_replenishment": 1799,
+          "observed_order_flow_imbalance": 1865.7999999999965,
+          "trade_permission": false
+        },
+        "raw_feature_asof_ms": 1795238884164,
+        "live_model_replaced": false,
+        "forecast_accuracy_proven": false,
+        "warning": "OBSERVED_DIRECTION_AND_ENTRY_RISK_ARE_NOT_FUTURE_TRADE_RECOMMENDATIONS"
+      },
+      "market_context_same_interval_verified": false
+    },
+    {
+      "session": "44870209273-1",
+      "feature": {
+        "version": "V43_PUBLIC_STREAM_EVIDENCE_V1",
+        "venue": "bitget",
+        "symbol": "BBUSDT",
+        "asof_ms": 1795238884164,
+        "window_ms": 60000,
+        "segment": "bitget:44870209273-1:bce4e772-03b0-4da6-8165-6fd93ec7f6d5",
+        "connected_since_ms": 1795238525776,
+        "unbroken_window": false,
+        "market_observed_since_ms": 1795238856275,
+        "market_observation_span_ms": 27889,
+        "reconnects": 0,
+        "book_count": 38,
+        "trade_count": 0,
+        "first_quote": {
+          "bid": 0.004754,
+          "ask": 0.00476,
+          "at_ms": 1795238856171,
+          "at_us": 1795238856171000,
+          "received_at_ms": 1795238856275,
+          "bid_size": 36336,
+          "ask_size": 20000
+        },
+        "last_quote": {
+          "bid": 0.004755,
+          "ask": 0.004763,
+          "at_ms": 1795238883971,
+          "at_us": 1795238883971000,
+          "received_at_ms": 1795238884147,
+          "bid_size": 36336,
+          "ask_size": 79732
+        },
+        "quote_age_ms": 193,
+        "buy_quote_notional": 0,
+        "sell_quote_notional": 0,
+        "signed_quote_flow": 0,
+        "buy_share": null,
+        "observed_mid_change_pct": 0.04204330460371164,
+        "long_executable_change_pct": -0.10504201680673342,
+        "short_executable_change_pct": -0.1893142616743681,
+        "spread_pct": 0.16824395373291612,
+        "top_depth_imbalance": 0.309907837059825,
+        "order_flow_imbalance_base": 121088,
+        "observed_bid_replenishment": 705951,
+        "observed_ask_replenishment": 16336,
+        "initial_history_count": 0,
+        "duplicates": 0,
+        "conflicts": 0,
+        "out_of_order_books": 0,
+        "complete_exchange_tape_verified": false,
+        "book_cancellation_or_fill_attribution_verified": false,
+        "intent_verified": false,
+        "forecast_accuracy_proven": false,
+        "trade_permission": false
+      },
+      "assessment": {
+        "version": "V43_DIRECTION_AND_ENTRY_OBSERVATION_V1",
+        "venue": "bitget",
+        "symbol": "BBUSDT",
+        "decided_at_ms": 1795238884164,
+        "direction": {
+          "observed_bias": "UP",
+          "pattern": "PRICE_ONLY_NO_TAPE",
+          "venue_action_hypothesis": "LONG_HYPOTHESIS",
+          "probability": null,
+          "absorption_verified": false,
+          "future_direction_verified": false
+        },
+        "entry": {
+          "risk_flags": [
+            "NO_REALTIME_TAPE",
+            "MOVE_WITHIN_SPREAD",
+            "OBSERVATION_WINDOW_INCOMPLETE"
+          ],
+          "spread_pct": 0.16824395373291612,
+          "observed_long_quote_change_pct": -0.10504201680673342,
+          "observed_short_quote_change_pct": -0.1893142616743681,
+          "visible_depth_imbalance": 0.309907837059825,
+          "observed_bid_replenishment": 705951,
+          "observed_ask_replenishment": 16336,
+          "observed_order_flow_imbalance": 121088,
+          "trade_permission": false
+        },
+        "raw_feature_asof_ms": 1795238884164,
+        "live_model_replaced": false,
+        "forecast_accuracy_proven": false,
+        "warning": "OBSERVED_DIRECTION_AND_ENTRY_RISK_ARE_NOT_FUTURE_TRADE_RECOMMENDATIONS"
+      },
+      "market_context_same_interval_verified": false
+    },
+    {
+      "session": "44870209273-1",
+      "feature": {
+        "version": "V43_PUBLIC_STREAM_EVIDENCE_V1",
+        "venue": "bitget",
+        "symbol": "BLURUSDT",
+        "asof_ms": 1795238884164,
+        "window_ms": 60000,
+        "segment": "bitget:44870209273-1:bce4e772-03b0-4da6-8165-6fd93ec7f6d5",
+        "connected_since_ms": 1795238525776,
+        "unbroken_window": false,
+        "market_observed_since_ms": 1795238856260,
+        "market_observation_span_ms": 27904,
+        "reconnects": 0,
+        "book_count": 38,
+        "trade_count": 0,
+        "first_quote": {
+          "bid": 0.00699,
+          "ask": 0.007,
+          "at_ms": 1795238856154,
+          "at_us": 1795238856154000,
+          "received_at_ms": 1795238856260,
+          "bid_size": 189278.7,
+          "ask_size": 38928.8
+        },
+        "last_quote": {
+          "bid": 0.00698,
+          "ask": 0.007,
+          "at_ms": 1795238883913,
+          "at_us": 1795238883913000,
+          "received_at_ms": 1795238884043,
+          "bid_size": 278207.5,
+          "ask_size": 237660.5
+        },
+        "quote_age_ms": 251,
+        "buy_quote_notional": 0,
+        "sell_quote_notional": 0,
+        "signed_quote_flow": 0,
+        "buy_share": null,
+        "observed_mid_change_pct": -0.07147962830592602,
+        "long_executable_change_pct": -0.28571428571428914,
+        "short_executable_change_pct": -0.14306151645208098,
+        "spread_pct": 0.2865329512893977,
+        "top_depth_imbalance": -0.045668315435176444,
+        "order_flow_imbalance_base": -629205.8000000003,
+        "observed_bid_replenishment": 366786.4,
+        "observed_ask_replenishment": 519686.3,
+        "initial_history_count": 0,
+        "duplicates": 0,
+        "conflicts": 0,
+        "out_of_order_books": 0,
+        "complete_exchange_tape_verified": false,
+        "book_cancellation_or_fill_attribution_verified": false,
+        "intent_verified": false,
+        "forecast_accuracy_proven": false,
+        "trade_permission": false
+      },
+      "assessment": {
+        "version": "V43_DIRECTION_AND_ENTRY_OBSERVATION_V1",
+        "venue": "bitget",
+        "symbol": "BLURUSDT",
+        "decided_at_ms": 1795238884164,
+        "direction": {
+          "observed_bias": "DOWN",
+          "pattern": "PRICE_ONLY_NO_TAPE",
+          "venue_action_hypothesis": "SHORT_HYPOTHESIS",
+          "probability": null,
+          "absorption_verified": false,
+          "future_direction_verified": false
+        },
+        "entry": {
+          "risk_flags": [
+            "NO_REALTIME_TAPE",
+            "MOVE_WITHIN_SPREAD",
+            "OBSERVATION_WINDOW_INCOMPLETE"
+          ],
+          "spread_pct": 0.2865329512893977,
+          "observed_long_quote_change_pct": -0.28571428571428914,
+          "observed_short_quote_change_pct": -0.14306151645208098,
+          "visible_depth_imbalance": -0.045668315435176444,
+          "observed_bid_replenishment": 366786.4,
+          "observed_ask_replenishment": 519686.3,
+          "observed_order_flow_imbalance": -629205.8000000003,
+          "trade_permission": false
+        },
+        "raw_feature_asof_ms": 1795238884164,
+        "live_model_replaced": false,
+        "forecast_accuracy_proven": false,
+        "warning": "OBSERVED_DIRECTION_AND_ENTRY_RISK_ARE_NOT_FUTURE_TRADE_RECOMMENDATIONS"
+      },
+      "market_context_same_interval_verified": false
+    },
+    {
+      "session": "44870209273-1",
       "feature": {
         "version": "V43_PUBLIC_STREAM_EVIDENCE_V1",
         "venue": "bitget",
         "symbol": "BTCUSDT",
-        "asof_ms": 1795238603935,
+        "asof_ms": 1795238884164,
         "window_ms": 60000,
-        "segment": "bitget:44869785996-1:f5ac3090-e0a3-4dae-8417-4865b354b3dd",
-        "connected_since_ms": 1795238245408,
+        "segment": "bitget:44870209273-1:bce4e772-03b0-4da6-8165-6fd93ec7f6d5",
+        "connected_since_ms": 1795238525776,
         "unbroken_window": true,
-        "market_observed_since_ms": 1795238245771,
-        "market_observation_span_ms": 358164,
+        "market_observed_since_ms": 1795238526100,
+        "market_observation_span_ms": 358064,
         "reconnects": 0,
-        "book_count": 493,
-        "trade_count": 1390,
+        "book_count": 460,
+        "trade_count": 1646,
         "first_quote": {
-          "bid": 56212,
-          "ask": 56212.1,
-          "at_ms": 1795238544000,
-          "at_us": 1795238544000000,
-          "received_at_ms": 1795238544077,
-          "bid_size": 0.3808,
-          "ask_size": 0.8196
+          "bid": 56213.7,
+          "ask": 56213.8,
+          "at_ms": 1795238824200,
+          "at_us": 1795238824200000,
+          "received_at_ms": 1795238824310,
+          "bid_size": 0.233,
+          "ask_size": 0.5961
         },
         "last_quote": {
-          "bid": 56210.5,
-          "ask": 56210.6,
-          "at_ms": 1795238603800,
-          "at_us": 1795238603800000,
-          "received_at_ms": 1795238603871,
-          "bid_size": 2.7575,
-          "ask_size": 0.1713
+          "bid": 56254.2,
+          "ask": 56254.3,
+          "at_ms": 1795238884000,
+          "at_us": 1795238884000000,
+          "received_at_ms": 1795238884107,
+          "bid_size": 1.3681,
+          "ask_size": 5.8544
         },
-        "quote_age_ms": 135,
-        "buy_quote_notional": 492556.7758400005,
-        "sell_quote_notional": 981277.9965700007,
-        "signed_quote_flow": -488721.2207300002,
-        "buy_share": 0.33420081074256114,
-        "observed_mid_change_pct": -0.002668466992394869,
-        "long_executable_change_pct": -0.0028463622600782834,
-        "short_executable_change_pct": 0.002490571408242822,
-        "spread_pct": 0.00017790270501194527,
-        "top_depth_imbalance": 0.8817893484868508,
-        "order_flow_imbalance_base": -18.9084,
-        "observed_bid_replenishment": 64.14980000000003,
-        "observed_ask_replenishment": 57.69820000000003,
+        "quote_age_ms": 164,
+        "buy_quote_notional": 300380.9412099996,
+        "sell_quote_notional": 937218.4290500004,
+        "signed_quote_flow": -636837.4878400008,
+        "buy_share": 0.24271258407871873,
+        "observed_mid_change_pct": 0.07204642992151289,
+        "long_executable_change_pct": 0.07186847357765203,
+        "short_executable_change_pct": -0.072224386581929,
+        "spread_pct": 0.000177764504694089,
+        "top_depth_imbalance": -0.7277583315102458,
+        "order_flow_imbalance_base": 15.510000000000012,
+        "observed_bid_replenishment": 45.501100000000015,
+        "observed_ask_replenishment": 38.36849999999999,
         "initial_history_count": 0,
         "duplicates": 0,
         "conflicts": 0,
@@ -222,7 +825,375 @@
         "version": "V43_DIRECTION_AND_ENTRY_OBSERVATION_V1",
         "venue": "bitget",
         "symbol": "BTCUSDT",
-        "decided_at_ms": 1795238603935,
+        "decided_at_ms": 1795238884164,
+        "direction": {
+          "observed_bias": "UP",
+          "pattern": "SELL_FLOW_PRICE_UP_ABSORPTION_CANDIDATE",
+          "venue_action_hypothesis": "LONG_HYPOTHESIS",
+          "probability": null,
+          "absorption_verified": false,
+          "future_direction_verified": false
+        },
+        "entry": {
+          "risk_flags": [
+            "SELL_FLOW_WITH_RISING_PRICE",
+            "PRICE_UP_WITH_OPPOSING_VISIBLE_DEPTH"
+          ],
+          "spread_pct": 0.000177764504694089,
+          "observed_long_quote_change_pct": 0.07186847357765203,
+          "observed_short_quote_change_pct": -0.072224386581929,
+          "visible_depth_imbalance": -0.7277583315102458,
+          "observed_bid_replenishment": 45.501100000000015,
+          "observed_ask_replenishment": 38.36849999999999,
+          "observed_order_flow_imbalance": 15.510000000000012,
+          "trade_permission": false
+        },
+        "raw_feature_asof_ms": 1795238884164,
+        "live_model_replaced": false,
+        "forecast_accuracy_proven": false,
+        "warning": "OBSERVED_DIRECTION_AND_ENTRY_RISK_ARE_NOT_FUTURE_TRADE_RECOMMENDATIONS"
+      },
+      "market_context_same_interval_verified": false
+    },
+    {
+      "session": "44870209273-1",
+      "feature": {
+        "version": "V43_PUBLIC_STREAM_EVIDENCE_V1",
+        "venue": "bitget",
+        "symbol": "COAIUSDT",
+        "asof_ms": 1795238884164,
+        "window_ms": 60000,
+        "segment": "bitget:44870209273-1:bce4e772-03b0-4da6-8165-6fd93ec7f6d5",
+        "connected_since_ms": 1795238525776,
+        "unbroken_window": false,
+        "market_observed_since_ms": 1795238856683,
+        "market_observation_span_ms": 27481,
+        "reconnects": 0,
+        "book_count": 23,
+        "trade_count": 0,
+        "first_quote": {
+          "bid": 0.1619,
+          "ask": 0.1622,
+          "at_ms": 1795238856579,
+          "at_us": 1795238856579000,
+          "received_at_ms": 1795238856683,
+          "bid_size": 2967,
+          "ask_size": 2600
+        },
+        "last_quote": {
+          "bid": 0.1619,
+          "ask": 0.1622,
+          "at_ms": 1795238883344,
+          "at_us": 1795238883344000,
+          "received_at_ms": 1795238883642,
+          "bid_size": 2967,
+          "ask_size": 740
+        },
+        "quote_age_ms": 820,
+        "buy_quote_notional": 0,
+        "sell_quote_notional": 0,
+        "signed_quote_flow": 0,
+        "buy_share": null,
+        "observed_mid_change_pct": 0,
+        "long_executable_change_pct": -0.18495684340321672,
+        "short_executable_change_pct": -0.18529956763435607,
+        "spread_pct": 0.18529956763435607,
+        "top_depth_imbalance": 0.015252428364923468,
+        "order_flow_imbalance_base": 1860,
+        "observed_bid_replenishment": 0,
+        "observed_ask_replenishment": 356,
+        "initial_history_count": 0,
+        "duplicates": 0,
+        "conflicts": 0,
+        "out_of_order_books": 0,
+        "complete_exchange_tape_verified": false,
+        "book_cancellation_or_fill_attribution_verified": false,
+        "intent_verified": false,
+        "forecast_accuracy_proven": false,
+        "trade_permission": false
+      },
+      "assessment": {
+        "version": "V43_DIRECTION_AND_ENTRY_OBSERVATION_V1",
+        "venue": "bitget",
+        "symbol": "COAIUSDT",
+        "decided_at_ms": 1795238884164,
+        "direction": {
+          "observed_bias": "FLAT",
+          "pattern": "PRICE_ONLY_NO_TAPE",
+          "venue_action_hypothesis": "UNRESOLVED",
+          "probability": null,
+          "absorption_verified": false,
+          "future_direction_verified": false
+        },
+        "entry": {
+          "risk_flags": [
+            "NO_REALTIME_TAPE",
+            "MOVE_WITHIN_SPREAD",
+            "OBSERVATION_WINDOW_INCOMPLETE"
+          ],
+          "spread_pct": 0.18529956763435607,
+          "observed_long_quote_change_pct": -0.18495684340321672,
+          "observed_short_quote_change_pct": -0.18529956763435607,
+          "visible_depth_imbalance": 0.015252428364923468,
+          "observed_bid_replenishment": 0,
+          "observed_ask_replenishment": 356,
+          "observed_order_flow_imbalance": 1860,
+          "trade_permission": false
+        },
+        "raw_feature_asof_ms": 1795238884164,
+        "live_model_replaced": false,
+        "forecast_accuracy_proven": false,
+        "warning": "OBSERVED_DIRECTION_AND_ENTRY_RISK_ARE_NOT_FUTURE_TRADE_RECOMMENDATIONS"
+      },
+      "market_context_same_interval_verified": false
+    },
+    {
+      "session": "44870209273-1",
+      "feature": {
+        "version": "V43_PUBLIC_STREAM_EVIDENCE_V1",
+        "venue": "bitget",
+        "symbol": "DGAIUSDT",
+        "asof_ms": 1795238884164,
+        "window_ms": 60000,
+        "segment": "bitget:44870209273-1:bce4e772-03b0-4da6-8165-6fd93ec7f6d5",
+        "connected_since_ms": 1795238525776,
+        "unbroken_window": true,
+        "market_observed_since_ms": 1795238560471,
+        "market_observation_span_ms": 323693,
+        "reconnects": 0,
+        "book_count": 53,
+        "trade_count": 0,
+        "first_quote": {
+          "bid": 0.6932,
+          "ask": 0.695,
+          "at_ms": 1795238827261,
+          "at_us": 1795238827261000,
+          "received_at_ms": 1795238827364,
+          "bid_size": 676,
+          "ask_size": 481
+        },
+        "last_quote": {
+          "bid": 0.6943,
+          "ask": 0.6951,
+          "at_ms": 1795238883807,
+          "at_us": 1795238883807000,
+          "received_at_ms": 1795238883961,
+          "bid_size": 52,
+          "ask_size": 800
+        },
+        "quote_age_ms": 357,
+        "buy_quote_notional": 0,
+        "sell_quote_notional": 0,
+        "signed_quote_flow": 0,
+        "buy_share": null,
+        "observed_mid_change_pct": 0.08644287566634823,
+        "long_executable_change_pct": -0.10071942446041593,
+        "short_executable_change_pct": -0.2740911713791132,
+        "spread_pct": 0.11522396658505407,
+        "top_depth_imbalance": -0.06681181113076609,
+        "order_flow_imbalance_base": 609,
+        "observed_bid_replenishment": 0,
+        "observed_ask_replenishment": 2049,
+        "initial_history_count": 0,
+        "duplicates": 0,
+        "conflicts": 0,
+        "out_of_order_books": 0,
+        "complete_exchange_tape_verified": false,
+        "book_cancellation_or_fill_attribution_verified": false,
+        "intent_verified": false,
+        "forecast_accuracy_proven": false,
+        "trade_permission": false
+      },
+      "assessment": {
+        "version": "V43_DIRECTION_AND_ENTRY_OBSERVATION_V1",
+        "venue": "bitget",
+        "symbol": "DGAIUSDT",
+        "decided_at_ms": 1795238884164,
+        "direction": {
+          "observed_bias": "UP",
+          "pattern": "PRICE_ONLY_NO_TAPE",
+          "venue_action_hypothesis": "LONG_HYPOTHESIS",
+          "probability": null,
+          "absorption_verified": false,
+          "future_direction_verified": false
+        },
+        "entry": {
+          "risk_flags": [
+            "NO_REALTIME_TAPE",
+            "MOVE_WITHIN_SPREAD",
+            "PRICE_UP_WITH_OPPOSING_VISIBLE_DEPTH"
+          ],
+          "spread_pct": 0.11522396658505407,
+          "observed_long_quote_change_pct": -0.10071942446041593,
+          "observed_short_quote_change_pct": -0.2740911713791132,
+          "visible_depth_imbalance": -0.06681181113076609,
+          "observed_bid_replenishment": 0,
+          "observed_ask_replenishment": 2049,
+          "observed_order_flow_imbalance": 609,
+          "trade_permission": false
+        },
+        "raw_feature_asof_ms": 1795238884164,
+        "live_model_replaced": false,
+        "forecast_accuracy_proven": false,
+        "warning": "OBSERVED_DIRECTION_AND_ENTRY_RISK_ARE_NOT_FUTURE_TRADE_RECOMMENDATIONS"
+      },
+      "market_context_same_interval_verified": false
+    },
+    {
+      "session": "44870209273-1",
+      "feature": {
+        "version": "V43_PUBLIC_STREAM_EVIDENCE_V1",
+        "venue": "bitget",
+        "symbol": "DOSUSDT",
+        "asof_ms": 1795238884164,
+        "window_ms": 60000,
+        "segment": "bitget:44870209273-1:bce4e772-03b0-4da6-8165-6fd93ec7f6d5",
+        "connected_since_ms": 1795238525776,
+        "unbroken_window": false,
+        "market_observed_since_ms": 1795238857701,
+        "market_observation_span_ms": 26463,
+        "reconnects": 0,
+        "book_count": 47,
+        "trade_count": 0,
+        "first_quote": {
+          "bid": 0.1504,
+          "ask": 0.15064,
+          "at_ms": 1795238857596,
+          "at_us": 1795238857596000,
+          "received_at_ms": 1795238857701,
+          "bid_size": 67,
+          "ask_size": 161
+        },
+        "last_quote": {
+          "bid": 0.1505,
+          "ask": 0.15071,
+          "at_ms": 1795238883974,
+          "at_us": 1795238883974000,
+          "received_at_ms": 1795238884080,
+          "bid_size": 224,
+          "ask_size": 224
+        },
+        "quote_age_ms": 190,
+        "buy_quote_notional": 0,
+        "sell_quote_notional": 0,
+        "signed_quote_flow": 0,
+        "buy_share": null,
+        "observed_mid_change_pct": 0.056470900876970376,
+        "long_executable_change_pct": -0.09293680297397522,
+        "short_executable_change_pct": -0.20611702127659887,
+        "spread_pct": 0.13953488372093759,
+        "top_depth_imbalance": -0.33721957251369017,
+        "order_flow_imbalance_base": 981,
+        "observed_bid_replenishment": 1723,
+        "observed_ask_replenishment": 0,
+        "initial_history_count": 0,
+        "duplicates": 0,
+        "conflicts": 0,
+        "out_of_order_books": 0,
+        "complete_exchange_tape_verified": false,
+        "book_cancellation_or_fill_attribution_verified": false,
+        "intent_verified": false,
+        "forecast_accuracy_proven": false,
+        "trade_permission": false
+      },
+      "assessment": {
+        "version": "V43_DIRECTION_AND_ENTRY_OBSERVATION_V1",
+        "venue": "bitget",
+        "symbol": "DOSUSDT",
+        "decided_at_ms": 1795238884164,
+        "direction": {
+          "observed_bias": "UP",
+          "pattern": "PRICE_ONLY_NO_TAPE",
+          "venue_action_hypothesis": "LONG_HYPOTHESIS",
+          "probability": null,
+          "absorption_verified": false,
+          "future_direction_verified": false
+        },
+        "entry": {
+          "risk_flags": [
+            "NO_REALTIME_TAPE",
+            "MOVE_WITHIN_SPREAD",
+            "OBSERVATION_WINDOW_INCOMPLETE",
+            "PRICE_UP_WITH_OPPOSING_VISIBLE_DEPTH"
+          ],
+          "spread_pct": 0.13953488372093759,
+          "observed_long_quote_change_pct": -0.09293680297397522,
+          "observed_short_quote_change_pct": -0.20611702127659887,
+          "visible_depth_imbalance": -0.33721957251369017,
+          "observed_bid_replenishment": 1723,
+          "observed_ask_replenishment": 0,
+          "observed_order_flow_imbalance": 981,
+          "trade_permission": false
+        },
+        "raw_feature_asof_ms": 1795238884164,
+        "live_model_replaced": false,
+        "forecast_accuracy_proven": false,
+        "warning": "OBSERVED_DIRECTION_AND_ENTRY_RISK_ARE_NOT_FUTURE_TRADE_RECOMMENDATIONS"
+      },
+      "market_context_same_interval_verified": false
+    },
+    {
+      "session": "44870209273-1",
+      "feature": {
+        "version": "V43_PUBLIC_STREAM_EVIDENCE_V1",
+        "venue": "bitget",
+        "symbol": "EVAAUSDT",
+        "asof_ms": 1795238884164,
+        "window_ms": 60000,
+        "segment": "bitget:44870209273-1:bce4e772-03b0-4da6-8165-6fd93ec7f6d5",
+        "connected_since_ms": 1795238525776,
+        "unbroken_window": false,
+        "market_observed_since_ms": 1795238856257,
+        "market_observation_span_ms": 27907,
+        "reconnects": 0,
+        "book_count": 242,
+        "trade_count": 21,
+        "first_quote": {
+          "bid": 6.215,
+          "ask": 6.2177,
+          "at_ms": 1795238856154,
+          "at_us": 1795238856154000,
+          "received_at_ms": 1795238856257,
+          "bid_size": 80,
+          "ask_size": 32
+        },
+        "last_quote": {
+          "bid": 6.2076,
+          "ask": 6.2095,
+          "at_ms": 1795238884003,
+          "at_us": 1795238884003000,
+          "received_at_ms": 1795238884114,
+          "bid_size": 143,
+          "ask_size": 30
+        },
+        "quote_age_ms": 161,
+        "buy_quote_notional": 24.8922,
+        "sell_quote_notional": 1795.3858999999998,
+        "signed_quote_flow": -1770.4936999999998,
+        "buy_share": 0.013674943405625768,
+        "observed_mid_change_pct": -0.12547556041727637,
+        "long_executable_change_pct": -0.16243948727020507,
+        "short_executable_change_pct": 0.08849557522123276,
+        "spread_pct": 0.030607642244984135,
+        "top_depth_imbalance": -0.08994708994708994,
+        "order_flow_imbalance_base": 1487,
+        "observed_bid_replenishment": 228,
+        "observed_ask_replenishment": 51,
+        "initial_history_count": 0,
+        "duplicates": 0,
+        "conflicts": 0,
+        "out_of_order_books": 0,
+        "complete_exchange_tape_verified": false,
+        "book_cancellation_or_fill_attribution_verified": false,
+        "intent_verified": false,
+        "forecast_accuracy_proven": false,
+        "trade_permission": false
+      },
+      "assessment": {
+        "version": "V43_DIRECTION_AND_ENTRY_OBSERVATION_V1",
+        "venue": "bitget",
+        "symbol": "EVAAUSDT",
+        "decided_at_ms": 1795238884164,
         "direction": {
           "observed_bias": "DOWN",
           "pattern": "SELL_FLOW_PRICE_DOWN",
@@ -233,18 +1204,18 @@
         },
         "entry": {
           "risk_flags": [
-            "PRICE_DOWN_WITH_OPPOSING_VISIBLE_DEPTH"
+            "OBSERVATION_WINDOW_INCOMPLETE"
           ],
-          "spread_pct": 0.00017790270501194527,
-          "observed_long_quote_change_pct": -0.0028463622600782834,
-          "observed_short_quote_change_pct": 0.002490571408242822,
-          "visible_depth_imbalance": 0.8817893484868508,
-          "observed_bid_replenishment": 64.14980000000003,
-          "observed_ask_replenishment": 57.69820000000003,
-          "observed_order_flow_imbalance": -18.9084,
+          "spread_pct": 0.030607642244984135,
+          "observed_long_quote_change_pct": -0.16243948727020507,
+          "observed_short_quote_change_pct": 0.08849557522123276,
+          "visible_depth_imbalance": -0.08994708994708994,
+          "observed_bid_replenishment": 228,
+          "observed_ask_replenishment": 51,
+          "observed_order_flow_imbalance": 1487,
           "trade_permission": false
         },
-        "raw_feature_asof_ms": 1795238603935,
+        "raw_feature_asof_ms": 1795238884164,
         "live_model_replaced": false,
         "forecast_accuracy_proven": false,
         "warning": "OBSERVED_DIRECTION_AND_ENTRY_RISK_ARE_NOT_FUTURE_TRADE_RECOMMENDATIONS"
@@ -252,52 +1223,1423 @@
       "market_context_same_interval_verified": false
     },
     {
-      "session": "44869785996-1",
+      "session": "44870209273-1",
+      "feature": {
+        "version": "V43_PUBLIC_STREAM_EVIDENCE_V1",
+        "venue": "bitget",
+        "symbol": "HIVEUSDT",
+        "asof_ms": 1795238884164,
+        "window_ms": 60000,
+        "segment": "bitget:44870209273-1:bce4e772-03b0-4da6-8165-6fd93ec7f6d5",
+        "connected_since_ms": 1795238525776,
+        "unbroken_window": false,
+        "market_observed_since_ms": 1795238856548,
+        "market_observation_span_ms": 27616,
+        "reconnects": 0,
+        "book_count": 13,
+        "trade_count": 0,
+        "first_quote": {
+          "bid": 0.03306,
+          "ask": 0.03317,
+          "at_ms": 1795238856436,
+          "at_us": 1795238856436000,
+          "received_at_ms": 1795238856548,
+          "bid_size": 119754,
+          "ask_size": 56001
+        },
+        "last_quote": {
+          "bid": 0.03306,
+          "ask": 0.03317,
+          "at_ms": 1795238882334,
+          "at_us": 1795238882334000,
+          "received_at_ms": 1795238882592,
+          "bid_size": 119754,
+          "ask_size": 56399
+        },
+        "quote_age_ms": 1830,
+        "buy_quote_notional": 0,
+        "sell_quote_notional": 0,
+        "signed_quote_flow": 0,
+        "buy_share": null,
+        "observed_mid_change_pct": 0,
+        "long_executable_change_pct": -0.33162496231534666,
+        "short_executable_change_pct": -0.3327283726557743,
+        "spread_pct": 0.33272837265576616,
+        "top_depth_imbalance": 0.06457230115285356,
+        "order_flow_imbalance_base": -398,
+        "observed_bid_replenishment": 0,
+        "observed_ask_replenishment": 7168,
+        "initial_history_count": 0,
+        "duplicates": 0,
+        "conflicts": 0,
+        "out_of_order_books": 0,
+        "complete_exchange_tape_verified": false,
+        "book_cancellation_or_fill_attribution_verified": false,
+        "intent_verified": false,
+        "forecast_accuracy_proven": false,
+        "trade_permission": false
+      },
+      "assessment": {
+        "version": "V43_DIRECTION_AND_ENTRY_OBSERVATION_V1",
+        "venue": "bitget",
+        "symbol": "HIVEUSDT",
+        "decided_at_ms": 1795238884164,
+        "direction": {
+          "observed_bias": "FLAT",
+          "pattern": "PRICE_ONLY_NO_TAPE",
+          "venue_action_hypothesis": "UNRESOLVED",
+          "probability": null,
+          "absorption_verified": false,
+          "future_direction_verified": false
+        },
+        "entry": {
+          "risk_flags": [
+            "NO_REALTIME_TAPE",
+            "MOVE_WITHIN_SPREAD",
+            "OBSERVATION_WINDOW_INCOMPLETE"
+          ],
+          "spread_pct": 0.33272837265576616,
+          "observed_long_quote_change_pct": -0.33162496231534666,
+          "observed_short_quote_change_pct": -0.3327283726557743,
+          "visible_depth_imbalance": 0.06457230115285356,
+          "observed_bid_replenishment": 0,
+          "observed_ask_replenishment": 7168,
+          "observed_order_flow_imbalance": -398,
+          "trade_permission": false
+        },
+        "raw_feature_asof_ms": 1795238884164,
+        "live_model_replaced": false,
+        "forecast_accuracy_proven": false,
+        "warning": "OBSERVED_DIRECTION_AND_ENTRY_RISK_ARE_NOT_FUTURE_TRADE_RECOMMENDATIONS"
+      },
+      "market_context_same_interval_verified": false
+    },
+    {
+      "session": "44870209273-1",
+      "feature": {
+        "version": "V43_PUBLIC_STREAM_EVIDENCE_V1",
+        "venue": "bitget",
+        "symbol": "IDOLUSDT",
+        "asof_ms": 1795238884164,
+        "window_ms": 60000,
+        "segment": "bitget:44870209273-1:bce4e772-03b0-4da6-8165-6fd93ec7f6d5",
+        "connected_since_ms": 1795238525776,
+        "unbroken_window": false,
+        "market_observed_since_ms": 1795238856273,
+        "market_observation_span_ms": 27891,
+        "reconnects": 0,
+        "book_count": 102,
+        "trade_count": 11,
+        "first_quote": {
+          "bid": 0.024871,
+          "ask": 0.024909,
+          "at_ms": 1795238856164,
+          "at_us": 1795238856164000,
+          "received_at_ms": 1795238856273,
+          "bid_size": 238,
+          "ask_size": 5567
+        },
+        "last_quote": {
+          "bid": 0.024873,
+          "ask": 0.024898,
+          "at_ms": 1795238883675,
+          "at_us": 1795238883675000,
+          "received_at_ms": 1795238883821,
+          "bid_size": 13971,
+          "ask_size": 64313
+        },
+        "quote_age_ms": 489,
+        "buy_quote_notional": 1360.9288880000001,
+        "sell_quote_notional": 894.400056,
+        "signed_quote_flow": 466.5288320000002,
+        "buy_share": 0.6034281126132705,
+        "observed_mid_change_pct": -0.018079550020111412,
+        "long_executable_change_pct": -0.14452607491268754,
+        "short_executable_change_pct": -0.10856017047967209,
+        "spread_pct": 0.100510593816594,
+        "top_depth_imbalance": -0.6882178873184597,
+        "order_flow_imbalance_base": -348479,
+        "observed_bid_replenishment": 82915,
+        "observed_ask_replenishment": 178607,
+        "initial_history_count": 0,
+        "duplicates": 0,
+        "conflicts": 0,
+        "out_of_order_books": 0,
+        "complete_exchange_tape_verified": false,
+        "book_cancellation_or_fill_attribution_verified": false,
+        "intent_verified": false,
+        "forecast_accuracy_proven": false,
+        "trade_permission": false
+      },
+      "assessment": {
+        "version": "V43_DIRECTION_AND_ENTRY_OBSERVATION_V1",
+        "venue": "bitget",
+        "symbol": "IDOLUSDT",
+        "decided_at_ms": 1795238884164,
+        "direction": {
+          "observed_bias": "DOWN",
+          "pattern": "BUY_FLOW_PRICE_DOWN_ABSORPTION_CANDIDATE",
+          "venue_action_hypothesis": "SHORT_HYPOTHESIS",
+          "probability": null,
+          "absorption_verified": false,
+          "future_direction_verified": false
+        },
+        "entry": {
+          "risk_flags": [
+            "BUY_FLOW_WITH_FALLING_PRICE",
+            "MOVE_WITHIN_SPREAD",
+            "OBSERVATION_WINDOW_INCOMPLETE"
+          ],
+          "spread_pct": 0.100510593816594,
+          "observed_long_quote_change_pct": -0.14452607491268754,
+          "observed_short_quote_change_pct": -0.10856017047967209,
+          "visible_depth_imbalance": -0.6882178873184597,
+          "observed_bid_replenishment": 82915,
+          "observed_ask_replenishment": 178607,
+          "observed_order_flow_imbalance": -348479,
+          "trade_permission": false
+        },
+        "raw_feature_asof_ms": 1795238884164,
+        "live_model_replaced": false,
+        "forecast_accuracy_proven": false,
+        "warning": "OBSERVED_DIRECTION_AND_ENTRY_RISK_ARE_NOT_FUTURE_TRADE_RECOMMENDATIONS"
+      },
+      "market_context_same_interval_verified": false
+    },
+    {
+      "session": "44870209273-1",
+      "feature": {
+        "version": "V43_PUBLIC_STREAM_EVIDENCE_V1",
+        "venue": "bitget",
+        "symbol": "INITUSDT",
+        "asof_ms": 1795238884164,
+        "window_ms": 60000,
+        "segment": "bitget:44870209273-1:bce4e772-03b0-4da6-8165-6fd93ec7f6d5",
+        "connected_since_ms": 1795238525776,
+        "unbroken_window": false,
+        "market_observed_since_ms": 1795238858086,
+        "market_observation_span_ms": 26078,
+        "reconnects": 0,
+        "book_count": 39,
+        "trade_count": 16,
+        "first_quote": {
+          "bid": 0.08585,
+          "ask": 0.08591,
+          "at_ms": 1795238857981,
+          "at_us": 1795238857981000,
+          "received_at_ms": 1795238858086,
+          "bid_size": 946,
+          "ask_size": 946
+        },
+        "last_quote": {
+          "bid": 0.08581,
+          "ask": 0.08588,
+          "at_ms": 1795238883567,
+          "at_us": 1795238883567000,
+          "received_at_ms": 1795238883806,
+          "bid_size": 712,
+          "ask_size": 936
+        },
+        "quote_age_ms": 597,
+        "buy_quote_notional": 458.93157,
+        "sell_quote_notional": 494.27243,
+        "signed_quote_flow": -35.340859999999964,
+        "buy_share": 0.48146206897998756,
+        "observed_mid_change_pct": -0.04075454122030031,
+        "long_executable_change_pct": -0.11640088464672793,
+        "short_executable_change_pct": -0.03494467093768462,
+        "spread_pct": 0.08157557394243842,
+        "top_depth_imbalance": 0.042727272727272725,
+        "order_flow_imbalance_base": 1418,
+        "observed_bid_replenishment": 103,
+        "observed_ask_replenishment": 940,
+        "initial_history_count": 0,
+        "duplicates": 0,
+        "conflicts": 0,
+        "out_of_order_books": 0,
+        "complete_exchange_tape_verified": false,
+        "book_cancellation_or_fill_attribution_verified": false,
+        "intent_verified": false,
+        "forecast_accuracy_proven": false,
+        "trade_permission": false
+      },
+      "assessment": {
+        "version": "V43_DIRECTION_AND_ENTRY_OBSERVATION_V1",
+        "venue": "bitget",
+        "symbol": "INITUSDT",
+        "decided_at_ms": 1795238884164,
+        "direction": {
+          "observed_bias": "DOWN",
+          "pattern": "SELL_FLOW_PRICE_DOWN",
+          "venue_action_hypothesis": "SHORT_HYPOTHESIS",
+          "probability": null,
+          "absorption_verified": false,
+          "future_direction_verified": false
+        },
+        "entry": {
+          "risk_flags": [
+            "MOVE_WITHIN_SPREAD",
+            "OBSERVATION_WINDOW_INCOMPLETE",
+            "PRICE_DOWN_WITH_OPPOSING_VISIBLE_DEPTH"
+          ],
+          "spread_pct": 0.08157557394243842,
+          "observed_long_quote_change_pct": -0.11640088464672793,
+          "observed_short_quote_change_pct": -0.03494467093768462,
+          "visible_depth_imbalance": 0.042727272727272725,
+          "observed_bid_replenishment": 103,
+          "observed_ask_replenishment": 940,
+          "observed_order_flow_imbalance": 1418,
+          "trade_permission": false
+        },
+        "raw_feature_asof_ms": 1795238884164,
+        "live_model_replaced": false,
+        "forecast_accuracy_proven": false,
+        "warning": "OBSERVED_DIRECTION_AND_ENTRY_RISK_ARE_NOT_FUTURE_TRADE_RECOMMENDATIONS"
+      },
+      "market_context_same_interval_verified": false
+    },
+    {
+      "session": "44870209273-1",
+      "feature": {
+        "version": "V43_PUBLIC_STREAM_EVIDENCE_V1",
+        "venue": "bitget",
+        "symbol": "LITUSDT",
+        "asof_ms": 1795238884164,
+        "window_ms": 60000,
+        "segment": "bitget:44870209273-1:bce4e772-03b0-4da6-8165-6fd93ec7f6d5",
+        "connected_since_ms": 1795238525776,
+        "unbroken_window": false,
+        "market_observed_since_ms": 1795238856610,
+        "market_observation_span_ms": 27554,
+        "reconnects": 0,
+        "book_count": 85,
+        "trade_count": 0,
+        "first_quote": {
+          "bid": 2.266,
+          "ask": 2.268,
+          "at_ms": 1795238856505,
+          "at_us": 1795238856505000,
+          "received_at_ms": 1795238856610,
+          "bid_size": 46,
+          "ask_size": 798
+        },
+        "last_quote": {
+          "bid": 2.271,
+          "ask": 2.273,
+          "at_ms": 1795238883864,
+          "at_us": 1795238883864000,
+          "received_at_ms": 1795238884080,
+          "bid_size": 96,
+          "ask_size": 77
+        },
+        "quote_age_ms": 300,
+        "buy_quote_notional": 0,
+        "sell_quote_notional": 0,
+        "signed_quote_flow": 0,
+        "buy_share": null,
+        "observed_mid_change_pct": 0.2205558006175723,
+        "long_executable_change_pct": 0.1322751322751392,
+        "short_executable_change_pct": -0.30891438658429465,
+        "spread_pct": 0.08806693086746975,
+        "top_depth_imbalance": -0.5851660198361363,
+        "order_flow_imbalance_base": 2470,
+        "observed_bid_replenishment": 50,
+        "observed_ask_replenishment": 1817,
+        "initial_history_count": 0,
+        "duplicates": 0,
+        "conflicts": 0,
+        "out_of_order_books": 0,
+        "complete_exchange_tape_verified": false,
+        "book_cancellation_or_fill_attribution_verified": false,
+        "intent_verified": false,
+        "forecast_accuracy_proven": false,
+        "trade_permission": false
+      },
+      "assessment": {
+        "version": "V43_DIRECTION_AND_ENTRY_OBSERVATION_V1",
+        "venue": "bitget",
+        "symbol": "LITUSDT",
+        "decided_at_ms": 1795238884164,
+        "direction": {
+          "observed_bias": "UP",
+          "pattern": "PRICE_ONLY_NO_TAPE",
+          "venue_action_hypothesis": "LONG_HYPOTHESIS",
+          "probability": null,
+          "absorption_verified": false,
+          "future_direction_verified": false
+        },
+        "entry": {
+          "risk_flags": [
+            "NO_REALTIME_TAPE",
+            "OBSERVATION_WINDOW_INCOMPLETE",
+            "PRICE_UP_WITH_OPPOSING_VISIBLE_DEPTH"
+          ],
+          "spread_pct": 0.08806693086746975,
+          "observed_long_quote_change_pct": 0.1322751322751392,
+          "observed_short_quote_change_pct": -0.30891438658429465,
+          "visible_depth_imbalance": -0.5851660198361363,
+          "observed_bid_replenishment": 50,
+          "observed_ask_replenishment": 1817,
+          "observed_order_flow_imbalance": 2470,
+          "trade_permission": false
+        },
+        "raw_feature_asof_ms": 1795238884164,
+        "live_model_replaced": false,
+        "forecast_accuracy_proven": false,
+        "warning": "OBSERVED_DIRECTION_AND_ENTRY_RISK_ARE_NOT_FUTURE_TRADE_RECOMMENDATIONS"
+      },
+      "market_context_same_interval_verified": false
+    },
+    {
+      "session": "44870209273-1",
+      "feature": {
+        "version": "V43_PUBLIC_STREAM_EVIDENCE_V1",
+        "venue": "bitget",
+        "symbol": "LYNUSDT",
+        "asof_ms": 1795238884164,
+        "window_ms": 60000,
+        "segment": "bitget:44870209273-1:bce4e772-03b0-4da6-8165-6fd93ec7f6d5",
+        "connected_since_ms": 1795238525776,
+        "unbroken_window": false,
+        "market_observed_since_ms": 1795238856559,
+        "market_observation_span_ms": 27605,
+        "reconnects": 0,
+        "book_count": 23,
+        "trade_count": 0,
+        "first_quote": {
+          "bid": 0.01634,
+          "ask": 0.01638,
+          "at_ms": 1795238856351,
+          "at_us": 1795238856351000,
+          "received_at_ms": 1795238856559,
+          "bid_size": 14252,
+          "ask_size": 15323
+        },
+        "last_quote": {
+          "bid": 0.01634,
+          "ask": 0.01638,
+          "at_ms": 1795238882726,
+          "at_us": 1795238882726000,
+          "received_at_ms": 1795238882971,
+          "bid_size": 5000,
+          "ask_size": 15323
+        },
+        "quote_age_ms": 1438,
+        "buy_quote_notional": 0,
+        "sell_quote_notional": 0,
+        "signed_quote_flow": 0,
+        "buy_share": null,
+        "observed_mid_change_pct": 0,
+        "long_executable_change_pct": -0.24420024420023223,
+        "short_executable_change_pct": -0.2447980416156571,
+        "spread_pct": 0.244798041615657,
+        "top_depth_imbalance": -0.08148236344694151,
+        "order_flow_imbalance_base": 10062,
+        "observed_bid_replenishment": 0,
+        "observed_ask_replenishment": 14139,
+        "initial_history_count": 0,
+        "duplicates": 0,
+        "conflicts": 0,
+        "out_of_order_books": 0,
+        "complete_exchange_tape_verified": false,
+        "book_cancellation_or_fill_attribution_verified": false,
+        "intent_verified": false,
+        "forecast_accuracy_proven": false,
+        "trade_permission": false
+      },
+      "assessment": {
+        "version": "V43_DIRECTION_AND_ENTRY_OBSERVATION_V1",
+        "venue": "bitget",
+        "symbol": "LYNUSDT",
+        "decided_at_ms": 1795238884164,
+        "direction": {
+          "observed_bias": "FLAT",
+          "pattern": "PRICE_ONLY_NO_TAPE",
+          "venue_action_hypothesis": "UNRESOLVED",
+          "probability": null,
+          "absorption_verified": false,
+          "future_direction_verified": false
+        },
+        "entry": {
+          "risk_flags": [
+            "NO_REALTIME_TAPE",
+            "MOVE_WITHIN_SPREAD",
+            "OBSERVATION_WINDOW_INCOMPLETE"
+          ],
+          "spread_pct": 0.244798041615657,
+          "observed_long_quote_change_pct": -0.24420024420023223,
+          "observed_short_quote_change_pct": -0.2447980416156571,
+          "visible_depth_imbalance": -0.08148236344694151,
+          "observed_bid_replenishment": 0,
+          "observed_ask_replenishment": 14139,
+          "observed_order_flow_imbalance": 10062,
+          "trade_permission": false
+        },
+        "raw_feature_asof_ms": 1795238884164,
+        "live_model_replaced": false,
+        "forecast_accuracy_proven": false,
+        "warning": "OBSERVED_DIRECTION_AND_ENTRY_RISK_ARE_NOT_FUTURE_TRADE_RECOMMENDATIONS"
+      },
+      "market_context_same_interval_verified": false
+    },
+    {
+      "session": "44870209273-1",
+      "feature": {
+        "version": "V43_PUBLIC_STREAM_EVIDENCE_V1",
+        "venue": "bitget",
+        "symbol": "MMTUSDT",
+        "asof_ms": 1795238884164,
+        "window_ms": 60000,
+        "segment": "bitget:44870209273-1:bce4e772-03b0-4da6-8165-6fd93ec7f6d5",
+        "connected_since_ms": 1795238525776,
+        "unbroken_window": false,
+        "market_observed_since_ms": 1795238856562,
+        "market_observation_span_ms": 27602,
+        "reconnects": 0,
+        "book_count": 175,
+        "trade_count": 26,
+        "first_quote": {
+          "bid": 0.2505,
+          "ask": 0.2508,
+          "at_ms": 1795238856458,
+          "at_us": 1795238856458000,
+          "received_at_ms": 1795238856562,
+          "bid_size": 11680,
+          "ask_size": 3424
+        },
+        "last_quote": {
+          "bid": 0.2509,
+          "ask": 0.2511,
+          "at_ms": 1795238883905,
+          "at_us": 1795238883905000,
+          "received_at_ms": 1795238884030,
+          "bid_size": 981,
+          "ask_size": 8910
+        },
+        "quote_age_ms": 259,
+        "buy_quote_notional": 4862.584900000001,
+        "sell_quote_notional": 1481.6310999999998,
+        "signed_quote_flow": 3380.953800000001,
+        "buy_share": 0.7664595436220961,
+        "observed_mid_change_pct": 0.13963694394572013,
+        "long_executable_change_pct": 0.03987240829346206,
+        "short_executable_change_pct": -0.23952095808382812,
+        "spread_pct": 0.07971303308089706,
+        "top_depth_imbalance": 0.014051889256486157,
+        "order_flow_imbalance_base": 11490,
+        "observed_bid_replenishment": 92862,
+        "observed_ask_replenishment": 66848,
+        "initial_history_count": 0,
+        "duplicates": 0,
+        "conflicts": 0,
+        "out_of_order_books": 0,
+        "complete_exchange_tape_verified": false,
+        "book_cancellation_or_fill_attribution_verified": false,
+        "intent_verified": false,
+        "forecast_accuracy_proven": false,
+        "trade_permission": false
+      },
+      "assessment": {
+        "version": "V43_DIRECTION_AND_ENTRY_OBSERVATION_V1",
+        "venue": "bitget",
+        "symbol": "MMTUSDT",
+        "decided_at_ms": 1795238884164,
+        "direction": {
+          "observed_bias": "UP",
+          "pattern": "BUY_FLOW_PRICE_UP",
+          "venue_action_hypothesis": "LONG_HYPOTHESIS",
+          "probability": null,
+          "absorption_verified": false,
+          "future_direction_verified": false
+        },
+        "entry": {
+          "risk_flags": [
+            "OBSERVATION_WINDOW_INCOMPLETE"
+          ],
+          "spread_pct": 0.07971303308089706,
+          "observed_long_quote_change_pct": 0.03987240829346206,
+          "observed_short_quote_change_pct": -0.23952095808382812,
+          "visible_depth_imbalance": 0.014051889256486157,
+          "observed_bid_replenishment": 92862,
+          "observed_ask_replenishment": 66848,
+          "observed_order_flow_imbalance": 11490,
+          "trade_permission": false
+        },
+        "raw_feature_asof_ms": 1795238884164,
+        "live_model_replaced": false,
+        "forecast_accuracy_proven": false,
+        "warning": "OBSERVED_DIRECTION_AND_ENTRY_RISK_ARE_NOT_FUTURE_TRADE_RECOMMENDATIONS"
+      },
+      "market_context_same_interval_verified": false
+    },
+    {
+      "session": "44870209273-1",
+      "feature": {
+        "version": "V43_PUBLIC_STREAM_EVIDENCE_V1",
+        "venue": "bitget",
+        "symbol": "NEIROCTOUSDT",
+        "asof_ms": 1795238884164,
+        "window_ms": 60000,
+        "segment": "bitget:44870209273-1:bce4e772-03b0-4da6-8165-6fd93ec7f6d5",
+        "connected_since_ms": 1795238525776,
+        "unbroken_window": false,
+        "market_observed_since_ms": 1795238872478,
+        "market_observation_span_ms": 11686,
+        "reconnects": 0,
+        "book_count": 7,
+        "trade_count": 0,
+        "first_quote": {
+          "bid": 0.00004465,
+          "ask": 0.00004473,
+          "at_ms": 1795238872373,
+          "at_us": 1795238872373000,
+          "received_at_ms": 1795238872478,
+          "bid_size": 165358,
+          "ask_size": 16909030
+        },
+        "last_quote": {
+          "bid": 0.00004467,
+          "ask": 0.00004476,
+          "at_ms": 1795238883940,
+          "at_us": 1795238883940000,
+          "received_at_ms": 1795238884059,
+          "bid_size": 17253403,
+          "ask_size": 16909030
+        },
+        "quote_age_ms": 224,
+        "buy_quote_notional": 0,
+        "sell_quote_notional": 0,
+        "signed_quote_flow": 0,
+        "buy_share": null,
+        "observed_mid_change_pct": 0.05594092638172565,
+        "long_executable_change_pct": -0.13413816230718467,
+        "short_executable_change_pct": -0.24636058230682475,
+        "spread_pct": 0.2014775016789816,
+        "top_depth_imbalance": 0.1306227017455964,
+        "order_flow_imbalance_base": 46381621,
+        "observed_bid_replenishment": 0,
+        "observed_ask_replenishment": 0,
+        "initial_history_count": 0,
+        "duplicates": 0,
+        "conflicts": 0,
+        "out_of_order_books": 0,
+        "complete_exchange_tape_verified": false,
+        "book_cancellation_or_fill_attribution_verified": false,
+        "intent_verified": false,
+        "forecast_accuracy_proven": false,
+        "trade_permission": false
+      },
+      "assessment": {
+        "version": "V43_DIRECTION_AND_ENTRY_OBSERVATION_V1",
+        "venue": "bitget",
+        "symbol": "NEIROCTOUSDT",
+        "decided_at_ms": 1795238884164,
+        "direction": {
+          "observed_bias": "UP",
+          "pattern": "PRICE_ONLY_NO_TAPE",
+          "venue_action_hypothesis": "LONG_HYPOTHESIS",
+          "probability": null,
+          "absorption_verified": false,
+          "future_direction_verified": false
+        },
+        "entry": {
+          "risk_flags": [
+            "NO_REALTIME_TAPE",
+            "MOVE_WITHIN_SPREAD",
+            "OBSERVATION_WINDOW_INCOMPLETE"
+          ],
+          "spread_pct": 0.2014775016789816,
+          "observed_long_quote_change_pct": -0.13413816230718467,
+          "observed_short_quote_change_pct": -0.24636058230682475,
+          "visible_depth_imbalance": 0.1306227017455964,
+          "observed_bid_replenishment": 0,
+          "observed_ask_replenishment": 0,
+          "observed_order_flow_imbalance": 46381621,
+          "trade_permission": false
+        },
+        "raw_feature_asof_ms": 1795238884164,
+        "live_model_replaced": false,
+        "forecast_accuracy_proven": false,
+        "warning": "OBSERVED_DIRECTION_AND_ENTRY_RISK_ARE_NOT_FUTURE_TRADE_RECOMMENDATIONS"
+      },
+      "market_context_same_interval_verified": false
+    },
+    {
+      "session": "44870209273-1",
+      "feature": {
+        "version": "V43_PUBLIC_STREAM_EVIDENCE_V1",
+        "venue": "bitget",
+        "symbol": "PARTIUSDT",
+        "asof_ms": 1795238884164,
+        "window_ms": 60000,
+        "segment": "bitget:44870209273-1:bce4e772-03b0-4da6-8165-6fd93ec7f6d5",
+        "connected_since_ms": 1795238525776,
+        "unbroken_window": false,
+        "market_observed_since_ms": 1795238856566,
+        "market_observation_span_ms": 27598,
+        "reconnects": 0,
+        "book_count": 53,
+        "trade_count": 1,
+        "first_quote": {
+          "bid": 0.03522,
+          "ask": 0.03526,
+          "at_ms": 1795238856464,
+          "at_us": 1795238856464000,
+          "received_at_ms": 1795238856566,
+          "bid_size": 144.7,
+          "ask_size": 4806
+        },
+        "last_quote": {
+          "bid": 0.03521,
+          "ask": 0.03525,
+          "at_ms": 1795238883772,
+          "at_us": 1795238883772000,
+          "received_at_ms": 1795238883918,
+          "bid_size": 1419.3,
+          "ask_size": 3840
+        },
+        "quote_age_ms": 392,
+        "buy_quote_notional": 0,
+        "sell_quote_notional": 5.0977809999999995,
+        "signed_quote_flow": -5.0977809999999995,
+        "buy_share": 0,
+        "observed_mid_change_pct": -0.028376844494903963,
+        "long_executable_change_pct": -0.14180374361884018,
+        "short_executable_change_pct": -0.08517887563882824,
+        "spread_pct": 0.11360408974723235,
+        "top_depth_imbalance": 0.33419190450472896,
+        "order_flow_imbalance_base": -5532.099999999999,
+        "observed_bid_replenishment": 0.6000000000001364,
+        "observed_ask_replenishment": 16314,
+        "initial_history_count": 0,
+        "duplicates": 0,
+        "conflicts": 0,
+        "out_of_order_books": 0,
+        "complete_exchange_tape_verified": false,
+        "book_cancellation_or_fill_attribution_verified": false,
+        "intent_verified": false,
+        "forecast_accuracy_proven": false,
+        "trade_permission": false
+      },
+      "assessment": {
+        "version": "V43_DIRECTION_AND_ENTRY_OBSERVATION_V1",
+        "venue": "bitget",
+        "symbol": "PARTIUSDT",
+        "decided_at_ms": 1795238884164,
+        "direction": {
+          "observed_bias": "DOWN",
+          "pattern": "SELL_FLOW_PRICE_DOWN",
+          "venue_action_hypothesis": "SHORT_HYPOTHESIS",
+          "probability": null,
+          "absorption_verified": false,
+          "future_direction_verified": false
+        },
+        "entry": {
+          "risk_flags": [
+            "MOVE_WITHIN_SPREAD",
+            "OBSERVATION_WINDOW_INCOMPLETE",
+            "PRICE_DOWN_WITH_OPPOSING_VISIBLE_DEPTH"
+          ],
+          "spread_pct": 0.11360408974723235,
+          "observed_long_quote_change_pct": -0.14180374361884018,
+          "observed_short_quote_change_pct": -0.08517887563882824,
+          "visible_depth_imbalance": 0.33419190450472896,
+          "observed_bid_replenishment": 0.6000000000001364,
+          "observed_ask_replenishment": 16314,
+          "observed_order_flow_imbalance": -5532.099999999999,
+          "trade_permission": false
+        },
+        "raw_feature_asof_ms": 1795238884164,
+        "live_model_replaced": false,
+        "forecast_accuracy_proven": false,
+        "warning": "OBSERVED_DIRECTION_AND_ENTRY_RISK_ARE_NOT_FUTURE_TRADE_RECOMMENDATIONS"
+      },
+      "market_context_same_interval_verified": false
+    },
+    {
+      "session": "44870209273-1",
+      "feature": {
+        "version": "V43_PUBLIC_STREAM_EVIDENCE_V1",
+        "venue": "bitget",
+        "symbol": "PONSUSDT",
+        "asof_ms": 1795238884164,
+        "window_ms": 60000,
+        "segment": "bitget:44870209273-1:bce4e772-03b0-4da6-8165-6fd93ec7f6d5",
+        "connected_since_ms": 1795238525776,
+        "unbroken_window": false,
+        "market_observed_since_ms": 1795238856603,
+        "market_observation_span_ms": 27561,
+        "reconnects": 0,
+        "book_count": 83,
+        "trade_count": 7,
+        "first_quote": {
+          "bid": 0.08788,
+          "ask": 0.08796,
+          "at_ms": 1795238856500,
+          "at_us": 1795238856500000,
+          "received_at_ms": 1795238856603,
+          "bid_size": 1486,
+          "ask_size": 1000
+        },
+        "last_quote": {
+          "bid": 0.08798,
+          "ask": 0.08808,
+          "at_ms": 1795238883974,
+          "at_us": 1795238883974000,
+          "received_at_ms": 1795238884080,
+          "bid_size": 69,
+          "ask_size": 1700
+        },
+        "quote_age_ms": 190,
+        "buy_quote_notional": 446.26443,
+        "sell_quote_notional": 134.54414,
+        "signed_quote_flow": 311.72029,
+        "buy_share": 0.7683502845007951,
+        "observed_mid_change_pct": 0.1251137397634272,
+        "long_executable_change_pct": 0.02273760800364233,
+        "short_executable_change_pct": -0.22758306781976073,
+        "spread_pct": 0.11366219595363436,
+        "top_depth_imbalance": -0.18921592876576798,
+        "order_flow_imbalance_base": -767,
+        "observed_bid_replenishment": 0,
+        "observed_ask_replenishment": 3352,
+        "initial_history_count": 0,
+        "duplicates": 0,
+        "conflicts": 0,
+        "out_of_order_books": 0,
+        "complete_exchange_tape_verified": false,
+        "book_cancellation_or_fill_attribution_verified": false,
+        "intent_verified": false,
+        "forecast_accuracy_proven": false,
+        "trade_permission": false
+      },
+      "assessment": {
+        "version": "V43_DIRECTION_AND_ENTRY_OBSERVATION_V1",
+        "venue": "bitget",
+        "symbol": "PONSUSDT",
+        "decided_at_ms": 1795238884164,
+        "direction": {
+          "observed_bias": "UP",
+          "pattern": "BUY_FLOW_PRICE_UP",
+          "venue_action_hypothesis": "LONG_HYPOTHESIS",
+          "probability": null,
+          "absorption_verified": false,
+          "future_direction_verified": false
+        },
+        "entry": {
+          "risk_flags": [
+            "OBSERVATION_WINDOW_INCOMPLETE",
+            "PRICE_UP_WITH_OPPOSING_VISIBLE_DEPTH"
+          ],
+          "spread_pct": 0.11366219595363436,
+          "observed_long_quote_change_pct": 0.02273760800364233,
+          "observed_short_quote_change_pct": -0.22758306781976073,
+          "visible_depth_imbalance": -0.18921592876576798,
+          "observed_bid_replenishment": 0,
+          "observed_ask_replenishment": 3352,
+          "observed_order_flow_imbalance": -767,
+          "trade_permission": false
+        },
+        "raw_feature_asof_ms": 1795238884164,
+        "live_model_replaced": false,
+        "forecast_accuracy_proven": false,
+        "warning": "OBSERVED_DIRECTION_AND_ENTRY_RISK_ARE_NOT_FUTURE_TRADE_RECOMMENDATIONS"
+      },
+      "market_context_same_interval_verified": false
+    },
+    {
+      "session": "44870209273-1",
+      "feature": {
+        "version": "V43_PUBLIC_STREAM_EVIDENCE_V1",
+        "venue": "bitget",
+        "symbol": "PROMUSDT",
+        "asof_ms": 1795238884164,
+        "window_ms": 60000,
+        "segment": "bitget:44870209273-1:bce4e772-03b0-4da6-8165-6fd93ec7f6d5",
+        "connected_since_ms": 1795238525776,
+        "unbroken_window": false,
+        "market_observed_since_ms": 1795238857499,
+        "market_observation_span_ms": 26665,
+        "reconnects": 0,
+        "book_count": 69,
+        "trade_count": 5,
+        "first_quote": {
+          "bid": 4.6538,
+          "ask": 4.6637,
+          "at_ms": 1795238857393,
+          "at_us": 1795238857393000,
+          "received_at_ms": 1795238857499,
+          "bid_size": 4.5,
+          "ask_size": 4.1
+        },
+        "last_quote": {
+          "bid": 4.6659,
+          "ask": 4.6729,
+          "at_ms": 1795238882761,
+          "at_us": 1795238882761000,
+          "received_at_ms": 1795238882864,
+          "bid_size": 1.8,
+          "ask_size": 1.2
+        },
+        "quote_age_ms": 1403,
+        "buy_quote_notional": 72.78182999999999,
+        "sell_quote_notional": 0,
+        "signed_quote_flow": 72.78182999999999,
+        "buy_share": 1,
+        "observed_mid_change_pct": 0.22860209283603883,
+        "long_executable_change_pct": 0.04717284559467849,
+        "short_executable_change_pct": -0.41041729339464295,
+        "spread_pct": 0.15002464690629935,
+        "top_depth_imbalance": 0.4009360374414977,
+        "order_flow_imbalance_base": 493.80000000000007,
+        "observed_bid_replenishment": 112.60000000000001,
+        "observed_ask_replenishment": 0,
+        "initial_history_count": 0,
+        "duplicates": 0,
+        "conflicts": 0,
+        "out_of_order_books": 0,
+        "complete_exchange_tape_verified": false,
+        "book_cancellation_or_fill_attribution_verified": false,
+        "intent_verified": false,
+        "forecast_accuracy_proven": false,
+        "trade_permission": false
+      },
+      "assessment": {
+        "version": "V43_DIRECTION_AND_ENTRY_OBSERVATION_V1",
+        "venue": "bitget",
+        "symbol": "PROMUSDT",
+        "decided_at_ms": 1795238884164,
+        "direction": {
+          "observed_bias": "UP",
+          "pattern": "BUY_FLOW_PRICE_UP",
+          "venue_action_hypothesis": "LONG_HYPOTHESIS",
+          "probability": null,
+          "absorption_verified": false,
+          "future_direction_verified": false
+        },
+        "entry": {
+          "risk_flags": [
+            "OBSERVATION_WINDOW_INCOMPLETE"
+          ],
+          "spread_pct": 0.15002464690629935,
+          "observed_long_quote_change_pct": 0.04717284559467849,
+          "observed_short_quote_change_pct": -0.41041729339464295,
+          "visible_depth_imbalance": 0.4009360374414977,
+          "observed_bid_replenishment": 112.60000000000001,
+          "observed_ask_replenishment": 0,
+          "observed_order_flow_imbalance": 493.80000000000007,
+          "trade_permission": false
+        },
+        "raw_feature_asof_ms": 1795238884164,
+        "live_model_replaced": false,
+        "forecast_accuracy_proven": false,
+        "warning": "OBSERVED_DIRECTION_AND_ENTRY_RISK_ARE_NOT_FUTURE_TRADE_RECOMMENDATIONS"
+      },
+      "market_context_same_interval_verified": false
+    },
+    {
+      "session": "44870209273-1",
+      "feature": {
+        "version": "V43_PUBLIC_STREAM_EVIDENCE_V1",
+        "venue": "bitget",
+        "symbol": "STONKUSDT",
+        "asof_ms": 1795238884164,
+        "window_ms": 60000,
+        "segment": "bitget:44870209273-1:bce4e772-03b0-4da6-8165-6fd93ec7f6d5",
+        "connected_since_ms": 1795238525776,
+        "unbroken_window": false,
+        "market_observed_since_ms": 1795238871024,
+        "market_observation_span_ms": 13140,
+        "reconnects": 0,
+        "book_count": 6,
+        "trade_count": 0,
+        "first_quote": {
+          "bid": 0.03136,
+          "ask": 0.0314,
+          "at_ms": 1795238870921,
+          "at_us": 1795238870921000,
+          "received_at_ms": 1795238871024,
+          "bid_size": 410,
+          "ask_size": 14729
+        },
+        "last_quote": {
+          "bid": 0.03133,
+          "ask": 0.0314,
+          "at_ms": 1795238883505,
+          "at_us": 1795238883505000,
+          "received_at_ms": 1795238883721,
+          "bid_size": 408,
+          "ask_size": 14729
+        },
+        "quote_age_ms": 659,
+        "buy_quote_notional": 0,
+        "sell_quote_notional": 0,
+        "signed_quote_flow": 0,
+        "buy_share": null,
+        "observed_mid_change_pct": -0.047801147227533036,
+        "long_executable_change_pct": -0.22292993630573799,
+        "short_executable_change_pct": -0.12755102040815808,
+        "spread_pct": 0.22342802425789898,
+        "top_depth_imbalance": -0.47159659951088856,
+        "order_flow_imbalance_base": -2,
+        "observed_bid_replenishment": 0,
+        "observed_ask_replenishment": 0,
+        "initial_history_count": 0,
+        "duplicates": 0,
+        "conflicts": 0,
+        "out_of_order_books": 0,
+        "complete_exchange_tape_verified": false,
+        "book_cancellation_or_fill_attribution_verified": false,
+        "intent_verified": false,
+        "forecast_accuracy_proven": false,
+        "trade_permission": false
+      },
+      "assessment": {
+        "version": "V43_DIRECTION_AND_ENTRY_OBSERVATION_V1",
+        "venue": "bitget",
+        "symbol": "STONKUSDT",
+        "decided_at_ms": 1795238884164,
+        "direction": {
+          "observed_bias": "DOWN",
+          "pattern": "PRICE_ONLY_NO_TAPE",
+          "venue_action_hypothesis": "SHORT_HYPOTHESIS",
+          "probability": null,
+          "absorption_verified": false,
+          "future_direction_verified": false
+        },
+        "entry": {
+          "risk_flags": [
+            "NO_REALTIME_TAPE",
+            "MOVE_WITHIN_SPREAD",
+            "OBSERVATION_WINDOW_INCOMPLETE"
+          ],
+          "spread_pct": 0.22342802425789898,
+          "observed_long_quote_change_pct": -0.22292993630573799,
+          "observed_short_quote_change_pct": -0.12755102040815808,
+          "visible_depth_imbalance": -0.47159659951088856,
+          "observed_bid_replenishment": 0,
+          "observed_ask_replenishment": 0,
+          "observed_order_flow_imbalance": -2,
+          "trade_permission": false
+        },
+        "raw_feature_asof_ms": 1795238884164,
+        "live_model_replaced": false,
+        "forecast_accuracy_proven": false,
+        "warning": "OBSERVED_DIRECTION_AND_ENTRY_RISK_ARE_NOT_FUTURE_TRADE_RECOMMENDATIONS"
+      },
+      "market_context_same_interval_verified": false
+    },
+    {
+      "session": "44870209273-1",
+      "feature": {
+        "version": "V43_PUBLIC_STREAM_EVIDENCE_V1",
+        "venue": "bitget",
+        "symbol": "UBUSDT",
+        "asof_ms": 1795238884164,
+        "window_ms": 60000,
+        "segment": "bitget:44870209273-1:bce4e772-03b0-4da6-8165-6fd93ec7f6d5",
+        "connected_since_ms": 1795238525776,
+        "unbroken_window": false,
+        "market_observed_since_ms": 1795238856466,
+        "market_observation_span_ms": 27698,
+        "reconnects": 0,
+        "book_count": 36,
+        "trade_count": 0,
+        "first_quote": {
+          "bid": 0.09425,
+          "ask": 0.09433,
+          "at_ms": 1795238856361,
+          "at_us": 1795238856361000,
+          "received_at_ms": 1795238856466,
+          "bid_size": 368,
+          "ask_size": 313
+        },
+        "last_quote": {
+          "bid": 0.09438,
+          "ask": 0.09444,
+          "at_ms": 1795238884029,
+          "at_us": 1795238884029000,
+          "received_at_ms": 1795238884147,
+          "bid_size": 388,
+          "ask_size": 500
+        },
+        "quote_age_ms": 135,
+        "buy_quote_notional": 0,
+        "sell_quote_notional": 0,
+        "signed_quote_flow": 0,
+        "buy_share": null,
+        "observed_mid_change_pct": 0.12726694241169678,
+        "long_executable_change_pct": 0.05300540655148733,
+        "short_executable_change_pct": -0.20159151193633498,
+        "spread_pct": 0.06357279084550083,
+        "top_depth_imbalance": 0.04308300395256917,
+        "order_flow_imbalance_base": 4473,
+        "observed_bid_replenishment": 0,
+        "observed_ask_replenishment": 0,
+        "initial_history_count": 0,
+        "duplicates": 0,
+        "conflicts": 0,
+        "out_of_order_books": 0,
+        "complete_exchange_tape_verified": false,
+        "book_cancellation_or_fill_attribution_verified": false,
+        "intent_verified": false,
+        "forecast_accuracy_proven": false,
+        "trade_permission": false
+      },
+      "assessment": {
+        "version": "V43_DIRECTION_AND_ENTRY_OBSERVATION_V1",
+        "venue": "bitget",
+        "symbol": "UBUSDT",
+        "decided_at_ms": 1795238884164,
+        "direction": {
+          "observed_bias": "UP",
+          "pattern": "PRICE_ONLY_NO_TAPE",
+          "venue_action_hypothesis": "LONG_HYPOTHESIS",
+          "probability": null,
+          "absorption_verified": false,
+          "future_direction_verified": false
+        },
+        "entry": {
+          "risk_flags": [
+            "NO_REALTIME_TAPE",
+            "OBSERVATION_WINDOW_INCOMPLETE"
+          ],
+          "spread_pct": 0.06357279084550083,
+          "observed_long_quote_change_pct": 0.05300540655148733,
+          "observed_short_quote_change_pct": -0.20159151193633498,
+          "visible_depth_imbalance": 0.04308300395256917,
+          "observed_bid_replenishment": 0,
+          "observed_ask_replenishment": 0,
+          "observed_order_flow_imbalance": 4473,
+          "trade_permission": false
+        },
+        "raw_feature_asof_ms": 1795238884164,
+        "live_model_replaced": false,
+        "forecast_accuracy_proven": false,
+        "warning": "OBSERVED_DIRECTION_AND_ENTRY_RISK_ARE_NOT_FUTURE_TRADE_RECOMMENDATIONS"
+      },
+      "market_context_same_interval_verified": false
+    },
+    {
+      "session": "44870209273-1",
+      "feature": {
+        "version": "V43_PUBLIC_STREAM_EVIDENCE_V1",
+        "venue": "bitget",
+        "symbol": "VVVUSDT",
+        "asof_ms": 1795238884164,
+        "window_ms": 60000,
+        "segment": "bitget:44870209273-1:bce4e772-03b0-4da6-8165-6fd93ec7f6d5",
+        "connected_since_ms": 1795238525776,
+        "unbroken_window": false,
+        "market_observed_since_ms": 1795238856456,
+        "market_observation_span_ms": 27708,
+        "reconnects": 0,
+        "book_count": 119,
+        "trade_count": 0,
+        "first_quote": {
+          "bid": 20.305,
+          "ask": 20.321,
+          "at_ms": 1795238856256,
+          "at_us": 1795238856256000,
+          "received_at_ms": 1795238856456,
+          "bid_size": 5.65,
+          "ask_size": 11.68
+        },
+        "last_quote": {
+          "bid": 20.316,
+          "ask": 20.334,
+          "at_ms": 1795238884001,
+          "at_us": 1795238884001000,
+          "received_at_ms": 1795238884114,
+          "bid_size": 11.68,
+          "ask_size": 5.65
+        },
+        "quote_age_ms": 163,
+        "buy_quote_notional": 0,
+        "sell_quote_notional": 0,
+        "signed_quote_flow": 0,
+        "buy_share": null,
+        "observed_mid_change_pct": 0.05907546891152915,
+        "long_executable_change_pct": -0.024605088332274594,
+        "short_executable_change_pct": -0.14282196503324263,
+        "spread_pct": 0.08860011813349722,
+        "top_depth_imbalance": 0.1426506024096385,
+        "order_flow_imbalance_base": -75.69000000000003,
+        "observed_bid_replenishment": 5.000000000000001,
+        "observed_ask_replenishment": 5.649999999999999,
+        "initial_history_count": 0,
+        "duplicates": 0,
+        "conflicts": 0,
+        "out_of_order_books": 0,
+        "complete_exchange_tape_verified": false,
+        "book_cancellation_or_fill_attribution_verified": false,
+        "intent_verified": false,
+        "forecast_accuracy_proven": false,
+        "trade_permission": false
+      },
+      "assessment": {
+        "version": "V43_DIRECTION_AND_ENTRY_OBSERVATION_V1",
+        "venue": "bitget",
+        "symbol": "VVVUSDT",
+        "decided_at_ms": 1795238884164,
+        "direction": {
+          "observed_bias": "UP",
+          "pattern": "PRICE_ONLY_NO_TAPE",
+          "venue_action_hypothesis": "LONG_HYPOTHESIS",
+          "probability": null,
+          "absorption_verified": false,
+          "future_direction_verified": false
+        },
+        "entry": {
+          "risk_flags": [
+            "NO_REALTIME_TAPE",
+            "MOVE_WITHIN_SPREAD",
+            "OBSERVATION_WINDOW_INCOMPLETE"
+          ],
+          "spread_pct": 0.08860011813349722,
+          "observed_long_quote_change_pct": -0.024605088332274594,
+          "observed_short_quote_change_pct": -0.14282196503324263,
+          "visible_depth_imbalance": 0.1426506024096385,
+          "observed_bid_replenishment": 5.000000000000001,
+          "observed_ask_replenishment": 5.649999999999999,
+          "observed_order_flow_imbalance": -75.69000000000003,
+          "trade_permission": false
+        },
+        "raw_feature_asof_ms": 1795238884164,
+        "live_model_replaced": false,
+        "forecast_accuracy_proven": false,
+        "warning": "OBSERVED_DIRECTION_AND_ENTRY_RISK_ARE_NOT_FUTURE_TRADE_RECOMMENDATIONS"
+      },
+      "market_context_same_interval_verified": false
+    },
+    {
+      "session": "44870209273-1",
+      "feature": {
+        "version": "V43_PUBLIC_STREAM_EVIDENCE_V1",
+        "venue": "bitget",
+        "symbol": "XPINUSDT",
+        "asof_ms": 1795238884164,
+        "window_ms": 60000,
+        "segment": "bitget:44870209273-1:bce4e772-03b0-4da6-8165-6fd93ec7f6d5",
+        "connected_since_ms": 1795238525776,
+        "unbroken_window": false,
+        "market_observed_since_ms": 1795238856783,
+        "market_observation_span_ms": 27381,
+        "reconnects": 0,
+        "book_count": 38,
+        "trade_count": 0,
+        "first_quote": {
+          "bid": 0.0006856,
+          "ask": 0.0006877,
+          "at_ms": 1795238856681,
+          "at_us": 1795238856681000,
+          "received_at_ms": 1795238856783,
+          "bid_size": 99464,
+          "ask_size": 81918
+        },
+        "last_quote": {
+          "bid": 0.000686,
+          "ask": 0.0006877,
+          "at_ms": 1795238883980,
+          "at_us": 1795238883980000,
+          "received_at_ms": 1795238884143,
+          "bid_size": 77891,
+          "ask_size": 81918
+        },
+        "quote_age_ms": 184,
+        "buy_quote_notional": 0,
+        "sell_quote_notional": 0,
+        "signed_quote_flow": 0,
+        "buy_share": null,
+        "observed_mid_change_pct": 0.029126920556299396,
+        "long_executable_change_pct": -0.247200814308568,
+        "short_executable_change_pct": -0.30630105017502873,
+        "spread_pct": 0.24781341107871224,
+        "top_depth_imbalance": -0.11637705868508218,
+        "order_flow_imbalance_base": 897097,
+        "observed_bid_replenishment": 77891,
+        "observed_ask_replenishment": 0,
+        "initial_history_count": 0,
+        "duplicates": 0,
+        "conflicts": 0,
+        "out_of_order_books": 0,
+        "complete_exchange_tape_verified": false,
+        "book_cancellation_or_fill_attribution_verified": false,
+        "intent_verified": false,
+        "forecast_accuracy_proven": false,
+        "trade_permission": false
+      },
+      "assessment": {
+        "version": "V43_DIRECTION_AND_ENTRY_OBSERVATION_V1",
+        "venue": "bitget",
+        "symbol": "XPINUSDT",
+        "decided_at_ms": 1795238884164,
+        "direction": {
+          "observed_bias": "UP",
+          "pattern": "PRICE_ONLY_NO_TAPE",
+          "venue_action_hypothesis": "LONG_HYPOTHESIS",
+          "probability": null,
+          "absorption_verified": false,
+          "future_direction_verified": false
+        },
+        "entry": {
+          "risk_flags": [
+            "NO_REALTIME_TAPE",
+            "MOVE_WITHIN_SPREAD",
+            "OBSERVATION_WINDOW_INCOMPLETE",
+            "PRICE_UP_WITH_OPPOSING_VISIBLE_DEPTH"
+          ],
+          "spread_pct": 0.24781341107871224,
+          "observed_long_quote_change_pct": -0.247200814308568,
+          "observed_short_quote_change_pct": -0.30630105017502873,
+          "visible_depth_imbalance": -0.11637705868508218,
+          "observed_bid_replenishment": 77891,
+          "observed_ask_replenishment": 0,
+          "observed_order_flow_imbalance": 897097,
+          "trade_permission": false
+        },
+        "raw_feature_asof_ms": 1795238884164,
+        "live_model_replaced": false,
+        "forecast_accuracy_proven": false,
+        "warning": "OBSERVED_DIRECTION_AND_ENTRY_RISK_ARE_NOT_FUTURE_TRADE_RECOMMENDATIONS"
+      },
+      "market_context_same_interval_verified": false
+    },
+    {
+      "session": "44870209273-1",
+      "feature": {
+        "version": "V43_PUBLIC_STREAM_EVIDENCE_V1",
+        "venue": "bitget",
+        "symbol": "YBUSDT",
+        "asof_ms": 1795238884164,
+        "window_ms": 60000,
+        "segment": "bitget:44870209273-1:bce4e772-03b0-4da6-8165-6fd93ec7f6d5",
+        "connected_since_ms": 1795238525776,
+        "unbroken_window": true,
+        "market_observed_since_ms": 1795238555994,
+        "market_observation_span_ms": 328170,
+        "reconnects": 0,
+        "book_count": 152,
+        "trade_count": 11,
+        "first_quote": {
+          "bid": 0.05085,
+          "ask": 0.05089,
+          "at_ms": 1795238824240,
+          "at_us": 1795238824240000,
+          "received_at_ms": 1795238824342,
+          "bid_size": 1441,
+          "ask_size": 1033
+        },
+        "last_quote": {
+          "bid": 0.05064,
+          "ask": 0.0507,
+          "at_ms": 1795238883901,
+          "at_us": 1795238883901000,
+          "received_at_ms": 1795238884019,
+          "bid_size": 1633,
+          "ask_size": 1033
+        },
+        "quote_age_ms": 263,
+        "buy_quote_notional": 81.22415000000001,
+        "sell_quote_notional": 753.24708,
+        "signed_quote_flow": -672.02293,
+        "buy_share": 0.09733606993257277,
+        "observed_mid_change_pct": -0.3931590328287715,
+        "long_executable_change_pct": -0.49125564943997,
+        "short_executable_change_pct": 0.29498525073745796,
+        "spread_pct": 0.11848341232227888,
+        "top_depth_imbalance": -0.11476113794954375,
+        "order_flow_imbalance_base": -34333,
+        "observed_bid_replenishment": 14293,
+        "observed_ask_replenishment": 13533,
+        "initial_history_count": 0,
+        "duplicates": 0,
+        "conflicts": 0,
+        "out_of_order_books": 0,
+        "complete_exchange_tape_verified": false,
+        "book_cancellation_or_fill_attribution_verified": false,
+        "intent_verified": false,
+        "forecast_accuracy_proven": false,
+        "trade_permission": false
+      },
+      "assessment": {
+        "version": "V43_DIRECTION_AND_ENTRY_OBSERVATION_V1",
+        "venue": "bitget",
+        "symbol": "YBUSDT",
+        "decided_at_ms": 1795238884164,
+        "direction": {
+          "observed_bias": "DOWN",
+          "pattern": "SELL_FLOW_PRICE_DOWN",
+          "venue_action_hypothesis": "SHORT_HYPOTHESIS",
+          "probability": null,
+          "absorption_verified": false,
+          "future_direction_verified": false
+        },
+        "entry": {
+          "risk_flags": [],
+          "spread_pct": 0.11848341232227888,
+          "observed_long_quote_change_pct": -0.49125564943997,
+          "observed_short_quote_change_pct": 0.29498525073745796,
+          "visible_depth_imbalance": -0.11476113794954375,
+          "observed_bid_replenishment": 14293,
+          "observed_ask_replenishment": 13533,
+          "observed_order_flow_imbalance": -34333,
+          "trade_permission": false
+        },
+        "raw_feature_asof_ms": 1795238884164,
+        "live_model_replaced": false,
+        "forecast_accuracy_proven": false,
+        "warning": "OBSERVED_DIRECTION_AND_ENTRY_RISK_ARE_NOT_FUTURE_TRADE_RECOMMENDATIONS"
+      },
+      "market_context_same_interval_verified": false
+    },
+    {
+      "session": "44870209273-1",
       "feature": {
         "version": "V43_PUBLIC_STREAM_EVIDENCE_V1",
         "venue": "bithumb",
-        "symbol": "KRW-BTC",
-        "asof_ms": 1795238603935,
+        "symbol": "KRW-A8",
+        "asof_ms": 1795238884164,
         "window_ms": 60000,
-        "segment": "bithumb:44869785996-1:ce016e23-a89c-4267-84bd-8cee251437b3",
-        "connected_since_ms": 1795238245558,
-        "unbroken_window": true,
-        "market_observed_since_ms": 1795238245803,
-        "market_observation_span_ms": 358132,
+        "segment": "bithumb:44870209273-1:5f9ac32a-dd8e-4bb1-94ab-3cd041dd672f",
+        "connected_since_ms": 1795238525651,
+        "unbroken_window": false,
+        "market_observed_since_ms": 1795238857220,
+        "market_observation_span_ms": 26944,
         "reconnects": 0,
-        "book_count": 722,
-        "trade_count": 74,
+        "book_count": 56,
+        "trade_count": 0,
         "first_quote": {
-          "bid": 77676000,
-          "ask": 77692000,
-          "at_ms": 1795238543979,
-          "at_us": 1795238543979189,
-          "received_at_ms": 1795238544103,
-          "bid_size": 0.0032,
-          "ask_size": 0.0728
+          "bid": 3.707,
+          "ask": 3.732,
+          "at_ms": 1795238857100,
+          "at_us": 1795238857100129,
+          "received_at_ms": 1795238857220,
+          "bid_size": 45028.8934,
+          "ask_size": 941389.5465
         },
         "last_quote": {
-          "bid": 77654000,
-          "ask": 77688000,
-          "at_ms": 1795238603780,
-          "at_us": 1795238603780011,
-          "received_at_ms": 1795238603905,
-          "bid_size": 0.0051,
-          "ask_size": 0.0193
+          "bid": 3.707,
+          "ask": 3.732,
+          "at_ms": 1795238882956,
+          "at_us": 1795238882956786,
+          "received_at_ms": 1795238883115,
+          "bid_size": 45028.8934,
+          "ask_size": 941389.5465
         },
-        "quote_age_ms": 155,
-        "buy_quote_notional": 28813833.897590004,
-        "sell_quote_notional": 46177898.25467001,
-        "signed_quote_flow": -17364064.357080005,
-        "buy_share": 0.38422680835118767,
-        "observed_mid_change_pct": -0.016734462695022767,
-        "long_executable_change_pct": -0.04891108479637696,
-        "short_executable_change_pct": -0.015448787270199289,
-        "spread_pct": 0.04378396476678592,
-        "top_depth_imbalance": 0.20015860428231572,
-        "order_flow_imbalance_base": -2.8258000000000014,
-        "observed_bid_replenishment": 0.2708,
-        "observed_ask_replenishment": 0.9587999999999997,
+        "quote_age_ms": 1208,
+        "buy_quote_notional": 0,
+        "sell_quote_notional": 0,
+        "signed_quote_flow": 0,
+        "buy_share": null,
+        "observed_mid_change_pct": 0,
+        "long_executable_change_pct": -0.6698821007502742,
+        "short_executable_change_pct": -0.6743997841920787,
+        "spread_pct": 0.6743997841920812,
+        "top_depth_imbalance": -0.4451167085290484,
+        "order_flow_imbalance_base": 0,
+        "observed_bid_replenishment": 0,
+        "observed_ask_replenishment": 0,
         "initial_history_count": 0,
         "duplicates": 0,
         "conflicts": 0,
@@ -311,8 +2653,376 @@
       "assessment": {
         "version": "V43_DIRECTION_AND_ENTRY_OBSERVATION_V1",
         "venue": "bithumb",
-        "symbol": "KRW-BTC",
-        "decided_at_ms": 1795238603935,
+        "symbol": "KRW-A8",
+        "decided_at_ms": 1795238884164,
+        "direction": {
+          "observed_bias": "FLAT",
+          "pattern": "PRICE_ONLY_NO_TAPE",
+          "venue_action_hypothesis": "UNRESOLVED",
+          "probability": null,
+          "absorption_verified": false,
+          "future_direction_verified": false
+        },
+        "entry": {
+          "risk_flags": [
+            "NO_REALTIME_TAPE",
+            "MOVE_WITHIN_SPREAD",
+            "OBSERVATION_WINDOW_INCOMPLETE"
+          ],
+          "spread_pct": 0.6743997841920812,
+          "observed_long_quote_change_pct": -0.6698821007502742,
+          "observed_short_quote_change_pct": -0.6743997841920787,
+          "visible_depth_imbalance": -0.4451167085290484,
+          "observed_bid_replenishment": 0,
+          "observed_ask_replenishment": 0,
+          "observed_order_flow_imbalance": 0,
+          "trade_permission": false
+        },
+        "raw_feature_asof_ms": 1795238884164,
+        "live_model_replaced": false,
+        "forecast_accuracy_proven": false,
+        "warning": "OBSERVED_DIRECTION_AND_ENTRY_RISK_ARE_NOT_FUTURE_TRADE_RECOMMENDATIONS"
+      },
+      "market_context_same_interval_verified": false
+    },
+    {
+      "session": "44870209273-1",
+      "feature": {
+        "version": "V43_PUBLIC_STREAM_EVIDENCE_V1",
+        "venue": "bithumb",
+        "symbol": "KRW-ADP",
+        "asof_ms": 1795238884164,
+        "window_ms": 60000,
+        "segment": "bithumb:44870209273-1:5f9ac32a-dd8e-4bb1-94ab-3cd041dd672f",
+        "connected_since_ms": 1795238525651,
+        "unbroken_window": false,
+        "market_observed_since_ms": 1795238855797,
+        "market_observation_span_ms": 28367,
+        "reconnects": 0,
+        "book_count": 7,
+        "trade_count": 0,
+        "first_quote": {
+          "bid": 0.3744,
+          "ask": 0.3752,
+          "at_ms": 1795238855631,
+          "at_us": 1795238855631213,
+          "received_at_ms": 1795238855797,
+          "bid_size": 106750.3958,
+          "ask_size": 52971
+        },
+        "last_quote": {
+          "bid": 0.3744,
+          "ask": 0.3752,
+          "at_ms": 1795238877794,
+          "at_us": 1795238877794439,
+          "received_at_ms": 1795238877959,
+          "bid_size": 106750.3958,
+          "ask_size": 52971
+        },
+        "quote_age_ms": 6370,
+        "buy_quote_notional": 0,
+        "sell_quote_notional": 0,
+        "signed_quote_flow": 0,
+        "buy_share": null,
+        "observed_mid_change_pct": 0,
+        "long_executable_change_pct": -0.2132196162046851,
+        "short_executable_change_pct": -0.21367521367520495,
+        "spread_pct": 0.21367521367521292,
+        "top_depth_imbalance": 0.5578985745238423,
+        "order_flow_imbalance_base": 0,
+        "observed_bid_replenishment": 0,
+        "observed_ask_replenishment": 0,
+        "initial_history_count": 0,
+        "duplicates": 0,
+        "conflicts": 0,
+        "out_of_order_books": 0,
+        "complete_exchange_tape_verified": false,
+        "book_cancellation_or_fill_attribution_verified": false,
+        "intent_verified": false,
+        "forecast_accuracy_proven": false,
+        "trade_permission": false
+      },
+      "assessment": {
+        "version": "V43_DIRECTION_AND_ENTRY_OBSERVATION_V1",
+        "venue": "bithumb",
+        "symbol": "KRW-ADP",
+        "decided_at_ms": 1795238884164,
+        "direction": {
+          "observed_bias": "FLAT",
+          "pattern": "PRICE_ONLY_NO_TAPE",
+          "venue_action_hypothesis": "UNRESOLVED",
+          "probability": null,
+          "absorption_verified": false,
+          "future_direction_verified": false
+        },
+        "entry": {
+          "risk_flags": [
+            "NO_REALTIME_TAPE",
+            "MOVE_WITHIN_SPREAD",
+            "QUOTE_NOT_CURRENT",
+            "OBSERVATION_WINDOW_INCOMPLETE"
+          ],
+          "spread_pct": 0.21367521367521292,
+          "observed_long_quote_change_pct": -0.2132196162046851,
+          "observed_short_quote_change_pct": -0.21367521367520495,
+          "visible_depth_imbalance": 0.5578985745238423,
+          "observed_bid_replenishment": 0,
+          "observed_ask_replenishment": 0,
+          "observed_order_flow_imbalance": 0,
+          "trade_permission": false
+        },
+        "raw_feature_asof_ms": 1795238884164,
+        "live_model_replaced": false,
+        "forecast_accuracy_proven": false,
+        "warning": "OBSERVED_DIRECTION_AND_ENTRY_RISK_ARE_NOT_FUTURE_TRADE_RECOMMENDATIONS"
+      },
+      "market_context_same_interval_verified": false
+    },
+    {
+      "session": "44870209273-1",
+      "feature": {
+        "version": "V43_PUBLIC_STREAM_EVIDENCE_V1",
+        "venue": "bithumb",
+        "symbol": "KRW-AEON",
+        "asof_ms": 1795238884164,
+        "window_ms": 60000,
+        "segment": "bithumb:44870209273-1:5f9ac32a-dd8e-4bb1-94ab-3cd041dd672f",
+        "connected_since_ms": 1795238525651,
+        "unbroken_window": true,
+        "market_observed_since_ms": 1795238555460,
+        "market_observation_span_ms": 328704,
+        "reconnects": 0,
+        "book_count": 163,
+        "trade_count": 0,
+        "first_quote": {
+          "bid": 26.68,
+          "ask": 27.22,
+          "at_ms": 1795238825708,
+          "at_us": 1795238825708088,
+          "received_at_ms": 1795238825859,
+          "bid_size": 0.0896,
+          "ask_size": 33088.1764
+        },
+        "last_quote": {
+          "bid": 26.68,
+          "ask": 27.16,
+          "at_ms": 1795238883950,
+          "at_us": 1795238883950165,
+          "received_at_ms": 1795238884100,
+          "bid_size": 0.0896,
+          "ask_size": 16629.1147
+        },
+        "quote_age_ms": 214,
+        "buy_quote_notional": 0,
+        "sell_quote_notional": 0,
+        "signed_quote_flow": 0,
+        "buy_share": null,
+        "observed_mid_change_pct": -0.11131725417439231,
+        "long_executable_change_pct": -1.983835415135926,
+        "short_executable_change_pct": -1.799100449775114,
+        "spread_pct": 1.799100449775115,
+        "top_depth_imbalance": 0.14843722483395175,
+        "order_flow_imbalance_base": -138987.12420000002,
+        "observed_bid_replenishment": 0,
+        "observed_ask_replenishment": 33358.8956,
+        "initial_history_count": 0,
+        "duplicates": 0,
+        "conflicts": 0,
+        "out_of_order_books": 0,
+        "complete_exchange_tape_verified": false,
+        "book_cancellation_or_fill_attribution_verified": false,
+        "intent_verified": false,
+        "forecast_accuracy_proven": false,
+        "trade_permission": false
+      },
+      "assessment": {
+        "version": "V43_DIRECTION_AND_ENTRY_OBSERVATION_V1",
+        "venue": "bithumb",
+        "symbol": "KRW-AEON",
+        "decided_at_ms": 1795238884164,
+        "direction": {
+          "observed_bias": "DOWN",
+          "pattern": "PRICE_ONLY_NO_TAPE",
+          "venue_action_hypothesis": "NO_BUY",
+          "probability": null,
+          "absorption_verified": false,
+          "future_direction_verified": false
+        },
+        "entry": {
+          "risk_flags": [
+            "NO_REALTIME_TAPE",
+            "MOVE_WITHIN_SPREAD",
+            "PRICE_DOWN_WITH_OPPOSING_VISIBLE_DEPTH"
+          ],
+          "spread_pct": 1.799100449775115,
+          "observed_long_quote_change_pct": -1.983835415135926,
+          "observed_short_quote_change_pct": -1.799100449775114,
+          "visible_depth_imbalance": 0.14843722483395175,
+          "observed_bid_replenishment": 0,
+          "observed_ask_replenishment": 33358.8956,
+          "observed_order_flow_imbalance": -138987.12420000002,
+          "trade_permission": false
+        },
+        "raw_feature_asof_ms": 1795238884164,
+        "live_model_replaced": false,
+        "forecast_accuracy_proven": false,
+        "warning": "OBSERVED_DIRECTION_AND_ENTRY_RISK_ARE_NOT_FUTURE_TRADE_RECOMMENDATIONS"
+      },
+      "market_context_same_interval_verified": false
+    },
+    {
+      "session": "44870209273-1",
+      "feature": {
+        "version": "V43_PUBLIC_STREAM_EVIDENCE_V1",
+        "venue": "bithumb",
+        "symbol": "KRW-AGI",
+        "asof_ms": 1795238884164,
+        "window_ms": 60000,
+        "segment": "bithumb:44870209273-1:5f9ac32a-dd8e-4bb1-94ab-3cd041dd672f",
+        "connected_since_ms": 1795238525651,
+        "unbroken_window": true,
+        "market_observed_since_ms": 1795238555195,
+        "market_observation_span_ms": 328969,
+        "reconnects": 0,
+        "book_count": 271,
+        "trade_count": 8,
+        "first_quote": {
+          "bid": 4.064,
+          "ask": 4.139,
+          "at_ms": 1795238824319,
+          "at_us": 1795238824319876,
+          "received_at_ms": 1795238824487,
+          "bid_size": 36526.6909,
+          "ask_size": 6451.61
+        },
+        "last_quote": {
+          "bid": 4.066,
+          "ask": 4.17,
+          "at_ms": 1795238883929,
+          "at_us": 1795238883929206,
+          "received_at_ms": 1795238884090,
+          "bid_size": 9981.4695,
+          "ask_size": 31953.1406
+        },
+        "quote_age_ms": 235,
+        "buy_quote_notional": 208250.272685916,
+        "sell_quote_notional": 0,
+        "signed_quote_flow": 208250.272685916,
+        "buy_share": 1,
+        "observed_mid_change_pct": 0.4022918444471779,
+        "long_executable_change_pct": -1.763711041314342,
+        "short_executable_change_pct": -2.6082677165354298,
+        "spread_pct": 2.557796360059039,
+        "top_depth_imbalance": -0.026840163996598696,
+        "order_flow_imbalance_base": 95234.2626,
+        "observed_bid_replenishment": 174796.98989999996,
+        "observed_ask_replenishment": 0,
+        "initial_history_count": 0,
+        "duplicates": 0,
+        "conflicts": 0,
+        "out_of_order_books": 0,
+        "complete_exchange_tape_verified": false,
+        "book_cancellation_or_fill_attribution_verified": false,
+        "intent_verified": false,
+        "forecast_accuracy_proven": false,
+        "trade_permission": false
+      },
+      "assessment": {
+        "version": "V43_DIRECTION_AND_ENTRY_OBSERVATION_V1",
+        "venue": "bithumb",
+        "symbol": "KRW-AGI",
+        "decided_at_ms": 1795238884164,
+        "direction": {
+          "observed_bias": "UP",
+          "pattern": "BUY_FLOW_PRICE_UP",
+          "venue_action_hypothesis": "BUY_HYPOTHESIS",
+          "probability": null,
+          "absorption_verified": false,
+          "future_direction_verified": false
+        },
+        "entry": {
+          "risk_flags": [
+            "MOVE_WITHIN_SPREAD",
+            "PRICE_UP_WITH_OPPOSING_VISIBLE_DEPTH"
+          ],
+          "spread_pct": 2.557796360059039,
+          "observed_long_quote_change_pct": -1.763711041314342,
+          "observed_short_quote_change_pct": -2.6082677165354298,
+          "visible_depth_imbalance": -0.026840163996598696,
+          "observed_bid_replenishment": 174796.98989999996,
+          "observed_ask_replenishment": 0,
+          "observed_order_flow_imbalance": 95234.2626,
+          "trade_permission": false
+        },
+        "raw_feature_asof_ms": 1795238884164,
+        "live_model_replaced": false,
+        "forecast_accuracy_proven": false,
+        "warning": "OBSERVED_DIRECTION_AND_ENTRY_RISK_ARE_NOT_FUTURE_TRADE_RECOMMENDATIONS"
+      },
+      "market_context_same_interval_verified": false
+    },
+    {
+      "session": "44870209273-1",
+      "feature": {
+        "version": "V43_PUBLIC_STREAM_EVIDENCE_V1",
+        "venue": "bithumb",
+        "symbol": "KRW-AI",
+        "asof_ms": 1795238884164,
+        "window_ms": 60000,
+        "segment": "bithumb:44870209273-1:5f9ac32a-dd8e-4bb1-94ab-3cd041dd672f",
+        "connected_since_ms": 1795238525651,
+        "unbroken_window": true,
+        "market_observed_since_ms": 1795238526287,
+        "market_observation_span_ms": 357877,
+        "reconnects": 0,
+        "book_count": 130,
+        "trade_count": 2,
+        "first_quote": {
+          "bid": 19.65,
+          "ask": 19.66,
+          "at_ms": 1795238824227,
+          "at_us": 1795238824227925,
+          "received_at_ms": 1795238824344,
+          "bid_size": 13071.232,
+          "ask_size": 15684.82
+        },
+        "last_quote": {
+          "bid": 19.64,
+          "ask": 19.65,
+          "at_ms": 1795238883907,
+          "at_us": 1795238883907100,
+          "received_at_ms": 1795238884059,
+          "bid_size": 96345.285,
+          "ask_size": 1771.1799
+        },
+        "quote_age_ms": 257,
+        "buy_quote_notional": 0,
+        "sell_quote_notional": 273411.452613099,
+        "signed_quote_flow": -273411.452613099,
+        "buy_share": 0,
+        "observed_mid_change_pct": -0.05087763927754674,
+        "long_executable_change_pct": -0.10172939979653517,
+        "short_executable_change_pct": 0,
+        "spread_pct": 0.050916496944997114,
+        "top_depth_imbalance": 0.2274336667262345,
+        "order_flow_imbalance_base": -60048.03630000001,
+        "observed_bid_replenishment": 0,
+        "observed_ask_replenishment": 0,
+        "initial_history_count": 0,
+        "duplicates": 0,
+        "conflicts": 0,
+        "out_of_order_books": 0,
+        "complete_exchange_tape_verified": false,
+        "book_cancellation_or_fill_attribution_verified": false,
+        "intent_verified": false,
+        "forecast_accuracy_proven": false,
+        "trade_permission": false
+      },
+      "assessment": {
+        "version": "V43_DIRECTION_AND_ENTRY_OBSERVATION_V1",
+        "venue": "bithumb",
+        "symbol": "KRW-AI",
+        "decided_at_ms": 1795238884164,
         "direction": {
           "observed_bias": "DOWN",
           "pattern": "SELL_FLOW_PRICE_DOWN",
@@ -326,16 +3036,749 @@
             "MOVE_WITHIN_SPREAD",
             "PRICE_DOWN_WITH_OPPOSING_VISIBLE_DEPTH"
           ],
-          "spread_pct": 0.04378396476678592,
-          "observed_long_quote_change_pct": -0.04891108479637696,
-          "observed_short_quote_change_pct": -0.015448787270199289,
-          "visible_depth_imbalance": 0.20015860428231572,
-          "observed_bid_replenishment": 0.2708,
-          "observed_ask_replenishment": 0.9587999999999997,
-          "observed_order_flow_imbalance": -2.8258000000000014,
+          "spread_pct": 0.050916496944997114,
+          "observed_long_quote_change_pct": -0.10172939979653517,
+          "observed_short_quote_change_pct": 0,
+          "visible_depth_imbalance": 0.2274336667262345,
+          "observed_bid_replenishment": 0,
+          "observed_ask_replenishment": 0,
+          "observed_order_flow_imbalance": -60048.03630000001,
           "trade_permission": false
         },
-        "raw_feature_asof_ms": 1795238603935,
+        "raw_feature_asof_ms": 1795238884164,
+        "live_model_replaced": false,
+        "forecast_accuracy_proven": false,
+        "warning": "OBSERVED_DIRECTION_AND_ENTRY_RISK_ARE_NOT_FUTURE_TRADE_RECOMMENDATIONS"
+      },
+      "market_context_same_interval_verified": false
+    },
+    {
+      "session": "44870209273-1",
+      "feature": {
+        "version": "V43_PUBLIC_STREAM_EVIDENCE_V1",
+        "venue": "bithumb",
+        "symbol": "KRW-BTC",
+        "asof_ms": 1795238884164,
+        "window_ms": 60000,
+        "segment": "bithumb:44870209273-1:5f9ac32a-dd8e-4bb1-94ab-3cd041dd672f",
+        "connected_since_ms": 1795238525651,
+        "unbroken_window": true,
+        "market_observed_since_ms": 1795238525872,
+        "market_observation_span_ms": 358292,
+        "reconnects": 0,
+        "book_count": 714,
+        "trade_count": 67,
+        "first_quote": {
+          "bid": 77701000,
+          "ask": 77752000,
+          "at_ms": 1795238824229,
+          "at_us": 1795238824229879,
+          "received_at_ms": 1795238824361,
+          "bid_size": 0.0273,
+          "ask_size": 0.0023
+        },
+        "last_quote": {
+          "bid": 77749000,
+          "ask": 77755000,
+          "at_ms": 1795238883989,
+          "at_us": 1795238883989434,
+          "received_at_ms": 1795238884126,
+          "bid_size": 0.0001,
+          "ask_size": 0.0307
+        },
+        "quote_age_ms": 175,
+        "buy_quote_notional": 7841857.234660001,
+        "sell_quote_notional": 15356620.631219998,
+        "signed_quote_flow": -7514763.396559997,
+        "buy_share": 0.3380332658029127,
+        "observed_mid_change_pct": 0.0328073436987486,
+        "long_executable_change_pct": -0.0038584216483172895,
+        "short_executable_change_pct": -0.06949717506853194,
+        "spread_pct": 0.0077171410564735865,
+        "top_depth_imbalance": -0.03055404671374256,
+        "order_flow_imbalance_base": -2.2215,
+        "observed_bid_replenishment": 0.46429999999999993,
+        "observed_ask_replenishment": 1.0957999999999997,
+        "initial_history_count": 0,
+        "duplicates": 0,
+        "conflicts": 0,
+        "out_of_order_books": 0,
+        "complete_exchange_tape_verified": false,
+        "book_cancellation_or_fill_attribution_verified": false,
+        "intent_verified": false,
+        "forecast_accuracy_proven": false,
+        "trade_permission": false
+      },
+      "assessment": {
+        "version": "V43_DIRECTION_AND_ENTRY_OBSERVATION_V1",
+        "venue": "bithumb",
+        "symbol": "KRW-BTC",
+        "decided_at_ms": 1795238884164,
+        "direction": {
+          "observed_bias": "UP",
+          "pattern": "SELL_FLOW_PRICE_UP_ABSORPTION_CANDIDATE",
+          "venue_action_hypothesis": "BUY_HYPOTHESIS",
+          "probability": null,
+          "absorption_verified": false,
+          "future_direction_verified": false
+        },
+        "entry": {
+          "risk_flags": [
+            "SELL_FLOW_WITH_RISING_PRICE",
+            "PRICE_UP_WITH_OPPOSING_VISIBLE_DEPTH"
+          ],
+          "spread_pct": 0.0077171410564735865,
+          "observed_long_quote_change_pct": -0.0038584216483172895,
+          "observed_short_quote_change_pct": -0.06949717506853194,
+          "visible_depth_imbalance": -0.03055404671374256,
+          "observed_bid_replenishment": 0.46429999999999993,
+          "observed_ask_replenishment": 1.0957999999999997,
+          "observed_order_flow_imbalance": -2.2215,
+          "trade_permission": false
+        },
+        "raw_feature_asof_ms": 1795238884164,
+        "live_model_replaced": false,
+        "forecast_accuracy_proven": false,
+        "warning": "OBSERVED_DIRECTION_AND_ENTRY_RISK_ARE_NOT_FUTURE_TRADE_RECOMMENDATIONS"
+      },
+      "market_context_same_interval_verified": false
+    },
+    {
+      "session": "44870209273-1",
+      "feature": {
+        "version": "V43_PUBLIC_STREAM_EVIDENCE_V1",
+        "venue": "bithumb",
+        "symbol": "KRW-DNA",
+        "asof_ms": 1795238884164,
+        "window_ms": 60000,
+        "segment": "bithumb:44870209273-1:5f9ac32a-dd8e-4bb1-94ab-3cd041dd672f",
+        "connected_since_ms": 1795238525651,
+        "unbroken_window": false,
+        "market_observed_since_ms": 1795238868001,
+        "market_observation_span_ms": 16163,
+        "reconnects": 0,
+        "book_count": 17,
+        "trade_count": 1,
+        "first_quote": {
+          "bid": 220,
+          "ask": 221,
+          "at_ms": 1795238867845,
+          "at_us": 1795238867845931,
+          "received_at_ms": 1795238868001,
+          "bid_size": 437.4518,
+          "ask_size": 21858.9086
+        },
+        "last_quote": {
+          "bid": 221,
+          "ask": 222,
+          "at_ms": 1795238883883,
+          "at_us": 1795238883883089,
+          "received_at_ms": 1795238884033,
+          "bid_size": 1387.2727,
+          "ask_size": 26349.0648
+        },
+        "quote_age_ms": 281,
+        "buy_quote_notional": 5022.72727333,
+        "sell_quote_notional": 0,
+        "signed_quote_flow": 5022.72727333,
+        "buy_share": 1,
+        "observed_mid_change_pct": 0.45351473922903285,
+        "long_executable_change_pct": 0,
+        "short_executable_change_pct": -0.9090909090909091,
+        "spread_pct": 0.4524886877828038,
+        "top_depth_imbalance": -0.6379751987770921,
+        "order_flow_imbalance_base": 27748.1813,
+        "observed_bid_replenishment": 4502,
+        "observed_ask_replenishment": 0,
+        "initial_history_count": 0,
+        "duplicates": 0,
+        "conflicts": 0,
+        "out_of_order_books": 0,
+        "complete_exchange_tape_verified": false,
+        "book_cancellation_or_fill_attribution_verified": false,
+        "intent_verified": false,
+        "forecast_accuracy_proven": false,
+        "trade_permission": false
+      },
+      "assessment": {
+        "version": "V43_DIRECTION_AND_ENTRY_OBSERVATION_V1",
+        "venue": "bithumb",
+        "symbol": "KRW-DNA",
+        "decided_at_ms": 1795238884164,
+        "direction": {
+          "observed_bias": "UP",
+          "pattern": "BUY_FLOW_PRICE_UP",
+          "venue_action_hypothesis": "BUY_HYPOTHESIS",
+          "probability": null,
+          "absorption_verified": false,
+          "future_direction_verified": false
+        },
+        "entry": {
+          "risk_flags": [
+            "OBSERVATION_WINDOW_INCOMPLETE",
+            "PRICE_UP_WITH_OPPOSING_VISIBLE_DEPTH"
+          ],
+          "spread_pct": 0.4524886877828038,
+          "observed_long_quote_change_pct": 0,
+          "observed_short_quote_change_pct": -0.9090909090909091,
+          "visible_depth_imbalance": -0.6379751987770921,
+          "observed_bid_replenishment": 4502,
+          "observed_ask_replenishment": 0,
+          "observed_order_flow_imbalance": 27748.1813,
+          "trade_permission": false
+        },
+        "raw_feature_asof_ms": 1795238884164,
+        "live_model_replaced": false,
+        "forecast_accuracy_proven": false,
+        "warning": "OBSERVED_DIRECTION_AND_ENTRY_RISK_ARE_NOT_FUTURE_TRADE_RECOMMENDATIONS"
+      },
+      "market_context_same_interval_verified": false
+    },
+    {
+      "session": "44870209273-1",
+      "feature": {
+        "version": "V43_PUBLIC_STREAM_EVIDENCE_V1",
+        "venue": "bithumb",
+        "symbol": "KRW-HUMA",
+        "asof_ms": 1795238884164,
+        "window_ms": 60000,
+        "segment": "bithumb:44870209273-1:5f9ac32a-dd8e-4bb1-94ab-3cd041dd672f",
+        "connected_since_ms": 1795238525651,
+        "unbroken_window": false,
+        "market_observed_since_ms": 1795238855627,
+        "market_observation_span_ms": 28537,
+        "reconnects": 0,
+        "book_count": 166,
+        "trade_count": 1,
+        "first_quote": {
+          "bid": 11.83,
+          "ask": 11.87,
+          "at_ms": 1795238855473,
+          "at_us": 1795238855473452,
+          "received_at_ms": 1795238855627,
+          "bid_size": 123656.7782,
+          "ask_size": 672194.9495
+        },
+        "last_quote": {
+          "bid": 11.83,
+          "ask": 11.87,
+          "at_ms": 1795238883782,
+          "at_us": 1795238883782722,
+          "received_at_ms": 1795238883936,
+          "bid_size": 123656.7782,
+          "ask_size": 123656.7782
+        },
+        "quote_age_ms": 382,
+        "buy_quote_notional": 5021.132713462801,
+        "sell_quote_notional": 0,
+        "signed_quote_flow": 5021.132713462801,
+        "buy_share": 1,
+        "observed_mid_change_pct": 0,
+        "long_executable_change_pct": -0.33698399326030914,
+        "short_executable_change_pct": -0.33812341504648474,
+        "spread_pct": 0.33812341504648735,
+        "top_depth_imbalance": -0.16224301847548134,
+        "order_flow_imbalance_base": 29081.616899999965,
+        "observed_bid_replenishment": 0,
+        "observed_ask_replenishment": 519879.20869999996,
+        "initial_history_count": 0,
+        "duplicates": 0,
+        "conflicts": 0,
+        "out_of_order_books": 0,
+        "complete_exchange_tape_verified": false,
+        "book_cancellation_or_fill_attribution_verified": false,
+        "intent_verified": false,
+        "forecast_accuracy_proven": false,
+        "trade_permission": false
+      },
+      "assessment": {
+        "version": "V43_DIRECTION_AND_ENTRY_OBSERVATION_V1",
+        "venue": "bithumb",
+        "symbol": "KRW-HUMA",
+        "decided_at_ms": 1795238884164,
+        "direction": {
+          "observed_bias": "FLAT",
+          "pattern": "TAPE_WITHOUT_PRICE_PROGRESS",
+          "venue_action_hypothesis": "UNRESOLVED",
+          "probability": null,
+          "absorption_verified": false,
+          "future_direction_verified": false
+        },
+        "entry": {
+          "risk_flags": [
+            "MOVE_WITHIN_SPREAD",
+            "OBSERVATION_WINDOW_INCOMPLETE"
+          ],
+          "spread_pct": 0.33812341504648735,
+          "observed_long_quote_change_pct": -0.33698399326030914,
+          "observed_short_quote_change_pct": -0.33812341504648474,
+          "visible_depth_imbalance": -0.16224301847548134,
+          "observed_bid_replenishment": 0,
+          "observed_ask_replenishment": 519879.20869999996,
+          "observed_order_flow_imbalance": 29081.616899999965,
+          "trade_permission": false
+        },
+        "raw_feature_asof_ms": 1795238884164,
+        "live_model_replaced": false,
+        "forecast_accuracy_proven": false,
+        "warning": "OBSERVED_DIRECTION_AND_ENTRY_RISK_ARE_NOT_FUTURE_TRADE_RECOMMENDATIONS"
+      },
+      "market_context_same_interval_verified": false
+    },
+    {
+      "session": "44870209273-1",
+      "feature": {
+        "version": "V43_PUBLIC_STREAM_EVIDENCE_V1",
+        "venue": "bithumb",
+        "symbol": "KRW-PARTI",
+        "asof_ms": 1795238884164,
+        "window_ms": 60000,
+        "segment": "bithumb:44870209273-1:5f9ac32a-dd8e-4bb1-94ab-3cd041dd672f",
+        "connected_since_ms": 1795238525651,
+        "unbroken_window": false,
+        "market_observed_since_ms": 1795238855651,
+        "market_observation_span_ms": 28513,
+        "reconnects": 0,
+        "book_count": 148,
+        "trade_count": 1,
+        "first_quote": {
+          "bid": 48.27,
+          "ask": 48.57,
+          "at_ms": 1795238855532,
+          "at_us": 1795238855532229,
+          "received_at_ms": 1795238855651,
+          "bid_size": 3258.0599,
+          "ask_size": 58838.6717
+        },
+        "last_quote": {
+          "bid": 48.27,
+          "ask": 48.47,
+          "at_ms": 1795238883637,
+          "at_us": 1795238883637859,
+          "received_at_ms": 1795238883789,
+          "bid_size": 3258.0599,
+          "ask_size": 58838.6717
+        },
+        "quote_age_ms": 527,
+        "buy_quote_notional": 96900,
+        "sell_quote_notional": 0,
+        "signed_quote_flow": 96900,
+        "buy_share": 1,
+        "observed_mid_change_pct": -0.10326311441551939,
+        "long_executable_change_pct": -0.6176652254478054,
+        "short_executable_change_pct": -0.41433602651749685,
+        "spread_pct": 0.41433602651750334,
+        "top_depth_imbalance": -0.1690651211294999,
+        "order_flow_imbalance_base": -58838.6717,
+        "observed_bid_replenishment": 0,
+        "observed_ask_replenishment": 23945.3986,
+        "initial_history_count": 0,
+        "duplicates": 0,
+        "conflicts": 0,
+        "out_of_order_books": 0,
+        "complete_exchange_tape_verified": false,
+        "book_cancellation_or_fill_attribution_verified": false,
+        "intent_verified": false,
+        "forecast_accuracy_proven": false,
+        "trade_permission": false
+      },
+      "assessment": {
+        "version": "V43_DIRECTION_AND_ENTRY_OBSERVATION_V1",
+        "venue": "bithumb",
+        "symbol": "KRW-PARTI",
+        "decided_at_ms": 1795238884164,
+        "direction": {
+          "observed_bias": "DOWN",
+          "pattern": "BUY_FLOW_PRICE_DOWN_ABSORPTION_CANDIDATE",
+          "venue_action_hypothesis": "NO_BUY",
+          "probability": null,
+          "absorption_verified": false,
+          "future_direction_verified": false
+        },
+        "entry": {
+          "risk_flags": [
+            "BUY_FLOW_WITH_FALLING_PRICE",
+            "MOVE_WITHIN_SPREAD",
+            "OBSERVATION_WINDOW_INCOMPLETE"
+          ],
+          "spread_pct": 0.41433602651750334,
+          "observed_long_quote_change_pct": -0.6176652254478054,
+          "observed_short_quote_change_pct": -0.41433602651749685,
+          "visible_depth_imbalance": -0.1690651211294999,
+          "observed_bid_replenishment": 0,
+          "observed_ask_replenishment": 23945.3986,
+          "observed_order_flow_imbalance": -58838.6717,
+          "trade_permission": false
+        },
+        "raw_feature_asof_ms": 1795238884164,
+        "live_model_replaced": false,
+        "forecast_accuracy_proven": false,
+        "warning": "OBSERVED_DIRECTION_AND_ENTRY_RISK_ARE_NOT_FUTURE_TRADE_RECOMMENDATIONS"
+      },
+      "market_context_same_interval_verified": false
+    },
+    {
+      "session": "44870209273-1",
+      "feature": {
+        "version": "V43_PUBLIC_STREAM_EVIDENCE_V1",
+        "venue": "bithumb",
+        "symbol": "KRW-PYBOBO",
+        "asof_ms": 1795238884164,
+        "window_ms": 60000,
+        "segment": "bithumb:44870209273-1:5f9ac32a-dd8e-4bb1-94ab-3cd041dd672f",
+        "connected_since_ms": 1795238525651,
+        "unbroken_window": false,
+        "market_observed_since_ms": 1795238855610,
+        "market_observation_span_ms": 28554,
+        "reconnects": 0,
+        "book_count": 148,
+        "trade_count": 2,
+        "first_quote": {
+          "bid": 0.5485,
+          "ask": 0.5516,
+          "at_ms": 1795238855458,
+          "at_us": 1795238855458759,
+          "received_at_ms": 1795238855610,
+          "bid_size": 14317.8971,
+          "ask_size": 43472.543
+        },
+        "last_quote": {
+          "bid": 0.5485,
+          "ask": 0.5517,
+          "at_ms": 1795238883945,
+          "at_us": 1795238883945943,
+          "received_at_ms": 1795238884096,
+          "bid_size": 14317.8971,
+          "ask_size": 151306.5401
+        },
+        "quote_age_ms": 219,
+        "buy_quote_notional": 28572.87849135745,
+        "sell_quote_notional": 73453.05667073536,
+        "signed_quote_flow": -44880.17817937791,
+        "buy_share": 0.28005505115892876,
+        "observed_mid_change_pct": 0.009090082719764858,
+        "long_executable_change_pct": -0.5620014503263215,
+        "short_executable_change_pct": -0.5834092980856848,
+        "spread_pct": 0.5834092980856909,
+        "top_depth_imbalance": -0.3308804399703124,
+        "order_flow_imbalance_base": -51380.42930000005,
+        "observed_bid_replenishment": 0,
+        "observed_ask_replenishment": 287616.5653,
+        "initial_history_count": 0,
+        "duplicates": 0,
+        "conflicts": 0,
+        "out_of_order_books": 0,
+        "complete_exchange_tape_verified": false,
+        "book_cancellation_or_fill_attribution_verified": false,
+        "intent_verified": false,
+        "forecast_accuracy_proven": false,
+        "trade_permission": false
+      },
+      "assessment": {
+        "version": "V43_DIRECTION_AND_ENTRY_OBSERVATION_V1",
+        "venue": "bithumb",
+        "symbol": "KRW-PYBOBO",
+        "decided_at_ms": 1795238884164,
+        "direction": {
+          "observed_bias": "UP",
+          "pattern": "SELL_FLOW_PRICE_UP_ABSORPTION_CANDIDATE",
+          "venue_action_hypothesis": "BUY_HYPOTHESIS",
+          "probability": null,
+          "absorption_verified": false,
+          "future_direction_verified": false
+        },
+        "entry": {
+          "risk_flags": [
+            "SELL_FLOW_WITH_RISING_PRICE",
+            "MOVE_WITHIN_SPREAD",
+            "OBSERVATION_WINDOW_INCOMPLETE",
+            "PRICE_UP_WITH_OPPOSING_VISIBLE_DEPTH"
+          ],
+          "spread_pct": 0.5834092980856909,
+          "observed_long_quote_change_pct": -0.5620014503263215,
+          "observed_short_quote_change_pct": -0.5834092980856848,
+          "visible_depth_imbalance": -0.3308804399703124,
+          "observed_bid_replenishment": 0,
+          "observed_ask_replenishment": 287616.5653,
+          "observed_order_flow_imbalance": -51380.42930000005,
+          "trade_permission": false
+        },
+        "raw_feature_asof_ms": 1795238884164,
+        "live_model_replaced": false,
+        "forecast_accuracy_proven": false,
+        "warning": "OBSERVED_DIRECTION_AND_ENTRY_RISK_ARE_NOT_FUTURE_TRADE_RECOMMENDATIONS"
+      },
+      "market_context_same_interval_verified": false
+    },
+    {
+      "session": "44870209273-1",
+      "feature": {
+        "version": "V43_PUBLIC_STREAM_EVIDENCE_V1",
+        "venue": "bithumb",
+        "symbol": "KRW-SNT",
+        "asof_ms": 1795238884164,
+        "window_ms": 60000,
+        "segment": "bithumb:44870209273-1:5f9ac32a-dd8e-4bb1-94ab-3cd041dd672f",
+        "connected_since_ms": 1795238525651,
+        "unbroken_window": false,
+        "market_observed_since_ms": 1795238855617,
+        "market_observation_span_ms": 28547,
+        "reconnects": 0,
+        "book_count": 146,
+        "trade_count": 0,
+        "first_quote": {
+          "bid": 7.759,
+          "ask": 7.861,
+          "at_ms": 1795238855496,
+          "at_us": 1795238855496500,
+          "received_at_ms": 1795238855617,
+          "bid_size": 12269.9386,
+          "ask_size": 3764.367
+        },
+        "last_quote": {
+          "bid": 7.763,
+          "ask": 7.86,
+          "at_ms": 1795238883978,
+          "at_us": 1795238883978592,
+          "received_at_ms": 1795238884099,
+          "bid_size": 17312.6359,
+          "ask_size": 5031.6673
+        },
+        "quote_age_ms": 186,
+        "buy_quote_notional": 0,
+        "sell_quote_notional": 0,
+        "signed_quote_flow": 0,
+        "buy_share": null,
+        "observed_mid_change_pct": 0.01920614596671033,
+        "long_executable_change_pct": -1.2466607301869992,
+        "short_executable_change_pct": -1.3017141384198991,
+        "spread_pct": 1.2495169393275773,
+        "top_depth_imbalance": 0.011783032533330977,
+        "order_flow_imbalance_base": 391407.54980000004,
+        "observed_bid_replenishment": 89991.21840000001,
+        "observed_ask_replenishment": 0,
+        "initial_history_count": 0,
+        "duplicates": 0,
+        "conflicts": 0,
+        "out_of_order_books": 0,
+        "complete_exchange_tape_verified": false,
+        "book_cancellation_or_fill_attribution_verified": false,
+        "intent_verified": false,
+        "forecast_accuracy_proven": false,
+        "trade_permission": false
+      },
+      "assessment": {
+        "version": "V43_DIRECTION_AND_ENTRY_OBSERVATION_V1",
+        "venue": "bithumb",
+        "symbol": "KRW-SNT",
+        "decided_at_ms": 1795238884164,
+        "direction": {
+          "observed_bias": "UP",
+          "pattern": "PRICE_ONLY_NO_TAPE",
+          "venue_action_hypothesis": "BUY_HYPOTHESIS",
+          "probability": null,
+          "absorption_verified": false,
+          "future_direction_verified": false
+        },
+        "entry": {
+          "risk_flags": [
+            "NO_REALTIME_TAPE",
+            "MOVE_WITHIN_SPREAD",
+            "OBSERVATION_WINDOW_INCOMPLETE"
+          ],
+          "spread_pct": 1.2495169393275773,
+          "observed_long_quote_change_pct": -1.2466607301869992,
+          "observed_short_quote_change_pct": -1.3017141384198991,
+          "visible_depth_imbalance": 0.011783032533330977,
+          "observed_bid_replenishment": 89991.21840000001,
+          "observed_ask_replenishment": 0,
+          "observed_order_flow_imbalance": 391407.54980000004,
+          "trade_permission": false
+        },
+        "raw_feature_asof_ms": 1795238884164,
+        "live_model_replaced": false,
+        "forecast_accuracy_proven": false,
+        "warning": "OBSERVED_DIRECTION_AND_ENTRY_RISK_ARE_NOT_FUTURE_TRADE_RECOMMENDATIONS"
+      },
+      "market_context_same_interval_verified": false
+    },
+    {
+      "session": "44870209273-1",
+      "feature": {
+        "version": "V43_PUBLIC_STREAM_EVIDENCE_V1",
+        "venue": "bithumb",
+        "symbol": "KRW-STABLE",
+        "asof_ms": 1795238884164,
+        "window_ms": 60000,
+        "segment": "bithumb:44870209273-1:5f9ac32a-dd8e-4bb1-94ab-3cd041dd672f",
+        "connected_since_ms": 1795238525651,
+        "unbroken_window": false,
+        "market_observed_since_ms": 1795238855615,
+        "market_observation_span_ms": 28549,
+        "reconnects": 0,
+        "book_count": 281,
+        "trade_count": 0,
+        "first_quote": {
+          "bid": 30.68,
+          "ask": 30.77,
+          "at_ms": 1795238855462,
+          "at_us": 1795238855462338,
+          "received_at_ms": 1795238855615,
+          "bid_size": 1709.73,
+          "ask_size": 551303.9011
+        },
+        "last_quote": {
+          "bid": 30.68,
+          "ask": 30.78,
+          "at_ms": 1795238883991,
+          "at_us": 1795238883991550,
+          "received_at_ms": 1795238884108,
+          "bid_size": 977.8357,
+          "ask_size": 550945.679
+        },
+        "quote_age_ms": 173,
+        "buy_quote_notional": 0,
+        "sell_quote_notional": 0,
+        "signed_quote_flow": 0,
+        "buy_share": null,
+        "observed_mid_change_pct": 0.01627339300243058,
+        "long_executable_change_pct": -0.29249268768281045,
+        "short_executable_change_pct": -0.32594524119948315,
+        "spread_pct": 0.32594524119948787,
+        "top_depth_imbalance": -0.28243278522090876,
+        "order_flow_imbalance_base": -373.67220000003,
+        "observed_bid_replenishment": 5979.5997,
+        "observed_ask_replenishment": 0,
+        "initial_history_count": 0,
+        "duplicates": 0,
+        "conflicts": 0,
+        "out_of_order_books": 0,
+        "complete_exchange_tape_verified": false,
+        "book_cancellation_or_fill_attribution_verified": false,
+        "intent_verified": false,
+        "forecast_accuracy_proven": false,
+        "trade_permission": false
+      },
+      "assessment": {
+        "version": "V43_DIRECTION_AND_ENTRY_OBSERVATION_V1",
+        "venue": "bithumb",
+        "symbol": "KRW-STABLE",
+        "decided_at_ms": 1795238884164,
+        "direction": {
+          "observed_bias": "UP",
+          "pattern": "PRICE_ONLY_NO_TAPE",
+          "venue_action_hypothesis": "BUY_HYPOTHESIS",
+          "probability": null,
+          "absorption_verified": false,
+          "future_direction_verified": false
+        },
+        "entry": {
+          "risk_flags": [
+            "NO_REALTIME_TAPE",
+            "MOVE_WITHIN_SPREAD",
+            "OBSERVATION_WINDOW_INCOMPLETE",
+            "PRICE_UP_WITH_OPPOSING_VISIBLE_DEPTH"
+          ],
+          "spread_pct": 0.32594524119948787,
+          "observed_long_quote_change_pct": -0.29249268768281045,
+          "observed_short_quote_change_pct": -0.32594524119948315,
+          "visible_depth_imbalance": -0.28243278522090876,
+          "observed_bid_replenishment": 5979.5997,
+          "observed_ask_replenishment": 0,
+          "observed_order_flow_imbalance": -373.67220000003,
+          "trade_permission": false
+        },
+        "raw_feature_asof_ms": 1795238884164,
+        "live_model_replaced": false,
+        "forecast_accuracy_proven": false,
+        "warning": "OBSERVED_DIRECTION_AND_ENTRY_RISK_ARE_NOT_FUTURE_TRADE_RECOMMENDATIONS"
+      },
+      "market_context_same_interval_verified": false
+    },
+    {
+      "session": "44870209273-1",
+      "feature": {
+        "version": "V43_PUBLIC_STREAM_EVIDENCE_V1",
+        "venue": "bithumb",
+        "symbol": "KRW-USDT",
+        "asof_ms": 1795238884164,
+        "window_ms": 60000,
+        "segment": "bithumb:44870209273-1:5f9ac32a-dd8e-4bb1-94ab-3cd041dd672f",
+        "connected_since_ms": 1795238525651,
+        "unbroken_window": true,
+        "market_observed_since_ms": 1795238555589,
+        "market_observation_span_ms": 328575,
+        "reconnects": 0,
+        "book_count": 178,
+        "trade_count": 43,
+        "first_quote": {
+          "bid": 1380,
+          "ask": 1381,
+          "at_ms": 1795238824707,
+          "at_us": 1795238824707416,
+          "received_at_ms": 1795238824952,
+          "bid_size": 251699.0897,
+          "ask_size": 113165.6159
+        },
+        "last_quote": {
+          "bid": 1380,
+          "ask": 1381,
+          "at_ms": 1795238883512,
+          "at_us": 1795238883512382,
+          "received_at_ms": 1795238883668,
+          "bid_size": 238504.7396,
+          "ask_size": 90004.6021
+        },
+        "quote_age_ms": 652,
+        "buy_quote_notional": 371468819.0599158,
+        "sell_quote_notional": 40697511.83369016,
+        "signed_quote_flow": 330771307.2262256,
+        "buy_share": 0.9012594945699347,
+        "observed_mid_change_pct": 0,
+        "long_executable_change_pct": -0.07241129616220032,
+        "short_executable_change_pct": -0.07246376811594203,
+        "spread_pct": 0.07246376811593791,
+        "top_depth_imbalance": 0.06246773025435792,
+        "order_flow_imbalance_base": 29940.88089999999,
+        "observed_bid_replenishment": 45331.199900000014,
+        "observed_ask_replenishment": 63130.00399999999,
+        "initial_history_count": 0,
+        "duplicates": 0,
+        "conflicts": 0,
+        "out_of_order_books": 0,
+        "complete_exchange_tape_verified": false,
+        "book_cancellation_or_fill_attribution_verified": false,
+        "intent_verified": false,
+        "forecast_accuracy_proven": false,
+        "trade_permission": false
+      },
+      "assessment": {
+        "version": "V43_DIRECTION_AND_ENTRY_OBSERVATION_V1",
+        "venue": "bithumb",
+        "symbol": "KRW-USDT",
+        "decided_at_ms": 1795238884164,
+        "direction": {
+          "observed_bias": "FLAT",
+          "pattern": "TAPE_WITHOUT_PRICE_PROGRESS",
+          "venue_action_hypothesis": "UNRESOLVED",
+          "probability": null,
+          "absorption_verified": false,
+          "future_direction_verified": false
+        },
+        "entry": {
+          "risk_flags": [
+            "MOVE_WITHIN_SPREAD"
+          ],
+          "spread_pct": 0.07246376811593791,
+          "observed_long_quote_change_pct": -0.07241129616220032,
+          "observed_short_quote_change_pct": -0.07246376811594203,
+          "visible_depth_imbalance": 0.06246773025435792,
+          "observed_bid_replenishment": 45331.199900000014,
+          "observed_ask_replenishment": 63130.00399999999,
+          "observed_order_flow_imbalance": 29940.88089999999,
+          "trade_permission": false
+        },
+        "raw_feature_asof_ms": 1795238884164,
         "live_model_replaced": false,
         "forecast_accuracy_proven": false,
         "warning": "OBSERVED_DIRECTION_AND_ENTRY_RISK_ARE_NOT_FUTURE_TRADE_RECOMMENDATIONS"
@@ -351,7 +3794,7 @@
     "execution_intervals": {
       "intervals": [
         [
-          1795152016547,
+          1795152259854,
           1795154988665
         ],
         [
@@ -564,10 +4007,10 @@
         ],
         [
           1795220382659,
-          1795238603938
+          1795238884170
         ]
       ],
-      "covered_ms": 84104333,
+      "covered_ms": 84141258,
       "gap_ms": 2483058,
       "gaps": [
         {
@@ -841,7 +4284,7 @@
       "bitget": {
         "intervals": [
           [
-            1795152018288,
+            1795152262031,
             1795154988633
           ],
           [
@@ -1066,10 +4509,10 @@
           ],
           [
             1795220384362,
-            1795238603871
+            1795238884166
           ]
         ],
-        "covered_ms": 84000478,
+        "covered_ms": 84037030,
         "gap_ms": 2585105,
         "gaps": [
           {
@@ -1357,7 +4800,7 @@
       "bithumb": {
         "intervals": [
           [
-            1795152019166,
+            1795152262132,
             1795154988639
           ],
           [
@@ -1606,10 +5049,10 @@
           ],
           [
             1795223735440,
-            1795238603905
+            1795238884126
           ]
         ],
-        "covered_ms": 83977756,
+        "covered_ms": 84015011,
         "gap_ms": 2606983,
         "gaps": [
           {
@@ -1929,8 +5372,8 @@
     "all_symbols_continuous_verified": false,
     "scope": "PERSISTED_SESSIONS_ONLY;BOOK_ENVELOPES_DO_NOT_PROVE_EVERY_TICK_OR_EVERY_SYMBOL",
     "publication_predecessor_gap_ms": 0,
-    "current_session_overlap_ms": 43270,
-    "publication_cutoff_ms": 1795238603938,
+    "current_session_overlap_ms": 79812,
+    "publication_cutoff_ms": 1795238884170,
     "complete_data_history_verified": false
   }
 }
